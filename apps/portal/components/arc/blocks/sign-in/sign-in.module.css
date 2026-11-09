@@ -1,0 +1,227 @@
+.signIn {
+  display: grid;
+  inline-size: min(100%, 400px);
+  min-inline-size: 0;
+  gap: 28px;
+}
+
+.heading {
+  display: grid;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.heading h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 34px);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+
+.heading p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 24px;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.heading strong,
+.codeInfo strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.card {
+  display: grid;
+  min-inline-size: 0;
+  gap: 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  background: var(--surface);
+}
+
+.card.options {
+  gap: 16px;
+}
+
+.cardTitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+  flex: 1;
+  block-size: 1px;
+  background: var(--border);
+  content: "";
+}
+
+.card .primary,
+.card .provider {
+  inline-size: 100%;
+  min-block-size: 52px;
+  border-radius: 18px;
+  padding-inline: 12px;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.card .primary {
+  border-color: color-mix(in oklab, var(--accent) 86%, var(--foreground));
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.card .provider {
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.signIn .back {
+  justify-self: start;
+  margin-inline-start: -12px;
+  border-radius: 18px;
+  padding-inline: 12px;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.card .emailInput {
+  min-block-size: 52px;
+  border-width: 1.5px;
+  border-radius: 14px;
+  padding-inline: 16px;
+  font-size: var(--text-base);
+}
+
+.card .emailInput::placeholder {
+  color: var(--text-muted);
+}
+
+.card label {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.otp {
+  --radius-control: 14px;
+}
+
+.otp [role="group"] {
+  inline-size: 100%;
+  justify-content: space-between;
+  gap: clamp(4px, 1vw, 8px);
+}
+
+.otp [role="group"] > div {
+  flex: 1 1 0;
+  max-inline-size: 56px;
+  block-size: 64px;
+  font-size: var(--text-2xl);
+}
+
+.otp [role="group"] > div > span {
+  font-family: var(--font-display);
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.otp input {
+  border-width: 1.5px;
+  border-color: var(--border-strong);
+}
+
+.otp input:focus {
+  border-color: var(--foreground);
+}
+
+.otp input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.codeInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 20px;
+}
+
+.codeInfo .reset {
+  min-block-size: 44px;
+  margin-inline-end: -8px;
+  border-radius: 12px;
+  padding-inline: 8px;
+}
+
+.codeInfo .reset[aria-disabled="true"] {
+  cursor: default;
+}
+
+.digits {
+  font-variant-numeric: tabular-nums;
+}
+
+.hint,
+.notice {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.notice:empty {
+  position: absolute;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card .primary:hover {
+    background: var(--accent-hover);
+    opacity: 1;
+  }
+
+  .card .provider:hover {
+    border-color: var(--foreground);
+    background: var(--background);
+  }
+}
+
+@media (max-width: 480px) {
+  .signIn {
+    gap: 22px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .otp [role="group"] > div {
+    block-size: 52px;
+  }
+}

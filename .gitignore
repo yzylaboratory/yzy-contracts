@@ -1,0 +1,18 @@
+# Dependencies and Next.js output
+node_modules/
+.next/
+/out/
+/apps/*/out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local environment
+.env*
+.DS_Store
+
+# Source contracts and Markdown extracts
+*.doc
+*.docx
+/markdown/
+/contracts-demo/
+/contracts-demo-markdown/

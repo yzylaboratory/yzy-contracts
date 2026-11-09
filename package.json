@@ -1,0 +1,12 @@
+{
+  "name": "yzy-contracts",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "pnpm --filter @yzy-contracts/portal run dev",
+    "build": "pnpm --filter @yzy-contracts/portal run build",
+    "start": "pnpm --filter @yzy-contracts/portal run start",
+    "lint": "pnpm --filter @yzy-contracts/portal run lint",
+    "typecheck": "pnpm --filter @yzy-contracts/portal run typecheck"
+  }
+}
