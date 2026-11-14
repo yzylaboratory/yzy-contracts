@@ -1,0 +1,96 @@
+.dialog {
+  inline-size: min(720px, calc(100% - 32px));
+  max-block-size: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.dialog::backdrop {
+  background: rgb(12 14 18 / 55%);
+}
+
+.dialog[data-format="pdf"] {
+  inline-size: min(980px, calc(100% - 32px));
+}
+
+.pdfFrame {
+  display: block;
+  inline-size: 100%;
+  block-size: min(72dvh, 840px);
+  border: 0;
+  background: var(--surface-muted);
+}
+
+.pdfLink {
+  margin: 0;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.pdfLink a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 32px;
+  color: var(--foreground);
+  text-underline-offset: 3px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-block-end: 1px solid var(--border);
+}
+
+.header > div {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.content {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.content p {
+  margin: 0;
+}
+
+.content p[data-heading="true"] {
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .dialog,
+  .dialog[data-format="pdf"] {
+    inline-size: 100%;
+    margin: auto 0 0;
+    border-radius: 18px 18px 0 0;
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+}

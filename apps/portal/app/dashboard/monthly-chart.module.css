@@ -1,0 +1,6 @@
+.chart {
+  --accent: var(--foreground);
+  --text-muted: var(--text-secondary);
+
+  min-inline-size: 0;
+}

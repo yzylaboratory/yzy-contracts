@@ -1,0 +1,266 @@
+.panel {
+  gap: 16px;
+}
+
+.table {
+  min-inline-size: 640px;
+}
+
+.table time {
+  white-space: nowrap;
+}
+
+.mobileDetail {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .table {
+    min-inline-size: 0;
+  }
+
+  .table .desktopDetail {
+    display: none;
+  }
+
+  .mobileDetail {
+    display: block;
+  }
+
+  .contractName {
+    overflow-wrap: anywhere;
+  }
+}
+
+.actionIcon {
+  min-inline-size: 44px;
+}
+
+.contractName,
+.metadata {
+  display: block;
+}
+
+.metadata {
+  margin-block-start: 2px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.contractId {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font: 600 13px/18px ui-monospace, Menlo, Consolas, monospace;
+}
+
+.format {
+  display: inline-block;
+  border-radius: 12px;
+  padding: 2px 10px;
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.format[data-format="pdf"] {
+  background: #fdecea;
+  color: #9d2016;
+}
+
+.format[data-format="docx"] {
+  background: #e6eefb;
+  color: #184e9f;
+}
+
+.ellipsis {
+  color: var(--text-secondary);
+}
+
+.skeletonField,
+.skeletonDocument {
+  display: grid;
+}
+
+.skeletonDocument {
+  gap: 8px;
+}
+
+.skeletonControl,
+.skeletonBadge,
+.skeletonPager,
+.skeletonPageNumber {
+  overflow: hidden;
+}
+
+.skeletonControl {
+  border-radius: 10px;
+}
+
+.skeletonBadge {
+  border-radius: 12px;
+}
+
+.skeletonPager {
+  border-radius: 18px;
+}
+
+.skeletonPageNumber {
+  border-radius: 14px;
+}
+
+.skeletonPrevious {
+  --pager-width: 102px;
+}
+
+.skeletonNext {
+  --pager-width: 110px;
+}
+
+.skeletonAction {
+  margin-inline: 13px;
+}
+
+.skeletonTable {
+  table-layout: fixed;
+}
+
+.skeletonTable thead tr {
+  block-size: 41px;
+}
+
+.skeletonTable tbody tr {
+  block-size: 67px;
+}
+
+.skeletonDateColumn {
+  inline-size: 16%;
+}
+
+.skeletonFormatColumn {
+  inline-size: 13%;
+}
+
+.skeletonActionColumn {
+  inline-size: 104px;
+}
+
+.dialog {
+  inline-size: min(540px, calc(100% - 32px));
+  max-block-size: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.dialog::backdrop {
+  background: rgb(12 14 18 / 55%);
+}
+
+.dialogHeader {
+  margin-block-end: 20px;
+}
+
+.dialogHeader h2,
+.emailPreview h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.dialogHeader p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dialogForm {
+  display: grid;
+  gap: 16px;
+}
+
+.dialogForm > div {
+  min-inline-size: 0;
+}
+
+.attachmentPicker {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.attachmentPicker select {
+  min-block-size: 44px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  padding-inline: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.emailPreview {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--surface-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.emailPreview dl,
+.emailPreview dd,
+.emailPreview p {
+  margin: 0;
+}
+
+.emailPreview dl > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.emailPreview dt {
+  font-weight: 600;
+}
+
+.message {
+  white-space: pre-wrap;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+}
+
+@media (max-width: 480px) {
+  .skeletonPrevious {
+    --pager-width: 86px;
+  }
+
+  .skeletonNext {
+    --pager-width: 94px;
+  }
+
+  .dialog {
+    padding: 16px;
+  }
+}

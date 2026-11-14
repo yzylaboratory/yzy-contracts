@@ -1,0 +1,557 @@
+{
+  "info": {
+    "_postman_id": "8de4c54e-4fbe-4938-8f38-078521480456",
+    "name": "YZY Contracts — Doc Extractor API (Automated Tests)",
+    "description": "Colección oficial con **pruebas automatizadas (`pm.test`)** para `doc-extractor-api` (FastAPI + Docling).\n\nIncluye:\n1. **Health & Readiness**: validación de liveness, motor Docling (`converter_ready`), clave configurada (`api_key_configured`) y lista blanca de R2 (`r2_hosts_configured`).\n2. **Seguridad, SSRF & Validaciones (100% deterministas)**: pruebas de `401 UNAUTHORIZED`, protección anti-SSRF (`400 FORBIDDEN_DOWNLOAD_URL` por host no autorizado y por esquema HTTP) y `422 INVALID_REQUEST`.\n3. **Extracción Documental (R2 Presigned URLs)**: pruebas de contrato sobre `ExtractionResponse` (`200 OK`) y manejo de errores de almacenamiento (`403 STORAGE_ACCESS_DENIED` / `410 PRESIGNED_URL_EXPIRED` / `502 DOWNLOAD_FAILED`).\n\nConfigura base_url para el entorno que vas a probar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Header X-Request-Id está presente en toda respuesta', function () {",
+          "    pm.response.to.have.header('X-Request-Id');",
+          "    pm.expect(pm.response.headers.get('X-Request-Id')).to.be.a('string').and.not.be.empty;",
+          "});",
+          "",
+          "pm.test('Content-Type de respuesta es application/json', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health & Readiness",
+      "item": [
+        {
+          "name": "GET /health — Liveness Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Contrato de liveness válido', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('ok');",
+                  "    pm.expect(body.service).to.eql('doc-extractor-api');",
+                  "    pm.expect(body.version).to.be.a('string').and.not.be.empty;",
+                  "});",
+                  "",
+                  "pm.test('Tiempo de respuesta menor a 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica que el proceso FastAPI esté vivo y responda dentro del SLA."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /ready — Readiness + Docling Engine Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Todos los subsistemas están listos (API key, R2 allowlist y Docling converter)', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('ready');",
+                  "    pm.expect(body.service).to.eql('doc-extractor-api');",
+                  "    pm.expect(body.checks).to.be.an('object');",
+                  "    pm.expect(body.checks.api_key_configured).to.eql(true);",
+                  "    pm.expect(body.checks.r2_hosts_configured).to.eql(true);",
+                  "    pm.expect(body.checks.converter_ready).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/ready",
+              "host": ["{{base_url}}"],
+              "path": ["ready"]
+            },
+            "description": "Verifica que el motor Docling esté inicializado y los hosts R2 estén configurados."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Seguridad, SSRF & Validaciones (Automated Suite)",
+      "item": [
+        {
+          "name": "POST /internal/v1/extract — Sin X-Internal-API-Key (401 UNAUTHORIZED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza petición sin header X-Internal-API-Key con 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Devuelve ErrorResponse estándar con código UNAUTHORIZED', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('error');",
+                  "    pm.expect(body.error.code).to.eql('UNAUTHORIZED');",
+                  "    pm.expect(body.error.message).to.be.a('string').and.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"ae17c335-55bc-401a-a46a-391dc7b54d8b\",\n  \"document\": {\n    \"filename\": \"contrato_servicios.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"https://{{r2_host}}/yzy-contracts/contrato.pdf\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Verifica que una llamada sin `X-Internal-API-Key` sea bloqueada con `401 UNAUTHORIZED`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — X-Internal-API-Key Inválida (401 UNAUTHORIZED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza API key incorrecta con 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('ErrorResponse no filtra secretos y devuelve UNAUTHORIZED', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error.code).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "invalid-secret-key-for-negative-test"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"ae17c335-55bc-401a-a46a-391dc7b54d8b\",\n  \"document\": {\n    \"filename\": \"contrato_servicios.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"https://{{r2_host}}/yzy-contracts/contrato.pdf\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Verifica la comparación en tiempo constante (`secrets.compare_digest`) ante una clave inválida."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — SSRF Host No Autorizado (400 FORBIDDEN_DOWNLOAD_URL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Bloquea host fuera de R2_ALLOWED_HOSTS con 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Código de error es FORBIDDEN_DOWNLOAD_URL', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error.code).to.eql('FORBIDDEN_DOWNLOAD_URL');",
+                  "    pm.expect(body.error.message).to.include('evil.example.com');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"b0a2c7c0-1111-4222-8333-444455556666\",\n  \"document\": {\n    \"filename\": \"malicious.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"https://evil.example.com/malicious.pdf\"\n  },\n  \"options\": {\n    \"ocr_mode\": \"auto\",\n    \"ocr_languages\": [\"es\"],\n    \"extract_tables\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Verifica que hosts fuera de `R2_ALLOWED_HOSTS` sean bloqueados antes de abrir conexión de red."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — SSRF Esquema HTTP Plano Rechazado (400 FORBIDDEN_DOWNLOAD_URL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Bloquea URL con esquema http:// con 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Código de error es FORBIDDEN_DOWNLOAD_URL', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error.code).to.eql('FORBIDDEN_DOWNLOAD_URL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"b0a2c7c0-2222-4222-8333-444455556666\",\n  \"document\": {\n    \"filename\": \"contrato.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"http://{{r2_host}}/yzy-contracts/contrato.pdf\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Verifica que solo se acepten descargas sobre `https://`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — Tipo MIME No Soportado (422 INVALID_REQUEST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza Content-Type no soportado (image/png) con 422', function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test('Código de error es INVALID_REQUEST', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error.code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"b0a2c7c0-3333-4222-8333-444455556666\",\n  \"document\": {\n    \"filename\": \"imagen.png\",\n    \"content_type\": \"image/png\",\n    \"download_url\": \"https://{{r2_host}}/yzy-contracts/imagen.png\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Verifica que tipos MIME distintos de PDF y DOCX sean rechazados con `422 INVALID_REQUEST`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — Error de Esquema Pydantic (422 INVALID_REQUEST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza payload malformado con 422', function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test('Código de error es INVALID_REQUEST', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error.code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"ae17c335-55bc-401a-a46a-391dc7b54d8b\",\n  \"document\": {\n    \"filename\": \"contrato.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"https://{{r2_host}}/yzy-contracts/contrato.pdf\"\n  },\n  \"options\": {\n    \"ocr_mode\": \"invalid_mode\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Verifica que errores de validación de Pydantic v2 se envuelvan en `ErrorResponse` con código `INVALID_REQUEST`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Extracción Documental (R2 Presigned URLs)",
+      "item": [
+        {
+          "name": "POST /internal/v1/extract — PDF Digital (Auto OCR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Extracción completada con estructura válida (200 OK)', function () {",
+                  "        pm.expect(body.status).to.eql('completed');",
+                  "        pm.expect(body.job_id).to.eql('ae17c335-55bc-401a-a46a-391dc7b54d8b');",
+                  "        pm.expect(body.document.filename).to.eql('contrato_servicios.pdf');",
+                  "        pm.expect(body.extraction.markdown).to.be.a('string').and.not.be.empty;",
+                  "        pm.expect(body.extraction.metadata.duration_ms).to.be.a('number').and.be.at.least(0);",
+                  "        pm.expect(body.extraction.warnings).to.be.an('array');",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Si la URL prefirmada de ejemplo expiró o no está firmada, devuelve ErrorResponse controlado', function () {",
+                  "        pm.expect([400, 403, 404, 410, 502]).to.include(pm.response.code);",
+                  "        pm.expect(body).to.have.property('error');",
+                  "        pm.expect(body.error.code).to.be.oneOf(['STORAGE_ACCESS_DENIED', 'PRESIGNED_URL_EXPIRED', 'DOCUMENT_NOT_FOUND', 'DOWNLOAD_FAILED']);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"ae17c335-55bc-401a-a46a-391dc7b54d8b\",\n  \"document\": {\n    \"filename\": \"contrato_servicios.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"{{presigned_pdf_url}}\"\n  },\n  \"options\": {\n    \"ocr_mode\": \"auto\",\n    \"ocr_languages\": [\"es\", \"en\"],\n    \"extract_tables\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Extrae Markdown estructurado y metadatos desde un PDF alojado en Cloudflare R2 mediante URL prefirmada (`{{presigned_pdf_url}}`)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — PDF Escaneado (OCR On)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Extracción OCR completada con ocr_used=true (200 OK)', function () {",
+                  "        pm.expect(body.status).to.eql('completed');",
+                  "        pm.expect(body.extraction.markdown).to.be.a('string').and.not.be.empty;",
+                  "        pm.expect(body.extraction.metadata.ocr_used).to.eql(true);",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Si la URL prefirmada de ejemplo expiró o no está firmada, devuelve ErrorResponse controlado', function () {",
+                  "        pm.expect([400, 403, 404, 410, 502]).to.include(pm.response.code);",
+                  "        pm.expect(body).to.have.property('error');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"c10f8682-6c7f-456d-92be-15950d897422\",\n  \"document\": {\n    \"filename\": \"contrato_escaneado.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"download_url\": \"{{presigned_scanned_pdf_url}}\"\n  },\n  \"options\": {\n    \"ocr_mode\": \"on\",\n    \"ocr_languages\": [\"es\", \"en\"],\n    \"extract_tables\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Fuerza OCR de página completa (`ocr_mode: on`) en español e inglés sobre un PDF escaneado."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /internal/v1/extract — DOCX",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Extracción DOCX completada con tablas detectadas (200 OK)', function () {",
+                  "        pm.expect(body.status).to.eql('completed');",
+                  "        pm.expect(body.extraction.markdown).to.be.a('string').and.not.be.empty;",
+                  "        pm.expect(body.extraction.metadata.ocr_used).to.eql(false);",
+                  "        pm.expect(body.extraction.metadata.tables_detected).to.be.a('number');",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Si la URL prefirmada de ejemplo expiró o no está firmada, devuelve ErrorResponse controlado', function () {",
+                  "        pm.expect([400, 403, 404, 410, 502]).to.include(pm.response.code);",
+                  "        pm.expect(body).to.have.property('error');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-API-Key",
+                "value": "{{internal_api_key}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"4f903025-8306-4418-a9b8-e5e734690928\",\n  \"document\": {\n    \"filename\": \"contrato_servicios.docx\",\n    \"content_type\": \"application/vnd.openxmlformats-officedocument.wordprocessingml.document\",\n    \"download_url\": \"{{presigned_docx_url}}\"\n  },\n  \"options\": {\n    \"ocr_mode\": \"off\",\n    \"ocr_languages\": [\"es\", \"en\"],\n    \"extract_tables\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/internal/v1/extract",
+              "host": ["{{base_url}}"],
+              "path": ["internal", "v1", "extract"]
+            },
+            "description": "Extrae encabezados, cláusulas y tablas de un archivo Word `.docx`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

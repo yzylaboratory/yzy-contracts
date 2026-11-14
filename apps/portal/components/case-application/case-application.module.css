@@ -1,0 +1,22 @@
+.section, .subsection {
+  display: grid;
+  min-inline-size: 0;
+  gap: 12px;
+  margin: 0;
+  border: 0;
+  padding: 12px 0 0;
+}
+.section { border-block-start: 1px solid var(--border); }
+.section legend, .subsection legend { padding-inline-end: 8px; font-weight: 600; }
+.fields { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+.summary { margin: 0; overflow-wrap: anywhere; }
+.summary dt { color: var(--text-secondary); font-size: var(--text-sm); }
+.summary dd { margin: 4px 0 0; }
+.referenceList { display: grid; gap: 12px; margin: 0; padding-inline-start: 24px; }
+.tableFrame { overflow-x: auto; }
+.referenceTable { width: 100%; min-width: 560px; border-collapse: collapse; }
+.referenceTable th { padding: 0 8px 8px; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500; text-align: start; white-space: nowrap; }
+.referenceTable td { padding: 4px; }
+.referenceTable tbody th { width: 1%; padding: 4px 8px 4px 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.referenceTable tbody tr + tr { border-block-start: 1px solid var(--border); }
+.comboboxCell label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

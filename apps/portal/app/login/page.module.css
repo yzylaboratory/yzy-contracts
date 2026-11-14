@@ -6,7 +6,7 @@
   --text-secondary: #5e6168;
   --text-muted: #6b6e74;
   --border: #e4e4de;
-  --border-strong: #cfcfc7;
+  --border-strong: #8b8b82;
   --accent: #c8f031;
   --accent-hover: #b9e41f;
   --accent-foreground: var(--foreground);
@@ -194,6 +194,34 @@
   min-inline-size: 0;
   place-items: center;
   padding: 48px 32px;
+}
+
+.loadingTitle,
+.loadingDescription,
+.loadingCardTitle {
+  display: grid;
+  align-items: center;
+}
+
+.loadingTitle {
+  min-block-size: clamp(33px, 4.72vw, 40px);
+}
+
+.loadingDescription {
+  min-block-size: 24px;
+}
+
+.loadingCardTitle {
+  min-block-size: 20px;
+  justify-items: center;
+}
+
+.loadingButton {
+  --loading-block-radius: 18px;
+}
+
+.loadingDivider {
+  min-block-size: 16px;
 }
 
 @media (max-width: 940px) {

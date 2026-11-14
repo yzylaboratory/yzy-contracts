@@ -1,205 +1,203 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
-import { useRef, useState, type KeyboardEvent } from "react";
-import { Avatar } from "@/components/arc/avatar/avatar";
-import { Badge } from "@/components/arc/badge/badge";
+import { FilePlus2, Pencil } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { contractStatusLabels, errorMessage, listContracts } from "@/app/contratos/contracts-api";
+import { documentTimeZone, legacyHistoryWarning, syncLegacyGeneratedDocuments } from "@/app/contratos/contracts-store";
+import { getGeneratedDocumentStats, type GeneratedDocumentStats } from "@/app/contratos/generated-documents-api";
 import { Button } from "@/components/arc/button/button";
 import { MetricCard } from "@/components/arc/metric-card/metric-card";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
+import { isActiveAccount } from "@/lib/api";
+import { useSession } from "@/lib/session";
+import { FormatChart } from "./format-chart";
+import DashboardLoading from "./loading";
+import { MonthlyChart } from "./monthly-chart";
 import styles from "./dashboard.module.css";
 
-const metrics = [
-  { label: "Total de contratos", value: 18, tone: styles.lime },
-  { label: "Documentos generados", value: 47, tone: styles.ink },
-  { label: "Generados este mes", value: 6, tone: styles.violet },
-];
+const monthName = new Intl.DateTimeFormat("es-DO", { month: "long", timeZone: "UTC" });
+const monthShort = new Intl.DateTimeFormat("es-DO", { month: "short", timeZone: "UTC" });
+const uploadedDate = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeZone: documentTimeZone });
+const formatLabels = { pdf: "PDF", docx: "Word", email: "Correo" } as const;
 
-const months = [
-  { name: "Junio", short: "Jun", total: 4 },
-  { name: "Julio", short: "Jul", total: 7 },
-  { name: "Agosto", short: "Ago", total: 9 },
-  { name: "Septiembre", short: "Sep", total: 8 },
-  { name: "Octubre", short: "Oct", total: 13 },
-  { name: "Noviembre", short: "Nov", total: 6, current: true },
-];
+function chartData(stats: GeneratedDocumentStats) {
+  const months = stats.months.map(({ month, total }, index) => {
+    const date = new Date(`${month}-01T00:00:00Z`);
+    return { name: monthName.format(date), short: monthShort.format(date), total, current: index === stats.months.length - 1 };
+  });
+  const formats = (Object.keys(formatLabels) as Array<keyof typeof formatLabels>).map(format => ({
+    name: formatLabels[format],
+    total: stats.formats[format],
+  }));
+  return { months, formats };
+}
 
-const formats = [
-  { name: "PDF", total: 24, tone: styles.pdf },
-  { name: "Word", total: 15, tone: styles.word },
-  { name: "Correo", total: 8, tone: styles.mail },
-];
-
-const contracts = [
-  { name: "Contrato de arrendamiento", category: "Vivienda", date: "2026-11-06", dateLabel: "06 nov 2026" },
-  { name: "Acuerdo de confidencialidad (NDA)", category: "Legal", date: "2026-11-03", dateLabel: "03 nov 2026" },
-  { name: "Contrato de servicios profesionales", category: "Servicios", date: "2026-10-28", dateLabel: "28 oct 2026" },
-  { name: "Contrato de trabajo", category: "Laboral", date: "2026-10-21", dateLabel: "21 oct 2026" },
-];
-
-const highestMonth = Math.max(...months.map(month => month.total));
-const formatTotal = formats.reduce((sum, format) => sum + format.total, 0);
-const monthlySummary = months.map(month => `${month.name}: ${month.total}${month.current ? " (mes de referencia)" : ""}`).join(", ");
-
-type Notice = {
-  zone: "menu" | "settings" | "profile" | "contracts";
-  message: string;
-};
+type ContractListing = { data: Awaited<ReturnType<typeof listContracts>> } | { failure: string };
+type History = { data: GeneratedDocumentStats; legacyPending: boolean } | { failure: string };
 
 export function Dashboard() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const menuTrigger = useRef<HTMLButtonElement>(null);
+  const accountId = useSession()?.user.id;
+  if (!accountId) return <DashboardLoading />;
+  return <DashboardContent key={accountId} accountId={accountId} />;
+}
 
-  function closeMenuOnEscape(event: KeyboardEvent<HTMLElement>) {
-    if (event.key !== "Escape" || !menuOpen) return;
-    setMenuOpen(false);
-    menuTrigger.current?.focus();
+function DashboardContent({ accountId }: { accountId: string }) {
+  const [listing, setListing] = useState<ContractListing | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [history, setHistory] = useState<History | null>(null);
+  const [historyAttempt, setHistoryAttempt] = useState(0);
+  const [loadingContracts, setLoadingContracts] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const retryContractsButton = useRef<HTMLButtonElement>(null);
+  const retryHistoryButton = useRef<HTMLButtonElement>(null);
+  const contractsHeading = useRef<HTMLHeadingElement>(null);
+  const monthlyHeading = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    listContracts({ page: 1, perPage: 4, name: "", status: "all" }, accountId)
+      .then(async data => {
+        if (!await isActiveAccount(accountId) || !active) return;
+        const restoreFocus = document.activeElement === retryContractsButton.current;
+        setListing({ data });
+        if (restoreFocus) contractsHeading.current?.focus();
+      })
+      .catch((error: unknown) => {
+        if (active) setListing({ failure: errorMessage(error, "No se pudieron cargar los contratos.") });
+      })
+      .finally(() => { if (active) setLoadingContracts(false); });
+    return () => { active = false; };
+  }, [accountId, attempt]);
+
+  useEffect(() => {
+    const request = new AbortController();
+    const { signal } = request;
+    async function load() {
+      try {
+        const synced = await syncLegacyGeneratedDocuments(accountId);
+        if (signal.aborted) return;
+        const data = await getGeneratedDocumentStats(accountId, signal);
+        if (await isActiveAccount(accountId) && !signal.aborted) {
+          const restoreFocus = synced && document.activeElement === retryHistoryButton.current;
+          setHistory({ data, legacyPending: !synced });
+          if (restoreFocus) requestAnimationFrame(() => {
+            if (!signal.aborted && document.activeElement === document.body) monthlyHeading.current?.focus();
+          });
+        }
+      } catch (error) {
+        if (!signal.aborted) setHistory({ failure: errorMessage(error, "No se pudieron cargar los indicadores de generación.") });
+      } finally {
+        if (!signal.aborted) setLoadingHistory(false);
+      }
+    }
+    void load();
+    return () => request.abort();
+  }, [accountId, historyAttempt]);
+
+  if (!listing && !history) return <DashboardLoading />;
+  const contracts = listing && "data" in listing ? listing.data.items : [];
+  const stats = history && "data" in history ? history.data : null;
+  const charts = stats ? chartData(stats) : null;
+  const metrics = [
+    ...(listing && "data" in listing ? [{ label: "Total de contratos", value: listing.data.total, tone: styles.lime }] : []),
+    ...(stats ? [
+      { label: "Documentos generados", value: stats.total, tone: styles.ink },
+      { label: "Generados este mes", value: stats.current_month_total, tone: styles.violet },
+    ] : []),
+  ];
+
+  function retryHistory() {
+    setLoadingHistory(true);
+    setHistoryAttempt(current => current + 1);
   }
 
   return (
-    <div className={styles.shell}>
-      <a className={styles.skipLink} href="#contenido">Ir al contenido</a>
-      <aside className={styles.sidebar} onKeyDown={closeMenuOnEscape}>
-        <div className={styles.sidebarHeader}>
-          <div className={styles.brand}>
-            <span className={styles.mark} aria-hidden="true">Y</span>
-            <span>YZY Contracts</span>
+    <>
+      <section className={styles.metrics} aria-label="Indicadores">
+        {metrics.map(metric => (
+          <div key={metric.label} className={`${styles.metric} ${metric.tone}`}>
+            <MetricCard label={metric.label} value={metric.value} context="" />
           </div>
-          <Button
-            ref={menuTrigger}
-            type="button"
-            variant="ghost"
-            className={styles.menuToggle}
-            aria-expanded={menuOpen}
-            aria-controls="dashboard-menu"
-            onClick={() => setMenuOpen(open => !open)}
-          >
-            {menuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
-            Menú
-          </Button>
+        ))}
+      </section>
+      {!history && <p className={styles.dataHint} role="status">Cargando indicadores de generación…</p>}
+      {history && "failure" in history && (
+        <div className={styles.panel}>
+          <p className={styles.dataHint} role="alert">{history.failure}</p>
+          <Button ref={retryHistoryButton} type="button" variant="secondary" loading={loadingHistory} onClick={retryHistory}>Reintentar</Button>
         </div>
+      )}
+      {history && "legacyPending" in history && history.legacyPending && (
+        <div className={styles.panel}>
+          <p className={styles.dataHint} role="status">{legacyHistoryWarning}</p>
+          <Button ref={retryHistoryButton} type="button" variant="secondary" loading={loadingHistory} onClick={retryHistory}>Reintentar sincronización</Button>
+        </div>
+      )}
 
-        <nav id="dashboard-menu" className={styles.navigation} aria-label="Menú principal" data-open={menuOpen}>
-          <div className={styles.navGroup}>
-            <Link className={styles.navItem} href="/dashboard" aria-current="page">Dashboard</Link>
-            <Button type="button" variant="ghost" className={styles.navItem} onClick={() => setNotice({ zone: "menu", message: "La sección de contratos está pendiente." })}>Contratos</Button>
-            <Button type="button" variant="ghost" className={styles.navItem} onClick={() => setNotice({ zone: "menu", message: "La sección de documentos generados está pendiente." })}>Docs Generados</Button>
-            <p className={styles.navNotice} role="status">{notice?.zone === "menu" ? notice.message : ""}</p>
+      {charts && <div className={styles.analytics}>
+        <section className={`${styles.panel} ${styles.monthly}`} aria-labelledby="monthly-title">
+          <h2 id="monthly-title" ref={monthlyHeading} tabIndex={-1}>Documentos generados por mes</h2>
+          <MonthlyChart months={charts.months} />
+        </section>
+
+        <section className={`${styles.panel} ${styles.formats}`} aria-labelledby="formats-title">
+          <h2 id="formats-title">Documentos por formato</h2>
+          <FormatChart formats={charts.formats} />
+        </section>
+      </div>}
+
+      <section className={`${styles.panel} ${styles.recent}`} aria-labelledby="contracts-title">
+        <div className={styles.panelHeader}>
+          <h2 id="contracts-title" ref={contractsHeading} tabIndex={-1}>Contratos recientes</h2>
+          <Link className={styles.tableAction} href="/contratos">Ver todos</Link>
+        </div>
+        {!listing ? <p className={styles.dataHint} role="status">Cargando contratos recientes…</p> : "failure" in listing ? (
+          <div>
+            <p className={styles.dataHint} role="alert">{listing.failure}</p>
+            <Button ref={retryContractsButton} type="button" variant="secondary" loading={loadingContracts} onClick={() => {
+              setLoadingContracts(true);
+              setAttempt(current => current + 1);
+            }}>Reintentar</Button>
           </div>
-
-          <div className={styles.navGroup}>
-            <Button type="button" variant="ghost" className={styles.navItem} onClick={() => setNotice({ zone: "settings", message: "La configuración está pendiente." })}>Configuración</Button>
-            <p className={styles.navNotice} role="status">{notice?.zone === "settings" ? notice.message : ""}</p>
-            <Link className={`${styles.navItem} ${styles.logout}`} href="/login">Cerrar sesión</Link>
-          </div>
-        </nav>
-      </aside>
-
-      <div className={styles.workspace}>
-        <header className={styles.header}>
-          <p className={styles.notice} role="status">{notice?.zone === "profile" ? notice.message : ""}</p>
-          <Button type="button" variant="ghost" className={styles.profile} aria-label="Perfil" onClick={() => setNotice({ zone: "profile", message: "El perfil está pendiente." })}>
-            <Avatar name="R D" size="md" className={styles.avatar} aria-hidden="true" />
-          </Button>
-        </header>
-
-        <main className={styles.main} id="contenido" tabIndex={-1}>
-          <div className={styles.intro}>
-            <div>
-              <h1>Dashboard</h1>
-              <p>Resumen de tus contratos y documentos generados.</p>
-            </div>
-            <Badge pill>Datos de ejemplo</Badge>
-          </div>
-
-          <section className={styles.metrics} aria-label="Indicadores">
-            {metrics.map(metric => (
-              <div key={metric.label} className={`${styles.metric} ${metric.tone}`}>
-                <MetricCard label={metric.label} value={metric.value} context="" />
-              </div>
-            ))}
-          </section>
-
-          <div className={styles.analytics}>
-            <section className={`${styles.panel} ${styles.monthly}`} aria-labelledby="monthly-title">
-              <h2 id="monthly-title">Documentos generados por mes</h2>
-              <div className={styles.chart} role="img" aria-label={monthlySummary}>
-                <div className={styles.plot}>
-                  {months.map(month => (
-                    <div className={styles.column} key={month.name}>
-                      <span>{month.total}</span>
-                      <div className={styles.bar} data-current={month.current || undefined} style={{ height: Math.round(month.total * 160 / highestMonth) }} />
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.monthLabels}>
-                  {months.map(month => <span key={month.name} data-current={month.current || undefined}>{month.short}</span>)}
-                </div>
-              </div>
-            </section>
-
-            <section className={`${styles.panel} ${styles.formats}`} aria-labelledby="formats-title">
-              <h2 id="formats-title">Documentos por formato</h2>
-              <dl className={styles.formatList}>
-                {formats.map(format => (
-                  <div className={`${styles.format} ${format.tone}`} key={format.name}>
-                    <dt>{format.name}</dt>
-                    <dd>
-                      {format.total}
-                      <span className={styles.formatTrack} aria-hidden="true">
-                        <span style={{ width: `${Math.round(format.total / formatTotal * 100)}%` }} />
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          </div>
-
-          <section className={`${styles.panel} ${styles.recent}`} aria-labelledby="contracts-title">
-            <div className={styles.panelHeader}>
-              <h2 id="contracts-title">Contratos recientes</h2>
-              <Button type="button" variant="ghost" className={styles.tableAction} onClick={() => setNotice({ zone: "contracts", message: "La lista completa de contratos está pendiente." })}>Ver todos</Button>
-            </div>
-            <p className={styles.notice} role="status">{notice?.zone === "contracts" ? notice.message : ""}</p>
-            <div className={styles.tableScroll} role="region" aria-label="Tabla de contratos de ejemplo" tabIndex={0}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th scope="col">Contrato</th>
-                    <th scope="col">Categoría</th>
-                    <th scope="col">Cargado</th>
-                    <th scope="col"><span className={styles.srOnly}>Acciones</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contracts.map(contract => (
-                    <tr key={contract.name}>
-                      <th scope="row">{contract.name}</th>
-                      <td>{contract.category}</td>
-                      <td><time dateTime={contract.date}>{contract.dateLabel}</time></td>
-                      <td>
-                        <Button
-                          type="button"
-                          variant="ghost"
+        ) : contracts.length === 0 ? (
+          <p className={styles.dataHint}>Todavía no has cargado contratos.</p>
+        ) : (
+          <div className={styles.tableScroll} role="region" aria-label="Tabla de contratos recientes" tabIndex={0}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">Contrato</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Cargado</th>
+                  <th scope="col"><span className={styles.srOnly}>Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {contracts.map(contract => {
+                  const action = contract.template_id ? "Generar documento" : "Editar contrato";
+                  return <tr key={contract.id}>
+                    <th scope="row">{contract.name}</th>
+                    <td>{contractStatusLabels[contract.status]}</td>
+                    <td><time dateTime={contract.created_at}>{uploadedDate.format(new Date(contract.created_at))}</time></td>
+                    <td>
+                      <Tooltip content={action}>
+                        <Link
+                          href={`/contratos/${contract.id}/${contract.template_id ? "generar" : "editar"}`}
                           className={styles.tableAction}
-                          aria-label={`Generar documento para ${contract.name}`}
-                          onClick={() => setNotice({ zone: "contracts", message: "La generación de documentos está pendiente." })}
+                          aria-label={`${action} para ${contract.name}`}
                         >
-                          Generar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </main>
-
-        <footer className={styles.credit}>YZY CONTRACTS powered by YZY LABS</footer>
-      </div>
-    </div>
+                          {contract.template_id ? <FilePlus2 size={18} aria-hidden="true" /> : <Pencil size={18} aria-hidden="true" />}
+                        </Link>
+                      </Tooltip>
+                    </td>
+                  </tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }

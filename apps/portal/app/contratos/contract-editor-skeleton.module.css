@@ -1,0 +1,51 @@
+.dropzone {
+  display: grid;
+  min-block-size: 148px;
+  align-content: center;
+  gap: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-surface);
+  padding: 20px;
+}
+
+.field {
+  display: grid;
+}
+
+.label,
+.heading,
+.editorHint,
+.editorFootnote {
+  display: grid;
+  align-items: center;
+}
+
+.label {
+  min-block-size: 16px;
+}
+
+.heading {
+  min-block-size: 24px;
+}
+
+.editorHint {
+  inline-size: min(598px, 100%);
+  min-block-size: 20px;
+}
+
+.editorFootnote {
+  min-block-size: 41px;
+}
+
+.editorBody {
+  min-block-size: 8rem;
+  padding-block-start: 7px;
+}
+
+.control {
+  --loading-block-radius: 10px;
+}
+
+.action {
+  --loading-block-radius: 18px;
+}

@@ -1,3 +1,3 @@
 # Contratos HTTP
 
-Ubicación del futuro `portal-api.yaml`. Portal y API acuerdan aquí las rutas, esquemas, errores y ejemplos que ambos consumen.
+[`portal-api.yaml`](portal-api.yaml) es el contrato entre portal y API. Se genera desde el código de `services/api/` y no se edita a mano; una prueba falla si queda desfasado. Para regenerarlo, sigue las instrucciones de [`services/api/README.md`](../../services/api/README.md).

@@ -1,0 +1,405 @@
+.panel {
+  --control-border: #cbd0d9;
+  --pager-border: #cfcfc7;
+  --accent-hover: #b9e41f;
+  --focus-outline: var(--foreground);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-inline-size: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  background: var(--surface);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.filters {
+  gap: 16px;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  align-items: end;
+  gap: 16px;
+}
+
+.filterGrid > div {
+  row-gap: 6px;
+}
+
+.filterGrid label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.panel .fieldControl {
+  min-block-size: 44px;
+  border-color: var(--control-border);
+  border-radius: 10px;
+  padding-inline: 12px;
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+.panel .fieldControl:focus-visible {
+  border-color: var(--foreground);
+}
+
+.panel .fieldControl::placeholder {
+  color: var(--text-secondary);
+}
+
+.panel .primary {
+  min-block-size: 44px;
+  border-color: color-mix(in oklab, var(--accent) 86%, var(--foreground));
+  border-radius: 18px;
+  padding-inline: 22px;
+  background: var(--accent);
+  color: var(--brand-ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.primaryLink,
+.rowActions .rowAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.primaryLink {
+  border: 1px solid transparent;
+}
+
+.panelHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.tableScroll {
+  position: relative;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  --focus-outline-offset: -2px;
+}
+
+.table {
+  inline-size: 100%;
+  min-inline-size: 680px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.contractsTableScroll {
+  container-type: inline-size;
+}
+
+.mobileDetails {
+  display: none;
+}
+
+@container (width < 680px) {
+  .table.contractsTable {
+    min-inline-size: 0;
+    table-layout: fixed;
+  }
+
+  .contractsTable .detailColumn {
+    display: none;
+  }
+
+  .contractsTable thead th:last-child {
+    inline-size: min(112px, 48%);
+  }
+
+  .contractsTable tbody th {
+    overflow-wrap: anywhere;
+  }
+
+  .contractsTable .rowActions {
+    flex-wrap: wrap;
+    gap: 0 4px;
+  }
+
+  .mobileDetails {
+    display: block;
+    margin-block-start: 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+}
+
+.table thead th {
+  border-block-end: 1px solid var(--border);
+  padding: 10px 8px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-align: start;
+}
+
+.table tbody th,
+.table tbody td {
+  border-block-end: 1px solid var(--surface-muted);
+  padding: 12px 8px;
+  text-align: start;
+}
+
+.table tbody th {
+  font-weight: 500;
+}
+
+.table tbody td {
+  color: var(--text-secondary);
+}
+
+.table tbody td:last-child {
+  padding-block: 0;
+  padding-inline: 4px;
+}
+
+.table tbody tr:last-child > * {
+  border: 0;
+}
+
+.contractName,
+.contractId {
+  display: block;
+}
+
+.contractId {
+  margin-block-start: 2px;
+  color: var(--text-secondary);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rowActions .rowAction {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  border-radius: 8px;
+  padding-inline: 4px;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.paginationBar,
+.paginationSummary,
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.paginationBar {
+  justify-content: space-between;
+  gap: 16px;
+  padding-block-start: 8px;
+}
+
+.paginationSummary {
+  gap: 12px 16px;
+}
+
+.pagination {
+  gap: 8px;
+}
+
+.range,
+.rowPicker {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.rowPicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowPicker .fieldControl {
+  inline-size: 64px;
+  border: 1px solid var(--pager-border);
+  background: var(--surface);
+  font-family: inherit;
+}
+
+.pagination .pager {
+  min-block-size: 44px;
+  border-color: var(--pager-border);
+  border-radius: 18px;
+  padding-inline: 22px;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pagination .pager:is(:disabled, [aria-disabled="true"]) {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.pagination .pageNumber {
+  min-inline-size: 44px;
+  border-radius: 14px;
+  padding-inline: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pagination .pageNumber[aria-current="page"] {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.notice,
+.empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+}
+
+.empty p {
+  margin: 0;
+}
+
+.notice:empty,
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skeletonHeading,
+.skeletonLabel,
+.skeletonLine {
+  display: flex;
+  align-items: center;
+}
+
+.skeletonHeading {
+  min-block-size: 24px;
+}
+
+.skeletonLabel {
+  min-block-size: 16px;
+}
+
+.skeletonLine {
+  min-block-size: 20px;
+}
+
+.skeletonField {
+  display: grid;
+}
+
+.skeletonControl {
+  --loading-block-radius: 10px;
+}
+
+.skeletonButton {
+  --loading-block-radius: 18px;
+}
+
+.skeletonPage {
+  --loading-block-radius: 14px;
+}
+
+.skeletonAction {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+}
+
+.skeletonTable {
+  overflow: clip;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .panel .primary:hover {
+    background: var(--accent-hover);
+    opacity: 1;
+  }
+
+  .rowActions .rowAction:hover {
+    background: var(--surface-muted);
+  }
+
+  .pagination .pageNumber[aria-current="page"]:hover {
+    background: var(--foreground);
+  }
+
+  .pagination .pager:is(:disabled, [aria-disabled="true"]):hover {
+    background: var(--surface);
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .pagination .pager:not(.pageNumber) {
+    padding-inline: 14px;
+  }
+}
+.previewScope {
+  width: min(440px, calc(100% - 24px));
+  max-height: calc(100svh - 24px);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--surface);
+  overscroll-behavior: contain;
+}
+.previewScope::backdrop { background: rgb(12 15 17 / 42%); }
+.previewScope h2 { margin: 0 0 14px; font-size: var(--text-lg); }
+.previewScope fieldset { display: grid; min-width: 0; margin: 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.previewScope label { display: flex; align-items: center; min-height: 38px; gap: 8px; overflow-wrap: anywhere; }
+.previewScope input { width: 18px; height: 18px; flex: none; accent-color: var(--foreground); }
+.previewScopeActions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 14px; }

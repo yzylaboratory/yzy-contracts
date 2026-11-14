@@ -93,8 +93,26 @@
 }
 
 .card .provider {
-  border-color: var(--border-strong);
-  color: var(--foreground);
+  border-color: var(--provider-border);
+  background: var(--provider-surface);
+  color: var(--provider-text);
+}
+
+.card .provider:active:not(:disabled) {
+  background: var(--provider-active);
+  color: var(--provider-text);
+}
+
+.google {
+  --provider-border: #747775;
+  --provider-surface: #fff;
+  --provider-text: #1f1f1f;
+  --provider-hover: #f7f8f8;
+  --provider-active: #eeefef;
+}
+
+.google img {
+  object-fit: contain;
 }
 
 .signIn .back {
@@ -206,9 +224,8 @@
     opacity: 1;
   }
 
-  .card .provider:hover {
-    border-color: var(--foreground);
-    background: var(--background);
+  .card .provider:hover:not(:active, :disabled) {
+    background: var(--provider-hover);
   }
 }
 

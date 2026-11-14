@@ -1,0 +1,529 @@
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-inline-size: 0;
+  margin-block-end: 4px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.breadcrumb a,
+.returnLink {
+  color: var(--foreground);
+  font-weight: 500;
+  text-underline-offset: 3px;
+}
+
+.form,
+.top,
+.emailGrid {
+  min-inline-size: 0;
+  display: flex;
+  gap: 16px;
+}
+
+.dataFields,
+.emailGrid {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dataFields {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+
+.reviewValues {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: 12px 16px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.reviewValues dt { color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.reviewValues dd { margin: 2px 0 0; font-size: 14px; line-height: 20px; white-space: pre-line; }
+/* Addresses and other long values take a full row instead of stretching one cell. */
+.reviewValues > [data-long] { grid-column: 1 / -1; }
+
+.form {
+  flex-direction: column;
+  gap: 24px;
+}
+
+.top,
+.emailGrid {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.panel {
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  scroll-margin-top: 16px;
+}
+
+.dataPanel {
+  flex: 1 1 100%;
+  container-type: inline-size;
+}
+
+.companyPicker {
+  display: grid;
+  gap: 12px;
+  padding-block-end: 16px;
+  border-block-end: 1px solid var(--border);
+}
+
+.companyRetry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* App-style action bar: stays at the bottom of the viewport while the form scrolls. */
+.actionBar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  margin-block-start: -8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 0.18);
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.actionCopy { min-inline-size: 0; }
+.actionCopy h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 20px; }
+
+.actionButtons,
+.downloadFormats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.downloadFormats .pdf,
+.downloadFormats .word {
+  min-inline-size: 96px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field {
+  min-inline-size: 0;
+  grid-column: span 2;
+}
+
+.field:has(textarea) {
+  grid-column: span 3;
+}
+
+.field[data-width="wide"] {
+  grid-column: 1 / -1;
+}
+
+.field[data-width="compact"] {
+  grid-column: span 2;
+}
+
+@container (max-width: 640px) {
+  .field,
+  .field[data-width="compact"] {
+    grid-column: span 3;
+  }
+}
+
+@container (max-width: 420px) {
+  .field,
+  .field[data-width="compact"] {
+    grid-column: 1 / -1;
+  }
+}
+
+.form :is(input, textarea).control {
+  min-inline-size: 0;
+  border-color: #cbd0d9;
+  border-radius: 10px;
+}
+
+.form :is(input, textarea).control:focus-visible {
+  border-color: var(--foreground);
+}
+
+.form :is(input, textarea).control[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.hint,
+.status,
+.failure {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.failure {
+  color: var(--danger);
+}
+
+.feedback:not(:has(p:not(:empty))) {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.downloadFormats .pdf {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.downloadFormats .word {
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.emailGrid {
+  gap: 24px;
+}
+
+.emailFields,
+.emailPreview {
+  display: flex;
+  flex: 1 1 360px;
+  flex-direction: column;
+  min-inline-size: 0;
+  gap: 16px;
+}
+
+.emailPreview,
+.attachmentFormat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attachmentFormat {
+  align-items: flex-start;
+  --text-muted: var(--text-secondary);
+}
+
+.smallLabel {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.sourceConfirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.sourceConfirmation input {
+  accent-color: var(--foreground);
+  margin: 3px 0 0;
+}
+
+.envelope {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.envelopeHeader {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 14px 20px;
+  border-block-end: 1px solid var(--border);
+  background: var(--background);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.envelopeHeader > div {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.envelopeHeader dt {
+  color: var(--text-secondary);
+}
+
+.envelopeHeader dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.envelopeHeader div:last-child dd {
+  font-weight: 600;
+}
+
+.envelopeBody {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.envelopeBody p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: start;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.attachment span {
+  flex: none;
+  padding-inline: 8px;
+  border-radius: 10px;
+  background: #fdecea;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.attachment span[data-format="docx"] {
+  background: #e6eeff;
+  color: #1f5fbf;
+}
+
+.emailActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.emailActions .primary {
+  border-color: #add319;
+  border-radius: 16px;
+  background: var(--accent);
+  color: var(--brand-ink);
+}
+
+.returnLink {
+  align-self: flex-start;
+}
+
+.skeletonTitle {
+  margin-block: 4px;
+}
+
+.skeletonField {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.skeletonLabel {
+  margin-block: 4px;
+}
+
+.skeletonControl {
+  --loading-block-radius: 10px;
+}
+
+.skeletonOutput {
+  --loading-block-radius: 12px;
+}
+
+.skeletonHint {
+  display: grid;
+  gap: 8px;
+  padding-block: 4px;
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .envelopeHeader,
+  .envelopeBody {
+    padding-inline: 12px;
+  }
+
+  .emailActions .primary {
+    inline-size: 100%;
+  }
+
+  .actionCopy { display: none; }
+
+  .actionButtons,
+  .downloadFormats {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .downloadFormats { grid-column: 1 / -1; }
+}
+
+.expediente {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+  padding-block-end: 16px;
+  border-block-end: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.contextFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+}
+
+.contextFields:empty { display: none; }
+
+.reviewAction {
+  grid-column: 1 / -1;
+}
+
+.expedienteIssues {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.insuranceSchedule,
+.insuranceRow {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.insuranceSchedule {
+  display: grid;
+  gap: 12px;
+}
+
+.insuranceSchedule legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.insuranceRow {
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--border);
+}
+
+.insuranceRow legend {
+  padding-block-end: 4px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.insurancePagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schedule { display: grid; gap: 12px; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.schedule legend { padding: 0 0 4px; font-size: var(--text-sm); font-weight: 500; }
+.scheduleFrame { overflow-x: auto; }
+.scheduleTable { width: 100%; min-width: 420px; border-collapse: collapse; }
+.scheduleTable th { padding: 0 6px 6px; color: var(--text-secondary); font-size: 13px; font-weight: 500; text-align: start; }
+.scheduleTable td { padding: 4px 6px; vertical-align: middle; }
+.scheduleTable tbody th { width: 1%; padding-inline: 0 6px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.scheduleTable td:last-child { width: 1%; }
+.scheduleAdd { justify-self: start; }
+.visuallyHidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.fieldSections { display: grid; gap: 24px; }
+.fieldSection { display: grid; gap: 12px; min-inline-size: 0; }
+.fieldSection h3 {
+  margin: 0;
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.fieldSection .fields { align-items: start; }
+/* Extraordinary payments come in date + amount pairs: one pair per row, the summary below. */
+.fieldSection[data-section="extraordinary"] .field { grid-column: span 3; }
+.fieldSection[data-section="extraordinary"] .field:last-child:nth-child(odd) { grid-column: 1 / -1; }
+@container (max-width: 420px) {
+  .fieldSection[data-section="extraordinary"] .field { grid-column: 1 / -1; }
+}

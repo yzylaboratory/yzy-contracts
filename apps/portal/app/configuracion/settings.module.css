@@ -1,0 +1,206 @@
+.settings {
+  --settings-control-border: #cbd0d9;
+  --settings-button-border: #cfcfc7;
+  --settings-accent-hover: #b9e41f;
+  --focus-outline: var(--foreground);
+
+  display: grid;
+  min-inline-size: 0;
+  gap: 24px;
+}
+
+.panel {
+  display: grid;
+  min-inline-size: 0;
+  gap: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  background: var(--surface);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.buttons,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.panel .avatar {
+  inline-size: 64px;
+  block-size: 64px;
+  border: 0;
+  background: var(--avatar-surface);
+  color: var(--foreground);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.notice:empty {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+}
+
+.fields > div {
+  row-gap: 6px;
+}
+
+.fields label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.fields .control {
+  min-block-size: 44px;
+  border-color: var(--settings-control-border);
+  border-radius: 10px;
+  padding-inline: 12px;
+  font-size: 14px;
+}
+
+.fields .control:focus-visible {
+  border-color: var(--foreground);
+}
+
+.fields .control::placeholder {
+  color: var(--text-secondary);
+}
+
+.fields .control[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.fields .control[readonly] {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.copyField {
+  display: grid;
+  gap: 4px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-block-size: 44px;
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.checkbox input {
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 0;
+  accent-color: var(--foreground);
+  cursor: pointer;
+}
+
+.hint,
+.notice,
+.error {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.copyField .hint {
+  margin-inline-start: 32px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.actions {
+  position: relative;
+  justify-content: flex-end;
+  gap: 8px 16px;
+}
+
+.actions :is(.notice, .error):not(:empty) {
+  flex: 1 1 220px;
+}
+
+.buttons {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.settings .primary,
+.settings .secondary {
+  min-block-size: 44px;
+  border-radius: 18px;
+  padding-inline: 22px;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings .primary {
+  border-color: color-mix(in oklab, var(--accent) 86%, var(--foreground));
+  background: var(--accent);
+  color: var(--brand-ink);
+}
+
+.settings .primary:disabled {
+  border-color: var(--border);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+.settings .secondary {
+  border-color: var(--settings-button-border);
+  background: var(--surface);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .settings .primary:hover:not(:disabled) {
+    background: var(--settings-accent-hover);
+    opacity: 1;
+  }
+
+  .settings .secondary:hover:not(:disabled) {
+    border-color: var(--foreground);
+    background: var(--surface-muted);
+  }
+}
+
+@media (max-width: 480px) {
+  .settings {
+    gap: 20px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .buttons {
+    flex: 1 1 100%;
+  }
+}

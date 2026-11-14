@@ -15,3 +15,20 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter);
 }
+
+:root:active-view-transition-type(theme-eclipse)::view-transition-old(root),
+:root:active-view-transition-type(theme-eclipse)::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:active-view-transition-type(theme-eclipse)::view-transition-new(root) {
+    animation: theme-eclipse 480ms var(--ease-standard) both;
+  }
+}
+
+@keyframes theme-eclipse {
+  from { clip-path: ellipse(0% 115% at 100% 50%); }
+  to { clip-path: ellipse(120% 115% at 100% 50%); }
+}

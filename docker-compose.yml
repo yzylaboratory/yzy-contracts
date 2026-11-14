@@ -1,0 +1,244 @@
+# Local development stack. It never touches the shared Supabase or Cloudflare.
+#
+#   python3 scripts/generate_local_auth_key.py     # paste into .env
+#   docker compose up -d --build
+#
+# Storage is reached at storage.localhost:9000 from the host and from containers,
+# so presigned URLs work in both places.
+
+name: yzy-contracts
+
+x-api-environment: &api-environment
+  RUST_LOG: ${RUST_LOG}
+  HTTP_BIND_ADDR: 0.0.0.0:8080
+  DATABASE_URL: postgres://yzy_contracts_app:${LOCAL_APP_ROLE_PASSWORD}@db:5432/postgres
+  DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS}
+  SUPABASE_JWKS_URL: http://auth:9999/.well-known/jwks.json
+  SUPABASE_JWT_ISSUER: http://127.0.0.1:9999
+  SUPABASE_JWT_AUDIENCE: authenticated
+  CONTRACTS_SUPERADMIN_ID: ${CONTRACTS_SUPERADMIN_ID}
+  CONTRACTS_SUPERADMIN_EMAIL: ${CONTRACTS_SUPERADMIN_EMAIL}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+  R2_ENDPOINT: ${R2_ENDPOINT}
+  R2_BUCKET: ${R2_BUCKET}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+  R2_FORCE_PATH_STYLE: ${R2_FORCE_PATH_STYLE}
+  UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES}
+  PRESIGN_UPLOAD_TTL_SECS: ${PRESIGN_UPLOAD_TTL_SECS}
+  PRESIGN_DOWNLOAD_TTL_SECS: ${PRESIGN_DOWNLOAD_TTL_SECS}
+  TEMPLATE_MAX_BYTES: ${TEMPLATE_MAX_BYTES}
+  EXTRACTOR_URL: http://doc-extractor-api:8000
+  EXTRACTOR_API_TOKEN: ${EXTRACTOR_API_TOKEN}
+  EXTRACTOR_TIMEOUT_SECS: ${EXTRACTOR_TIMEOUT_SECS}
+  CONVERSION_MAX_ATTEMPTS: ${CONVERSION_MAX_ATTEMPTS}
+  WORKER_POLL_INTERVAL_SECS: ${WORKER_POLL_INTERVAL_SECS}
+  REQUEST_TIMEOUT_SECS: ${REQUEST_TIMEOUT_SECS}
+
+services:
+  # Same image as the shared Supabase, where postgres is not a superuser.
+  db:
+    image: supabase/postgres:17.6.1.136
+    environment:
+      POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:54322:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  db-init:
+    image: supabase/postgres:17.6.1.136
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+      APP_ROLE_PASSWORD: ${LOCAL_APP_ROLE_PASSWORD}
+      POSTGRES_PASSWORD_FOR_AUTH: ${LOCAL_POSTGRES_PASSWORD}
+    volumes:
+      - ./supabase/local:/local:ro
+    entrypoint: ["/bin/bash", "/local/init-local-db.sh"]
+    restart: "no"
+
+  auth:
+    image: supabase/gotrue:v2.189.0
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: http://127.0.0.1:9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${LOCAL_POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_JWT_SECRET: ${LOCAL_GOTRUE_JWT_SECRET}
+      GOTRUE_JWT_KEYS: ${LOCAL_GOTRUE_JWT_KEYS}
+      GOTRUE_JWT_ISSUER: http://127.0.0.1:9999
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      # Local synthetic users only: no mail server here.
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+    ports:
+      - "127.0.0.1:9999:9999"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # S3-compatible stand-in for Cloudflare R2, for local work without an account.
+  storage:
+    image: chrislusf/seaweedfs:4.53
+    command: ["server", "-dir=/data", "-s3", "-s3.port=9000", "-volume.max=50", "-master.volumeSizeLimitMB=64"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${LOCAL_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${LOCAL_S3_SECRET_KEY}
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  storage-init:
+    image: amazon/aws-cli:2.27.0
+    depends_on:
+      storage:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${LOCAL_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${LOCAL_S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: auto
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        aws --endpoint-url http://storage:9000 s3api head-bucket --bucket ${R2_BUCKET}
+        || aws --endpoint-url http://storage:9000 s3api create-bucket --bucket ${R2_BUCKET}
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["migrate"]
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      auth:
+        condition: service_healthy
+    environment:
+      RUST_LOG: ${RUST_LOG}
+      MIGRATION_DATABASE_URL: postgres://postgres:${LOCAL_POSTGRES_PASSWORD}@db:5432/postgres
+      CONTRACTS_SUPERADMIN_ID: ${CONTRACTS_SUPERADMIN_ID}
+    restart: "no"
+
+  # The role has no password until an operator sets one. Locally, this does it.
+  app-role:
+    image: supabase/postgres:17.6.1.136
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      PGPASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+      APP_ROLE_PASSWORD: ${LOCAL_APP_ROLE_PASSWORD}
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        psql -h db -U postgres -d postgres -v ON_ERROR_STOP=1 -v pw="$${APP_ROLE_PASSWORD}"
+        <<< "ALTER ROLE yzy_contracts_app LOGIN PASSWORD :'pw'"
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["serve"]
+    depends_on:
+      app-role:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+      renderer:
+        condition: service_healthy
+    environment:
+      <<: *api-environment
+      CONTRACTS_BILLING_BANK_NAME: ${CONTRACTS_BILLING_BANK_NAME:-}
+      CONTRACTS_BILLING_ACCOUNT_HOLDER: ${CONTRACTS_BILLING_ACCOUNT_HOLDER:-}
+      CONTRACTS_BILLING_ACCOUNT_TYPE: ${CONTRACTS_BILLING_ACCOUNT_TYPE:-}
+      CONTRACTS_BILLING_ACCOUNT_NUMBER: ${CONTRACTS_BILLING_ACCOUNT_NUMBER:-}
+      DOCUMENT_RENDERER_URL: http://renderer:8080
+      DOCUMENT_RENDERER_API_TOKEN: ${DOCUMENT_RENDERER_API_TOKEN:-local-only-renderer-token-change-me}
+    extra_hosts:
+      - "storage.localhost:host-gateway"
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - default
+      - renderer
+
+  renderer:
+    build:
+      context: ./doc-extractor-api/renderer
+    environment:
+      DOCUMENT_RENDERER_API_TOKEN: ${DOCUMENT_RENDERER_API_TOKEN:-local-only-renderer-token-change-me}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m,mode=1777
+    networks:
+      - renderer
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["worker"]
+    depends_on:
+      app-role:
+        condition: service_completed_successfully
+      # Owned by the doc-extractor-api project. It only accepts HTTPS downloads from
+  # R2_ALLOWED_HOSTS on public addresses, so it refuses the local storage service:
+  # converting documents in this stack requires real R2 settings in .env.
+  doc-extractor-api:
+    build:
+      context: ./doc-extractor-api
+    environment:
+      APP_ENV: development
+      INTERNAL_API_KEY: ${EXTRACTOR_API_TOKEN}
+      R2_ALLOWED_HOSTS: ${EXTRACTOR_R2_ALLOWED_HOSTS}
+      MAX_FILE_SIZE_MB: ${EXTRACTOR_MAX_FILE_SIZE_MB}
+      MAX_CONCURRENT_EXTRACTIONS: ${EXTRACTOR_MAX_CONCURRENT_EXTRACTIONS}
+      EXTRACTION_TIMEOUT_SECONDS: ${EXTRACTOR_EXTRACTION_TIMEOUT_SECONDS}
+    # Internal service: not published to the host.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+volumes:
+  db-data:
+  storage-data:
+
+networks:
+  renderer:
+    internal: true

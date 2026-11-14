@@ -7,6 +7,9 @@
     "build": "pnpm --filter @yzy-contracts/portal run build",
     "start": "pnpm --filter @yzy-contracts/portal run start",
     "lint": "pnpm --filter @yzy-contracts/portal run lint",
-    "typecheck": "pnpm --filter @yzy-contracts/portal run typecheck"
+    "typecheck": "pnpm --filter @yzy-contracts/portal run typecheck",
+    "lint:fix": "pnpm --filter @yzy-contracts/portal run lint:fix",
+    "fix:api": "cargo clippy --manifest-path services/api/Cargo.toml --all-targets --fix --allow-dirty --allow-staged && cargo fmt --manifest-path services/api/Cargo.toml",
+    "fix": "pnpm run lint:fix && pnpm run fix:api"
   }
 }

@@ -1,0 +1,331 @@
+.stack,
+.panel,
+.sectionFields {
+  display: grid;
+  gap: 16px;
+  min-inline-size: 0;
+}
+
+.panel {
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.panel :is(h2, h3) {
+  margin: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  scroll-margin-block-start: 16px;
+}
+
+.panel h2 { font-size: 18px; }
+.panel h3 { font-size: 15px; }
+
+.intakeLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(16px, 3vw, 24px);
+}
+
+.intakeSteps { padding: 12px 4px; }
+.reviewReferences { display: grid; gap: 12px; margin: 0; padding-inline-start: 24px; }
+
+.header,
+.actions,
+.breadcrumb,
+.pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.header { justify-content: space-between; }
+.pagination { justify-content: center; }
+.breadcrumb { gap: 8px; font-size: 14px; }
+
+.panel a,
+.breadcrumb a {
+  color: var(--foreground);
+  font-weight: 600;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.panel a:hover,
+.breadcrumb a:hover { text-decoration: underline; }
+.panel a:focus-visible,
+.breadcrumb a:focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+
+.muted,
+.failure {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.failure { color: var(--danger); }
+
+.toolbar,
+.formFields,
+.summary,
+.paymentFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  align-items: end;
+  gap: 16px;
+  min-inline-size: 0;
+}
+
+.clientFormFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px 20px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.clientFieldFull {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 680px) {
+  .clientFormFields {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-block-start: 1px solid var(--border);
+}
+
+.rows > li { border-block-end: 1px solid var(--border); }
+
+.rowPlaceholder {
+  display: grid;
+  gap: 4px;
+  padding: 12px 4px;
+}
+
+.timelinePlaceholder {
+  display: grid;
+  grid-template-columns: 11px 42px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.timelinePlaceholder > :first-child { --loading-block-radius: 50%; }
+.timelinePlaceholder .rowPlaceholder { padding: 0; }
+
+.directoryRow,
+.operation {
+  padding: 12px 4px;
+}
+
+.directoryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.directoryIdentity {
+  display: grid;
+  flex: 1 1 200px;
+  gap: 4px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.directoryIdentity span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowTitle { flex: 1 1 150px; min-inline-size: 0; }
+
+.directoryAction {
+  composes: button md primary from "../../components/arc/button/button.module.css";
+}
+
+.expedienteLink {
+  composes: button md secondary from "../../components/arc/button/button.module.css";
+}
+
+.panel .directoryAction {
+  color: var(--background);
+}
+
+.panel .directoryAction,
+.panel .expedienteLink {
+  min-block-size: 44px;
+  text-decoration: none;
+}
+
+.panel .expedienteLink {
+  color: var(--foreground);
+}
+
+.recordFrame {
+  container-type: inline-size;
+}
+
+.recordLayout {
+  display: grid;
+  align-items: start;
+  min-inline-size: 0;
+  gap: 16px;
+}
+
+@container (min-width: 860px) {
+  .recordLayout {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+.documentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+}
+
+.documentGrid .documentChoice {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-content: stretch;
+  justify-items: center;
+  gap: 9px;
+  min-inline-size: 0;
+  min-block-size: 144px;
+  padding: 14px 12px;
+  white-space: normal;
+  text-align: center;
+}
+
+.documentIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.documentLabel { align-self: center; min-inline-size: 0; overflow-wrap: anywhere; text-wrap: balance; font-weight: 600; }
+.documentStatus { min-block-size: 22px; }
+
+.summary {
+  margin: 0;
+  align-items: start;
+  overflow-wrap: anywhere;
+}
+
+.summary dt { color: var(--text-secondary); font-size: 13px; }
+.summary dd { margin: 4px 0 0; }
+
+.formFields,
+.sectionFields,
+.payment {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sectionFields {
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--border);
+}
+
+.sectionFields > legend,
+.payment > legend {
+  padding-inline: 0 8px;
+  font-weight: 600;
+}
+
+.payment {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.paymentFields { inline-size: 100%; }
+.paymentTableFrame { max-inline-size: 100%; max-block-size: 28rem; overflow: auto; }
+.paymentTable { inline-size: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.paymentTable caption { padding-block-end: 8px; text-align: start; font-weight: 600; }
+.paymentTable :is(th, td) { padding: 10px 8px; border-block-end: 1px solid var(--border); text-align: start; }
+.paymentTable tr > :last-child { text-align: end; }
+.paymentTable tbody th { font-weight: 500; }
+.paymentTable tfoot { font-weight: 600; }
+.paymentTableFieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.editablePaymentTable :is(td, th) { vertical-align: top; }
+.editablePaymentTable td { min-inline-size: 8.5rem; text-align: start; }
+.editablePaymentTable td input { inline-size: 100%; }
+.editablePaymentTable label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.alignStart { justify-self: start; }
+
+.timelineChanges { margin-block-start: 2px; font-size: 13px; }
+.timelineChanges > summary {
+  inline-size: fit-content;
+  min-block-size: 28px;
+  padding: 4px 0;
+  color: var(--foreground);
+  cursor: pointer;
+  font-weight: 600;
+}
+.timelineChanges > summary:hover { text-decoration: underline; }
+.timelineChanges > summary:focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+.timelineChangeList {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--border);
+}
+.timelineChangeList > li { padding-block: 8px; border-block-end: 1px solid var(--border); }
+.timelineChangeValues {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 8px 16px;
+  margin: 4px 0 0;
+}
+.timelineChangeValues dt { color: var(--text-secondary); }
+.timelineChangeValues dd { margin: 2px 0 0; }
+.timelinePaymentList { margin: 0; padding-inline-start: 1.2em; }
+
+/* Fields with helper text below: align by label, not by the bottom of the description. */
+.formFields.alignTop { align-items: start; }
+
+/* A single field with its action beside it: the button lines up with the input, not the label. */
+.inlineField {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) auto;
+  align-items: end;
+  justify-content: start;
+  gap: 12px;
+}
+@media (max-width: 480px) { .inlineField { grid-template-columns: minmax(0, 1fr); } }

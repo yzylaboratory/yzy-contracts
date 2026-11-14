@@ -1,0 +1,5507 @@
+openapi: 3.1.0
+info:
+  title: YZY Contracts API
+  description: 'Contract management: register original Word templates with variables, convert PDFs to editable templates, and generate documents. Private routes require the configured superadministrator or a person the superadministrator enabled.'
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /api/v1/admin/activity:
+    get:
+      tags:
+      - Administration
+      summary: Lists private portal activity for the accounts and invitations visible in Users.
+      operationId: list
+      parameters:
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 25
+          maximum: 100
+          minimum: 1
+      responses:
+        '200':
+          description: The requested activity page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityPage'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Superadministrator access is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid pagination or search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: The signing keys could not be retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/activity/{user_id}/events:
+    get:
+      tags:
+      - Administration
+      summary: Lists the selected account's private activity, most recent first.
+      operationId: list_activity_events
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 25
+          maximum: 100
+          minimum: 1
+      responses:
+        '200':
+          description: The requested activity timeline page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityEventsPage'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Superadministrator access is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The user was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid user identifier or pagination
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: The signing keys could not be retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/billing/accounts:
+    get:
+      tags:
+      - Billing
+      operationId: admin_accounts
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Billing accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAccountList'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - Billing
+      operationId: create_account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccount'
+        required: true
+      responses:
+        '201':
+          description: Legacy billing account created for companies without a dedicated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAccount'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: The bank account is missing or a company already has a billing account for this period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid account details or manager
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/billing/accounts/{id}:
+    put:
+      tags:
+      - Billing
+      operationId: update_account
+      parameters:
+      - name: id
+        in: path
+        description: Billing account ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountInput'
+        required: true
+      responses:
+        '200':
+          description: Billing account updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAccount'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Billing account or company not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: A company already has a billing account for this period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid account details or manager
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/billing/bank-account:
+    get:
+      tags:
+      - Billing
+      operationId: admin_bank_account
+      responses:
+        '200':
+          description: Effective transfer destination and current revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccountSettings'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Billing
+      operationId: save_admin_bank_account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankAccountInput'
+        required: true
+      responses:
+        '200':
+          description: Transfer destination saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccountSettings'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: The transfer destination revision has changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid bank account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/billing/invoices:
+    get:
+      tags:
+      - Billing
+      operationId: admin_invoices
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: in_review
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Invoices across billing accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInvoiceList'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/billing/invoices/{id}/verification:
+    put:
+      tags:
+      - Billing
+      operationId: verify_transfer
+      parameters:
+      - name: id
+        in: path
+        description: Invoice ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationInput'
+        required: true
+      responses:
+        '200':
+          description: Reported transfer confirmed or rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInvoice'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Invoice or report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: The report was already reviewed with another decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/companies:
+    get:
+      tags:
+      - Administration
+      operationId: admin_companies
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Company profiles and pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCompanyPage'
+        '403':
+          description: Superadministrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/dashboard:
+    get:
+      tags:
+      - Administration
+      operationId: summary
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Platform usage, billing and seven-day portal visit summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/requests:
+    get:
+      tags:
+      - Administration
+      operationId: requests
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/users:
+    get:
+      tags:
+      - Administration
+      operationId: users
+      parameters:
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/UserStatus'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 250
+          maximum: 250
+          minimum: 1
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid pagination or search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/users/{id}/access:
+    put:
+      tags:
+      - Administration
+      summary: Enables or disables a person's access to YZY Contracts.
+      operationId: set_user_access
+      parameters:
+      - name: id
+        in: path
+        description: User ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAccess'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserItem'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The person has not signed in to YZY Contracts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: The superadministrator's own access cannot change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/billing:
+    get:
+      tags:
+      - Billing
+      operationId: overview
+      responses:
+        '200':
+          description: Assigned billing accounts, invoices and optional bank details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingOverview'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Billing manager access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/billing/accounts/{id}/renewal-invoice:
+    post:
+      tags:
+      - Billing
+      operationId: prepare_renewal
+      parameters:
+      - name: id
+        in: path
+        description: Billing account ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: First unpaid invoice for the renewal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInvoice'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Billing manager access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Billing account not assigned to the manager
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Renewal currently unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/billing/invoices/{id}/transfer:
+    put:
+      tags:
+      - Billing
+      operationId: report_transfer
+      parameters:
+      - name: id
+        in: path
+        description: Invoice ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferInput'
+        required: true
+      responses:
+        '200':
+          description: Bank transfer reported for manual review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInvoice'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Billing manager access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Invoice not found in an assigned account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Invoice already has a different transfer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid transfer reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/clients:
+    get:
+      tags:
+      - Clients
+      operationId: list_clients
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Global clients, ordered by name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientPage'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - Clients
+      operationId: create_client
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientWrite'
+        required: true
+      responses:
+        '201':
+          description: Registered client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: A client with this identification already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/clients/{client_id}:
+    get:
+      tags:
+      - Clients
+      operationId: get_client
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Client record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    patch:
+      tags:
+      - Clients
+      operationId: update_client
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientPatch'
+        required: true
+      responses:
+        '200':
+          description: Updated client record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: A client with this identification already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/clients/{client_id}/operations:
+    get:
+      tags:
+      - Clients
+      operationId: list_operations
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Client case files across all companies, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Operation'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - Clients
+      operationId: create_operation
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationWrite'
+        required: true
+      responses:
+        '201':
+          description: Registered case file with an automatically assigned reference when omitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/clients/{client_id}/timeline:
+    get:
+      tags:
+      - Clients
+      operationId: list_timeline
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      - name: operation_id
+        in: query
+        description: Return only events and generated documents for this operation.
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Client history across all companies or history for one operation, with linked documents, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientTimelinePage'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Client or operation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies:
+    get:
+      tags:
+      - Companies
+      operationId: list_companies
+      parameters:
+      - name: include_archived
+        in: query
+        description: Include archived company profiles.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Company profiles for this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyList'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid list parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - Companies
+      operationId: create_company
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveCompany'
+        required: true
+      responses:
+        '201':
+          description: Company created with its dedicated billing account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Superadministrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: The request exceeds the body size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid company data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/clients/{client_id}/operations/{operation_id}:
+    get:
+      tags:
+      - Clients
+      operationId: get_operation
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Client case file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    delete:
+      tags:
+      - Clients
+      operationId: delete_operation
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Case file marked as deleted; it no longer appears in lists or detail views
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Only the company's billing manager can delete case files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    patch:
+      tags:
+      - Clients
+      operationId: update_operation
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationPatch'
+        required: true
+      responses:
+        '200':
+          description: Updated client case file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{id}:
+    get:
+      tags:
+      - Companies
+      operationId: get_company
+      parameters:
+      - name: id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Company profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found in this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid company identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Companies
+      operationId: update_company
+      parameters:
+      - name: id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveCompany'
+        required: true
+      responses:
+        '200':
+          description: Company updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Company billing manager or superadministrator required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found in this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Company is archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: The request exceeds the body size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid company identifier or data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{id}/archive:
+    post:
+      tags:
+      - Companies
+      operationId: archive_company
+      parameters:
+      - name: id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Archived company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Superadministrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found in this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid company identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{id}/default:
+    post:
+      tags:
+      - Companies
+      operationId: set_default
+      parameters:
+      - name: id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Default company for this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found in this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Company is archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid company identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{id}/restore:
+    post:
+      tags:
+      - Companies
+      operationId: restore_company
+      parameters:
+      - name: id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Restored company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Superadministrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found in this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid company identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/contracts:
+    get:
+      tags:
+      - Contracts
+      summary: Lists the caller's contracts with pagination, search, filters and sorting.
+      operationId: list_contracts
+      parameters:
+      - name: page
+        in: query
+        description: Page number, starting at 1.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        description: Items per page, up to 100.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      - name: q
+        in: query
+        description: Case-insensitive search by name.
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ContractStatus'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ContractSort'
+      - name: order
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/SortOrder'
+      responses:
+        '200':
+          description: A page of contracts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractListResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '422':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: 'Invalid value for: per_page'
+      security:
+      - bearer_auth: []
+    post:
+      tags:
+      - Contracts
+      summary: |-
+        Registers a finished upload after inspecting the stored object.
+        New Word files must contain variables such as {{cliente_nombre}} in editable
+        text. Their exact source is preserved and they are immediately ready to
+        generate, with one field per variable and no Markdown conversion.
+      operationId: create_contract
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContractRequest'
+            example:
+              description: Plantilla base para vivienda
+              name: Contrato de arrendamiento
+              upload_id: 7f1d3a52-6c1e-4d0b-9a57-2f6b1c8e4a10
+        required: true
+      responses:
+        '201':
+          description: The contract was registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The upload does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UPLOAD_NOT_FOUND
+                  message: Upload not found
+        '409':
+          description: The file is not in storage yet, or the upload was already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UPLOAD_NOT_COMPLETED
+                  message: The file has not finished uploading
+        '410':
+          description: The upload expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UPLOAD_EXPIRED
+                  message: This upload has expired; request a new upload URL
+        '422':
+          description: Invalid sharing scope, upload mismatch, or a Word file is damaged, has no variables, or has invalid variables (VALIDATION_ERROR, UPLOAD_MISMATCH, INVALID_DOCX_TEMPLATE, DOCX_VARIABLES_REQUIRED, INVALID_DOCX_VARIABLES)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UPLOAD_MISMATCH
+                  message: The uploaded file does not match what was declared
+      security:
+      - bearer_auth: []
+  /api/v1/contracts/{id}:
+    get:
+      tags:
+      - Contracts
+      summary: Returns one of the caller's contracts.
+      operationId: get_contract
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The contract does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONTRACT_NOT_FOUND
+                  message: Contract not found
+      security:
+      - bearer_auth: []
+    delete:
+      tags:
+      - Contracts
+      summary: |-
+        Deletes a contract with its template and conversion history. The original
+        file is removed from storage by the worker shortly after.
+      operationId: delete_contract
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: The contract was deleted
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The contract does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONTRACT_NOT_FOUND
+                  message: Contract not found
+      security:
+      - bearer_auth: []
+    patch:
+      tags:
+      - Contracts
+      summary: Updates a contract's name, description or sharing scope. Omitted fields stay unchanged.
+      operationId: update_contract
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateContractRequest'
+            example:
+              description: null
+              name: Contrato de arrendamiento 2026
+        required: true
+      responses:
+        '200':
+          description: The updated contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The contract does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONTRACT_NOT_FOUND
+                  message: Contract not found
+        '422':
+          description: The request is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: 'Invalid value for: name'
+      security:
+      - bearer_auth: []
+  /api/v1/contracts/{id}/convert:
+    post:
+      tags:
+      - Conversions
+      summary: |-
+        Queues a conversion to Markdown and returns immediately. If one is already
+        queued or running, that one is returned instead of starting a duplicate.
+      operationId: start_conversion
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '202':
+          description: The conversion is queued or already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The contract does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONTRACT_NOT_FOUND
+                  message: Contract not found
+        '409':
+          description: A template exists; converting again would overwrite its edits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONTRACT_ALREADY_CONVERTED
+                  message: This contract already has a template
+      security:
+      - bearer_auth: []
+  /api/v1/contracts/{id}/download-url:
+    get:
+      tags:
+      - Contracts
+      summary: |-
+        Issues a temporary URL to download the original file. Added beyond the agreed
+        endpoint list because the requirement for authorized downloads needs a route.
+      operationId: get_download_url
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: A temporary download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadUrlResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The contract does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONTRACT_NOT_FOUND
+                  message: Contract not found
+      security:
+      - bearer_auth: []
+  /api/v1/contracts/{id}/generation-access:
+    get:
+      tags:
+      - Contracts
+      operationId: generation_access
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: company_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: operation_id
+        in: query
+        description: Registered client operation. Requires the company_id of the operation.
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: The caller can generate a document in this scope
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Company access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Contract, operation or company not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: The contract requires a permitted company selection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/contracts/{id}/render-pdf:
+    post:
+      tags:
+      - Contracts
+      operationId: render_pdf
+      parameters:
+      - name: id
+        in: path
+        description: Contract ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: company_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: operation_id
+        in: query
+        description: Registered client operation. Requires the company_id of the operation.
+        required: false
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        description: Binary Word document with the template fields filled in
+        content:
+          application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+            schema:
+              type: string
+        required: true
+      responses:
+        '200':
+          description: PDF rendered from the Word document
+          content:
+            application/pdf: {}
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The contract or operation is outside the active company scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Word input or PDF output exceeds the file size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '415':
+          description: Only Word documents can be rendered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Word document could not be rendered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Renderer is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          description: Rendering timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/conversions/{id}:
+    get:
+      tags:
+      - Conversions
+      summary: Returns the state of one of the caller's conversions.
+      operationId: get_conversion
+      parameters:
+      - name: id
+        in: path
+        description: Conversion ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The conversion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The conversion does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONVERSION_NOT_FOUND
+                  message: Conversion not found
+      security:
+      - bearer_auth: []
+  /api/v1/expedientes:
+    get:
+      tags:
+      - Clients
+      operationId: list_cases
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Case files with their client and vehicle, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CasePage'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/expedientes/{id}:
+    get:
+      tags:
+      - Clients
+      operationId: get_case
+      parameters:
+      - name: id
+        in: path
+        description: Case file UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Case file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/expedientes/{id}/solicitud-prestamo.pdf:
+    get:
+      tags:
+      - Clients
+      operationId: download
+      parameters:
+      - name: id
+        in: path
+        description: Case file UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Completed loan application rendered from the official template
+          content:
+            application/pdf: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Required loan application data is missing or rendering failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/files/upload-url:
+    post:
+      tags:
+      - Files
+      summary: |-
+        Issues a temporary URL for uploading a file directly to private storage. The
+        file does not pass through this API.
+      operationId: create_upload_url
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadUrlRequest'
+            example:
+              file_name: contrato-arrendamiento.pdf
+              mime_type: application/pdf
+              size_bytes: 245760
+        required: true
+      responses:
+        '201':
+          description: The upload URL was issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUploadUrlResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '413':
+          description: The declared size exceeds the limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FILE_TOO_LARGE
+                  message: The file exceeds the maximum allowed size
+        '415':
+          description: Only PDF and DOCX are accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNSUPPORTED_FILE_TYPE
+                  message: Only PDF and DOCX files are supported
+        '422':
+          description: The request is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: 'Invalid value for: file_name'
+      security:
+      - bearer_auth: []
+  /api/v1/generated-documents:
+    get:
+      tags:
+      - Generated documents
+      operationId: list_documents
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: format
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/DocumentFormat'
+      - name: period
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Period'
+      - name: operation_id
+        in: query
+        description: Only documents linked to this expediente.
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: A page of generated document metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPage'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/generated-documents/stats:
+    get:
+      tags:
+      - Generated documents
+      operationId: document_stats
+      responses:
+        '200':
+          description: Account totals, formats and six calendar months in Santo Domingo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentStats'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/generated-documents/{id}:
+    get:
+      tags:
+      - Generated documents
+      operationId: get_document
+      parameters:
+      - name: id
+        in: path
+        description: Generated document UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: A saved snapshot for re-export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The document does not exist or is outside company records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Generated documents
+      operationId: save_document
+      parameters:
+      - name: id
+        in: path
+        description: Client-generated document UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveDocument'
+        required: true
+      responses:
+        '200':
+          description: Previously saved identical document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '201':
+          description: Saved document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The source contract does not exist or belongs to another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: This account already used the ID with a different document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: The request or content exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid document or legacy metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/generated-documents/{id}/artifact:
+    get:
+      tags:
+      - Generated documents
+      operationId: get_artifact
+      parameters:
+      - name: id
+        in: path
+        description: Generated document UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Saved file or email attachment
+          content:
+            application/pdf: {}
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document: {}
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: No accessible binary exists for this document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Generated documents
+      operationId: save_artifact
+      parameters:
+      - name: id
+        in: path
+        description: Client-generated document UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ArtifactMultipart'
+        required: true
+      responses:
+        '200':
+          description: Previously saved identical document and binary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '201':
+          description: Saved document and binary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The source contract, operation or selected company is outside the active scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: This account already used the ID with a different document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Artifact exceeds 20 MiB or the configured upload limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid metadata, binary or source format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/generated-documents/{id}/render-pdf:
+    post:
+      tags:
+      - Generated documents
+      operationId: render_saved_pdf
+      parameters:
+      - name: id
+        in: path
+        description: Generated document UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Rendered PDF of the saved Word file
+          content:
+            application/pdf: {}
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: No accessible binary exists for this document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Word input or PDF output exceeds the file size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '415':
+          description: Only Word documents can be rendered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Word document could not be rendered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Renderer is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          description: Rendering timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/health:
+    get:
+      tags:
+      - System
+      summary: Reports whether the API can reach its database.
+      operationId: health
+      responses:
+        '200':
+          description: The service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+        '503':
+          description: The database is unreachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  message: The service is temporarily unavailable
+  /api/v1/me:
+    get:
+      tags:
+      - Users
+      summary: Returns the caller's access. Enabled people and the superadministrator see every active company.
+      operationId: me
+      responses:
+        '200':
+          description: The authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '403':
+          description: The account was deleted or the superadministrator login lacks its confirmed email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: ADMIN_REQUIRED
+                  message: Administrator access is required
+        '503':
+          description: The signing keys could not be retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: AUTH_UNAVAILABLE
+                  message: Authentication is temporarily unavailable
+      security:
+      - bearer_auth: []
+  /api/v1/me/activity-events:
+    post:
+      tags:
+      - Users
+      summary: |-
+        Records a fixed portal observation for the authenticated account, including pending accounts.
+        For a redirect, screen names the original requested screen. Reusing an event ID acknowledges the first write.
+      operationId: record_activity_event
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityEventInput'
+        required: true
+      responses:
+        '204':
+          description: The event was recorded or already acknowledged
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The account was deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: The request body exceeds 1024 bytes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid activity event or screen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: The account recorded 240 distinct portal observations in the past hour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Authentication or recording is temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/me/onboarding-completion:
+    post:
+      tags:
+      - Users
+      summary: Records onboarding completion for the authenticated user. Safe to repeat.
+      operationId: complete_onboarding
+      responses:
+        '204':
+          description: Onboarding completed or already recorded
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The account was deleted or the superadministrator login lacks its confirmed email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: The signing keys could not be retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/me/tour-events:
+    post:
+      tags:
+      - Users
+      summary: Records an authenticated tour event at the server's time of observation.
+      description: |-
+        Each account and run has at most one opening and one terminal outcome.
+        Repeated events and later terminal outcomes are acknowledged without changes.
+        A run ID must be non-nil and a completion must use the done step.
+      operationId: record_tour_event
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TourEventInput'
+        required: true
+      responses:
+        '204':
+          description: The event was recorded or already acknowledged
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The account lacks active business access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: The request body exceeds 1024 bytes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid tour event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: The account recorded 120 distinct events in the past hour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: The signing keys could not be retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/templates/{id}:
+    get:
+      tags:
+      - Templates
+      summary: |-
+        Returns one of the caller's templates. Native Word templates expose their
+        variable manifest and an empty content_markdown; earlier templates retain
+        their existing Markdown and have native_variables set to null.
+      operationId: get_template
+      parameters:
+      - name: id
+        in: path
+        description: Template ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The template does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: TEMPLATE_NOT_FOUND
+                  message: Template not found
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Templates
+      summary: |-
+        Replaces a template's name and legacy Markdown. Native Word templates accept
+        name changes with empty content_markdown; their source and manifest stay fixed.
+      operationId: update_template
+      parameters:
+      - name: id
+        in: path
+        description: Template ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+            example:
+              content_markdown: |-
+                # Contrato de arrendamiento
+
+                ## Primera. Objeto
+
+                ...
+              name: Contrato de arrendamiento
+        required: true
+      responses:
+        '200':
+          description: The updated template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication is required
+        '404':
+          description: The template does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: TEMPLATE_NOT_FOUND
+                  message: Template not found
+        '413':
+          description: The content exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  message: The request body is too large
+        '422':
+          description: The request is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: 'Invalid value for: name'
+      security:
+      - bearer_auth: []
+components:
+  schemas:
+    AccessRole:
+      type: string
+      enum:
+      - superadmin
+      - member
+    AccessStatus:
+      type: string
+      enum:
+      - active
+      - pending
+    AccountInput:
+      type: object
+      required:
+      - name
+      - manager_user_id
+      - company_ids
+      properties:
+        company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        manager_user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    ActivityEvent:
+      type: object
+      required:
+      - event
+      - screen
+      - result
+      - occurred_at
+      - step
+      properties:
+        event:
+          $ref: '#/components/schemas/ActivityEventKind'
+        occurred_at:
+          type: string
+          format: date-time
+        result:
+          $ref: '#/components/schemas/ActivityResult'
+        screen:
+          oneOf:
+          - $ref: '#/components/schemas/ActivityScreen'
+          - type: 'null'
+        step:
+          oneOf:
+          - $ref: '#/components/schemas/TourStep'
+          - type: 'null'
+    ActivityEventInput:
+      type: object
+      required:
+      - event_id
+      - event
+      - screen
+      properties:
+        event:
+          $ref: '#/components/schemas/ClientActivityEventKind'
+        event_id:
+          type: string
+          format: uuid
+        screen:
+          $ref: '#/components/schemas/ActivityScreen'
+      additionalProperties: false
+    ActivityEventKind:
+      type: string
+      enum:
+      - portal_visit
+      - portal_redirect
+      - not_found
+      - document_previewed
+      - client_created
+      - client_updated
+      - operation_created
+      - operation_updated
+      - generation_access
+      - document_render
+      - document_export
+      - portal_access
+      - tour_opened
+      - tour_step_viewed
+      - tour_completed
+      - tour_skipped
+      - document_generated
+      - invitation_registered
+      - invitation_sent
+    ActivityEventsPage:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityEvent'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ActivityItem:
+      type: object
+      required:
+      - email
+      - status
+      - invitation_accepted
+      - documents_generated
+      - last_activity
+      properties:
+        documents_generated:
+          type: integer
+          format: int64
+          description: Saved documents owned by this account, excluding imports.
+        email:
+          type: string
+        first_portal_access_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: First observed authenticated GET /me with an active company.
+        id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        invitation_accepted:
+          type: boolean
+        invitation_sent_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        invited_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_activity:
+          oneOf:
+          - $ref: '#/components/schemas/ActivityEvent'
+            description: Latest timeline entry, or the latest invitation milestone before an account is linked.
+          - type: 'null'
+        last_document_generated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_portal_access_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Most recent persisted observation, updated at most once per five minutes.
+        last_tour:
+          oneOf:
+          - $ref: '#/components/schemas/ActivityTour'
+            description: Most recently opened observed run. Terminal events fix its final step.
+          - type: 'null'
+        name:
+          type:
+          - string
+          - 'null'
+        onboarding_completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Existing onboarding completion state, including historical backfills.
+        status:
+          $ref: '#/components/schemas/UserStatus'
+    ActivityPage:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityItem'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ActivityResult:
+      type: string
+      enum:
+      - observed
+      - success
+      - blocked
+      - failed
+    ActivityScreen:
+      type: string
+      enum:
+      - dashboard
+      - clients
+      - client_record
+      - contracts
+      - contract_create
+      - contract_edit
+      - document_generate
+      - generated_documents
+      - settings
+      - administration
+      - billing
+      - preaccess
+      - login
+      - not_found
+    ActivityTour:
+      type: object
+      required:
+      - opened_at
+      - last_step
+      - last_step_at
+      properties:
+        last_step:
+          $ref: '#/components/schemas/TourStep'
+          description: Last distinct step observed, or the first terminal event's closing step.
+        last_step_at:
+          type: string
+          format: date-time
+          description: Server observation time for that event. Revisiting a known step does not update it.
+        opened_at:
+          type: string
+          format: date-time
+        outcome:
+          oneOf:
+          - $ref: '#/components/schemas/TourOutcome'
+          - type: 'null'
+        outcome_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AdminCompanyPage:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Company'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ArtifactMetadata:
+      type: object
+      required:
+      - contract_id
+      - format
+      - filename
+      - markdown
+      properties:
+        company:
+          oneOf:
+          - $ref: '#/components/schemas/CompanySnapshot'
+          - type: 'null'
+        contract_id:
+          type: string
+          format: uuid
+        document_type:
+          type:
+          - string
+          - 'null'
+        email:
+          oneOf:
+          - $ref: '#/components/schemas/EmailDraft'
+          - type: 'null'
+        filename:
+          type: string
+        format:
+          $ref: '#/components/schemas/DocumentFormat'
+        markdown:
+          type: string
+        operation_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Client operation in the selected company, if this export uses an expediente.
+      additionalProperties: false
+    ArtifactMultipart:
+      type: object
+      required:
+      - metadata
+      - artifact
+      properties:
+        artifact:
+          type: string
+          format: binary
+        metadata:
+          $ref: '#/components/schemas/ArtifactMetadata'
+          description: JSON metadata for the generated document.
+    AttachmentFormat:
+      type: string
+      enum:
+      - pdf
+      - docx
+    BankAccount:
+      type: object
+      required:
+      - bank_name
+      - account_holder
+      - account_type
+      - account_number
+      properties:
+        account_holder:
+          type: string
+        account_number:
+          type: string
+        account_type:
+          type: string
+        bank_name:
+          type: string
+    BankAccountInput:
+      type: object
+      required:
+      - bank_name
+      - account_holder
+      - account_type
+      - account_number
+      - expected_revision
+      properties:
+        account_holder:
+          type: string
+          maxLength: 200
+          minLength: 1
+        account_number:
+          type: string
+          maxLength: 64
+          minLength: 1
+        account_type:
+          type: string
+          maxLength: 60
+          minLength: 1
+        bank_name:
+          type: string
+          maxLength: 120
+          minLength: 1
+        expected_revision:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+    BankAccountSettings:
+      type: object
+      required:
+      - bank_account
+      - revision
+      - updated_at
+      properties:
+        bank_account:
+          oneOf:
+          - $ref: '#/components/schemas/BankAccount'
+          - type: 'null'
+        revision:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    BillingAccount:
+      type: object
+      required:
+      - id
+      - name
+      - manager_user_id
+      - starts_on
+      - companies
+      - monthly_total_minor
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingCompany'
+        company_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Dedicated company. Null for legacy accounts.
+        id:
+          type: string
+          format: uuid
+        manager_user_id:
+          type: string
+          format: uuid
+        monthly_total_minor:
+          type: integer
+          format: int64
+        name:
+          type: string
+        starts_on:
+          type: string
+          format: date
+    BillingAccountList:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingAccount'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    BillingCompany:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    BillingInvoice:
+      type: object
+      required:
+      - id
+      - account_id
+      - account_name
+      - period
+      - due_on
+      - state
+      - is_overdue
+      - total_minor
+      - months
+      - discount_minor
+      - renewal_month_limit
+      - transfer_memo
+      - lines
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        account_name:
+          type: string
+        discount_minor:
+          type: integer
+          format: int64
+        due_on:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        is_overdue:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+        months:
+          type: integer
+          format: int32
+        paid_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        period:
+          type: string
+          format: date
+        renewal_month_limit:
+          type: integer
+          format: int32
+        state:
+          $ref: '#/components/schemas/InvoiceState'
+        total_minor:
+          type: integer
+          format: int64
+        transfer_memo:
+          type: string
+        transfer_reference:
+          type:
+          - string
+          - 'null'
+        transfer_report_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        transfer_reported_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    BillingInvoiceList:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingInvoice'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    BillingOverview:
+      type: object
+      required:
+      - accounts
+      - invoices
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingAccount'
+        bank_account:
+          oneOf:
+          - $ref: '#/components/schemas/BankAccount'
+          - type: 'null'
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingInvoice'
+    CaseApplication:
+      type: object
+      properties:
+        application_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          description: Date of the loan application, independent of the eventual contract date.
+        employer:
+          type:
+          - string
+          - 'null'
+        employment_duration:
+          type:
+          - string
+          - 'null'
+        family_references:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseReference'
+          maxItems: 3
+        fixed_income:
+          type:
+          - string
+          - 'null'
+        other_income:
+          type:
+          - string
+          - 'null'
+        other_income_source:
+          type:
+          - string
+          - 'null'
+        owns_home:
+          type:
+          - boolean
+          - 'null'
+        owns_vehicle:
+          type:
+          - boolean
+          - 'null'
+        pay_days:
+          type:
+          - string
+          - 'null'
+        personal_references:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseReference'
+          maxItems: 2
+        position:
+          type:
+          - string
+          - 'null'
+        rents_home:
+          type:
+          - boolean
+          - 'null'
+        requested_amount_minor:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        spouse:
+          oneOf:
+          - $ref: '#/components/schemas/CaseSpouse'
+          - type: 'null'
+        work_address:
+          type:
+          - string
+          - 'null'
+        work_phone:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    CaseListItem:
+      type: object
+      required:
+      - id
+      - client_id
+      - client_name
+      - client_identity
+      - company_id
+      - company_name
+      - reference
+      - contract_date
+      - vehicle
+      - created_at
+      properties:
+        client_id:
+          type: string
+          format: uuid
+        client_identity:
+          type:
+          - string
+          - 'null'
+        client_name:
+          type: string
+        company_id:
+          type: string
+          format: uuid
+        company_name:
+          type: string
+        contract_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        reference:
+          type:
+          - string
+          - 'null'
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+    CasePage:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - per_page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseListItem'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    CaseReference:
+      type: object
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        name:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        relationship:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    CaseSpouse:
+      type: object
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        employer:
+          type:
+          - string
+          - 'null'
+        employment_duration:
+          type:
+          - string
+          - 'null'
+        identity:
+          type:
+          - string
+          - 'null'
+        name:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        position:
+          type:
+          - string
+          - 'null'
+        work_phone:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    Client:
+      type: object
+      required:
+      - id
+      - name
+      - created_at
+      - updated_at
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+        email:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+        identity:
+          type:
+          - string
+          - 'null'
+        income_source:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        phone:
+          type:
+          - string
+          - 'null'
+        profile:
+          oneOf:
+          - $ref: '#/components/schemas/ClientProfile'
+          - type: 'null'
+        updated_at:
+          type: string
+          format: date-time
+    ClientActivityEventKind:
+      type: string
+      enum:
+      - portal_visit
+      - portal_redirect
+      - not_found
+      - document_previewed
+    ClientPage:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - per_page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Client'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ClientPatch:
+      type: object
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        identity:
+          type:
+          - string
+          - 'null'
+        income_source:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        phone:
+          type:
+          - string
+          - 'null'
+        profile:
+          oneOf:
+          - $ref: '#/components/schemas/ClientProfile'
+          - type: 'null'
+      additionalProperties: false
+    ClientProfile:
+      type: object
+      properties:
+        employer:
+          type:
+          - string
+          - 'null'
+        employment_duration:
+          type:
+          - string
+          - 'null'
+        family_references:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseReference'
+          maxItems: 3
+        fixed_income:
+          type:
+          - string
+          - 'null'
+        marital_status:
+          type:
+          - string
+          - 'null'
+        nationality:
+          type:
+          - string
+          - 'null'
+        other_income:
+          type:
+          - string
+          - 'null'
+        other_income_source:
+          type:
+          - string
+          - 'null'
+        owns_home:
+          type:
+          - boolean
+          - 'null'
+        owns_vehicle:
+          type:
+          - boolean
+          - 'null'
+        pay_days:
+          type:
+          - string
+          - 'null'
+        personal_references:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseReference'
+          maxItems: 2
+        position:
+          type:
+          - string
+          - 'null'
+        rents_home:
+          type:
+          - boolean
+          - 'null'
+        spouse:
+          oneOf:
+          - $ref: '#/components/schemas/CaseSpouse'
+          - type: 'null'
+        spouse_not_applicable:
+          type:
+          - boolean
+          - 'null'
+        treatment:
+          type:
+          - string
+          - 'null'
+        work_address:
+          type:
+          - string
+          - 'null'
+        work_phone:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    ClientTimelineEvent:
+      type: object
+      required:
+      - id
+      - kind
+      - occurred_at
+      - operation_label
+      - document_name
+      - actor_name
+      - changes
+      properties:
+        actor_name:
+          type:
+          - string
+          - 'null'
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineChange'
+        document_name:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+          description: Event ID. Together with kind it identifies the event.
+        kind:
+          $ref: '#/components/schemas/TimelineKind'
+        occurred_at:
+          type: string
+          format: date-time
+        operation_label:
+          type:
+          - string
+          - 'null'
+    ClientTimelinePage:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - per_page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientTimelineEvent'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ClientWrite:
+      type: object
+      required:
+      - name
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        identity:
+          type:
+          - string
+          - 'null'
+        income_source:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        phone:
+          type:
+          - string
+          - 'null'
+        profile:
+          oneOf:
+          - $ref: '#/components/schemas/ClientProfile'
+          - type: 'null'
+      additionalProperties: false
+    Company:
+      type: object
+      required:
+      - id
+      - name
+      - values
+      - is_default
+      - can_manage
+      - created_at
+      - updated_at
+      properties:
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        can_manage:
+          type: boolean
+          description: Whether the signed-in user can modify this company profile.
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        is_default:
+          type: boolean
+        name:
+          type: string
+          description: Internal name shown in the company selector.
+        updated_at:
+          type: string
+          format: date-time
+        values:
+          type: object
+          description: Saved Word variables plus the derived read-only alias empresa_nombre.
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
+    CompanyAccess:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    CompanyList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Company'
+    CompanySnapshot:
+      type: object
+      description: Values actually used for a document, including any overrides in its form.
+      required:
+      - id
+      - name
+      - values
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        values:
+          type: object
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
+      additionalProperties: false
+    ContractListResponse:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContractResponse'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ContractResponse:
+      type: object
+      required:
+      - id
+      - owner_id
+      - name
+      - original_file_name
+      - mime_type
+      - size_bytes
+      - status
+      - created_at
+      - updated_at
+      properties:
+        company_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+        latest_conversion_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: The most recent conversion, whatever its state.
+        mime_type:
+          type: string
+          example: application/pdf
+        name:
+          type: string
+          example: Contrato de arrendamiento
+        original_file_name:
+          type: string
+          example: contrato-arrendamiento.pdf
+        owner_id:
+          type: string
+          format: uuid
+        shared_company_ids:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+            format: uuid
+          description: The saved company snapshot for the owner, or its active intersection with the reader's memberships.
+        size_bytes:
+          type: integer
+          format: int64
+          example: 245760
+        status:
+          $ref: '#/components/schemas/ContractStatus'
+        template_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Present once a conversion has produced the template.
+        updated_at:
+          type: string
+          format: date-time
+    ContractStatus:
+      type: string
+      enum:
+      - uploaded
+      - converting
+      - converted
+      - conversion_failed
+    ConversionResponse:
+      type: object
+      required:
+      - id
+      - contract_id
+      - status
+      - attempts
+      - max_attempts
+      - warnings
+      - created_at
+      - updated_at
+      properties:
+        attempts:
+          type: integer
+          format: int32
+          example: 1
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        contract_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        error_code:
+          type:
+          - string
+          - 'null'
+          description: Present on failure, and while a retry is scheduled.
+          example: EMPTY_EXTRACTION
+        error_message:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+        max_attempts:
+          type: integer
+          format: int32
+          example: 3
+        page_count:
+          type:
+          - integer
+          - 'null'
+          format: int32
+        status:
+          $ref: '#/components/schemas/ConversionStatus'
+        template_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Present once the conversion completes.
+        updated_at:
+          type: string
+          format: date-time
+        warnings:
+          type: array
+          items:
+            type: object
+          description: Extraction limitations the user should review, such as pages that needed OCR.
+          example:
+          - code: OCR_APPLIED
+            message: Part of the text was read with OCR. Review it against the original.
+    ConversionStatus:
+      type: string
+      enum:
+      - pending
+      - processing
+      - completed
+      - failed
+    CreateAccount:
+      allOf:
+      - $ref: '#/components/schemas/AccountInput'
+      - type: object
+        properties:
+          starts_on:
+            type:
+            - string
+            - 'null'
+            format: date
+    CreateContractRequest:
+      type: object
+      required:
+      - upload_id
+      - name
+      properties:
+        company_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Select one active company or null for a private contract. Mutually exclusive with shared_company_ids.
+        description:
+          type:
+          - string
+          - 'null'
+          example: Plantilla base para vivienda
+        name:
+          type: string
+          example: Contrato de arrendamiento
+        shared_company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Snapshot of the active companies to share with. Mutually exclusive with company_id.
+          maxItems: 100
+          minItems: 1
+        upload_id:
+          type: string
+          format: uuid
+      additionalProperties: false
+    CreateUploadUrlRequest:
+      type: object
+      required:
+      - file_name
+      - mime_type
+      - size_bytes
+      properties:
+        file_name:
+          type: string
+          example: contrato-arrendamiento.pdf
+        mime_type:
+          type: string
+          example: application/pdf
+        size_bytes:
+          type: integer
+          format: int64
+          example: 245760
+      additionalProperties: false
+    CreateUploadUrlResponse:
+      type: object
+      required:
+      - upload_id
+      - upload_url
+      - method
+      - headers
+      - expires_at
+      - register_before
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+        headers:
+          type: object
+          description: Send these headers verbatim on the upload. They are part of the signature.
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
+        method:
+          type: string
+          example: PUT
+        register_before:
+          type: string
+          format: date-time
+          description: Latest moment to register the contract.
+        upload_id:
+          type: string
+          format: uuid
+          description: Pass this to `POST /api/v1/contracts` once the upload finishes.
+        upload_url:
+          type: string
+    DailyUsers:
+      type: object
+      required:
+      - day
+      - users
+      properties:
+        day:
+          type: string
+          format: date
+        users:
+          type: integer
+          format: int64
+    DashboardActivity:
+      type: object
+      required:
+      - daily_users
+      - top_screens
+      properties:
+        daily_users:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyUsers'
+        top_screens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScreenVisits'
+    DashboardCollections:
+      type: object
+      required:
+      - transfers_to_review
+      - transfers_to_review_minor
+      - overdue_invoices
+      - overdue_minor
+      - confirmed_this_month_minor
+      - recent_reports
+      - recent_reports_total
+      - recent_reports_page
+      - recent_reports_per_page
+      properties:
+        confirmed_this_month_minor:
+          type: integer
+          format: int64
+        overdue_invoices:
+          type: integer
+          minimum: 0
+        overdue_minor:
+          type: integer
+          format: int64
+        recent_reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardTransfer'
+        recent_reports_page:
+          type: integer
+          format: int64
+        recent_reports_per_page:
+          type: integer
+          format: int64
+        recent_reports_total:
+          type: integer
+          minimum: 0
+        transfers_to_review:
+          type: integer
+          minimum: 0
+        transfers_to_review_minor:
+          type: integer
+          format: int64
+    DashboardSummary:
+      type: object
+      required:
+      - usage
+      - collections
+      - activity
+      properties:
+        activity:
+          $ref: '#/components/schemas/DashboardActivity'
+        collections:
+          $ref: '#/components/schemas/DashboardCollections'
+        usage:
+          $ref: '#/components/schemas/DashboardUsage'
+    DashboardTransfer:
+      type: object
+      required:
+      - invoice_id
+      - account_name
+      - total_minor
+      - reported_at
+      properties:
+        account_name:
+          type: string
+        invoice_id:
+          type: string
+          format: uuid
+        reported_at:
+          type: string
+          format: date-time
+        total_minor:
+          type: integer
+          format: int64
+    DashboardUsage:
+      type: object
+      required:
+      - period
+      - active_companies
+      - enabled_users
+      - users_seen_this_month
+      - access_requests
+      - documents_this_month
+      properties:
+        access_requests:
+          type: integer
+          format: int64
+        active_companies:
+          type: integer
+          format: int64
+        documents_this_month:
+          type: integer
+          format: int64
+        enabled_users:
+          type: integer
+          format: int64
+        period:
+          type: string
+          format: date
+        users_seen_this_month:
+          type: integer
+          format: int64
+    DocumentDetail:
+      allOf:
+      - $ref: '#/components/schemas/DocumentMetadata'
+      - type: object
+        required:
+        - markdown
+        properties:
+          email:
+            oneOf:
+            - $ref: '#/components/schemas/EmailDraft'
+            - type: 'null'
+          markdown:
+            type: string
+    DocumentFormat:
+      type: string
+      enum:
+      - pdf
+      - docx
+      - email
+    DocumentFormats:
+      type: object
+      required:
+      - pdf
+      - docx
+      - email
+      properties:
+        docx:
+          type: integer
+          format: int64
+        email:
+          type: integer
+          format: int64
+        pdf:
+          type: integer
+          format: int64
+    DocumentMetadata:
+      type: object
+      required:
+      - id
+      - contract_id
+      - contract_name
+      - format
+      - filename
+      - created_at
+      - has_artifact
+      properties:
+        company:
+          oneOf:
+          - $ref: '#/components/schemas/CompanySnapshot'
+          - type: 'null'
+        contract_id:
+          type: string
+          format: uuid
+        contract_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        document_type:
+          type:
+          - string
+          - 'null'
+        filename:
+          type: string
+        format:
+          $ref: '#/components/schemas/DocumentFormat'
+        has_artifact:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        operation_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    DocumentMonth:
+      type: object
+      required:
+      - month
+      - total
+      properties:
+        month:
+          type: string
+          description: Calendar month in Santo Domingo.
+          example: 2026-11
+        total:
+          type: integer
+          format: int64
+    DocumentPage:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - per_page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentMetadata'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    DocumentStats:
+      type: object
+      required:
+      - total
+      - current_month_total
+      - months
+      - formats
+      properties:
+        current_month_total:
+          type: integer
+          format: int64
+        formats:
+          $ref: '#/components/schemas/DocumentFormats'
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentMonth'
+        total:
+          type: integer
+          format: int64
+    DownloadUrlResponse:
+      type: object
+      required:
+      - url
+      - expires_at
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+    EmailDraft:
+      type: object
+      required:
+      - to
+      - subject
+      - message
+      - attachment_format
+      properties:
+        attachment_format:
+          $ref: '#/components/schemas/AttachmentFormat'
+        cc:
+          type:
+          - string
+          - 'null'
+        message:
+          type: string
+        subject:
+          type: string
+        to:
+          type: string
+      additionalProperties: false
+    ErrorBody:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          example: CONTRACT_NOT_FOUND
+        message:
+          type: string
+          example: Contract not found
+    ErrorEnvelope:
+      type: object
+      description: Wire format shared by all errors.
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    Financing:
+      type: object
+      required:
+      - interest_installments
+      - final_principal
+      - extraordinary_payments
+      properties:
+        extraordinary_from_signature:
+          type: boolean
+          description: The extraordinary payment dates are calculated from the case signature date.
+        extraordinary_payment_count:
+          type:
+          - integer
+          - 'null'
+          description: Explicit number of extraordinary payments saved for this plan.
+          maximum: 299
+          minimum: 0
+        extraordinary_payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+        final_principal:
+          $ref: '#/components/schemas/Payment'
+        insurance_installment_count:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          maximum: 9007199254740991
+          minimum: 1
+        interest_installments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+          description: Dates must be strictly increasing and precede the final principal date.
+        monthly_plan:
+          oneOf:
+          - $ref: '#/components/schemas/MonthlyPlan'
+          - type: 'null'
+      additionalProperties: false
+    HealthResponse:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          example: ok
+    InvoiceLine:
+      type: object
+      required:
+      - company_id
+      - company_name
+      - unit_price_minor
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        company_name:
+          type: string
+        unit_price_minor:
+          type: integer
+          format: int32
+    InvoiceState:
+      type: string
+      enum:
+      - pending
+      - in_review
+      - paid
+    LegacyDocument:
+      type: object
+      required:
+      - contract_name
+      - created_at
+      properties:
+        contract_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    MeResponse:
+      type: object
+      required:
+      - id
+      - role
+      - access
+      - companies
+      - can_manage_billing
+      - billing_company_ids
+      - overdue_company_ids
+      - manageable_overdue_company_ids
+      - upload_max_bytes
+      - onboarding_pending
+      properties:
+        access:
+          $ref: '#/components/schemas/AccessStatus'
+        billing_company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Active companies assigned to this billing manager.
+        can_manage_billing:
+          type: boolean
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyAccess'
+        email:
+          type:
+          - string
+          - 'null'
+          example: nombre@ejemplo.test
+        id:
+          type: string
+          format: uuid
+        manageable_overdue_company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Blocked companies with an overdue invoice in a billing account the caller can manage.
+        notice:
+          oneOf:
+          - $ref: '#/components/schemas/Notice'
+          - type: 'null'
+        onboarding_pending:
+          type: boolean
+          description: Whether the portal should show onboarding.
+        overdue_company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Companies whose workspace is blocked by an overdue invoice.
+        role:
+          $ref: '#/components/schemas/AccessRole'
+        upload_max_bytes:
+          type: integer
+          format: int64
+          description: Maximum accepted size, in bytes, for an original contract upload.
+    MonthlyPlan:
+      type: object
+      required:
+      - capital_minor
+      - monthly_rate_basis_points
+      - installment_count
+      properties:
+        capital_minor:
+          type: integer
+          format: int64
+          maximum: 9007199254740991
+          minimum: 1
+        installment_count:
+          type: integer
+          format: int32
+          maximum: 1200
+          minimum: 1
+        monthly_rate_basis_points:
+          type: integer
+          format: int64
+          maximum: 9007199254740991
+          minimum: 1
+      additionalProperties: false
+    NativeVariable:
+      type: object
+      required:
+      - key
+      - occurrences
+      properties:
+        key:
+          type: string
+          example: cliente_nombre
+        occurrences:
+          type: integer
+          format: int32
+          example: 2
+          minimum: 0
+    Notice:
+      type: string
+      enum:
+      - queued
+      - sent
+      - unavailable
+    Operation:
+      type: object
+      required:
+      - id
+      - company_id
+      - client_id
+      - contract_id
+      - vehicle
+      - created_at
+      - updated_at
+      properties:
+        application:
+          oneOf:
+          - $ref: '#/components/schemas/CaseApplication'
+          - type: 'null'
+        client_id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        contract_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        contract_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Optional source contract used when a document needs a base clause.
+        created_at:
+          type: string
+          format: date-time
+        financing:
+          oneOf:
+          - $ref: '#/components/schemas/Financing'
+          - type: 'null'
+        id:
+          type: string
+          format: uuid
+        reference:
+          type:
+          - string
+          - 'null'
+        signature_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        updated_at:
+          type: string
+          format: date-time
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+    OperationPatch:
+      type: object
+      properties:
+        application:
+          oneOf:
+          - $ref: '#/components/schemas/CaseApplication'
+          - type: 'null'
+        contract_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        contract_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        extraordinary_payment_amounts_minor:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Amounts in cents for the selected extraordinary payments, in order from signing. Each amount schedules one payment at a four-month interval before the final installment. Zero marks a pending amount.
+          maxItems: 299
+        financing:
+          oneOf:
+          - $ref: '#/components/schemas/Financing'
+          - type: 'null'
+        reference:
+          type:
+          - string
+          - 'null'
+          description: Changes to legacy manual references. Automatically assigned references are immutable.
+        signature_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+      additionalProperties: false
+    OperationWrite:
+      type: object
+      required:
+      - company_id
+      - vehicle
+      properties:
+        application:
+          oneOf:
+          - $ref: '#/components/schemas/CaseApplication'
+          - type: 'null'
+        company_id:
+          type: string
+          format: uuid
+        contract_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        contract_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        financing:
+          oneOf:
+          - $ref: '#/components/schemas/Financing'
+          - type: 'null'
+        reference:
+          type:
+          - string
+          - 'null'
+          description: Optional manual reference for legacy callers. Omit it to assign a stable company abbreviation and sequence.
+        signature_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+      additionalProperties: false
+    Payment:
+      type: object
+      required:
+      - date
+      - amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+          description: Zero is allowed for an extraordinary payment with a pending amount.
+          maximum: 9007199254740991
+          minimum: 0
+        date:
+          type: string
+          format: date
+      additionalProperties: false
+    SaveCompany:
+      type: object
+      required:
+      - name
+      - values
+      properties:
+        name:
+          type: string
+        values:
+          type: object
+          description: |-
+            Word variables with the empresa_ prefix. Requires empresa_razon_social.
+            empresa_nombre is derived by the API and is excluded from writes.
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
+      additionalProperties: false
+    SaveDocument:
+      type: object
+      required:
+      - contract_id
+      - format
+      - filename
+      - markdown
+      properties:
+        contract_id:
+          type: string
+          format: uuid
+        email:
+          oneOf:
+          - $ref: '#/components/schemas/EmailDraft'
+          - type: 'null'
+        filename:
+          type: string
+        format:
+          $ref: '#/components/schemas/DocumentFormat'
+        legacy:
+          oneOf:
+          - $ref: '#/components/schemas/LegacyDocument'
+          - type: 'null'
+        markdown:
+          type: string
+      additionalProperties: false
+    ScreenVisits:
+      type: object
+      required:
+      - screen
+      - visits
+      properties:
+        screen:
+          type: string
+        visits:
+          type: integer
+          format: int64
+    TemplateResponse:
+      type: object
+      required:
+      - id
+      - contract_id
+      - owner_id
+      - name
+      - content_markdown
+      - created_at
+      - updated_at
+      properties:
+        content_markdown:
+          type: string
+          example: |-
+            # Contrato de arrendamiento
+
+            ## Primera. Objeto
+
+            ...
+        contract_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Contrato de arrendamiento
+        native_variables:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/NativeVariable'
+          description: |-
+            Present for an original Word template. Its variables come from the DOCX,
+            and its content_markdown is empty.
+        owner_id:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+    TimelineChange:
+      type: object
+      required:
+      - field
+      - before
+      - after
+      properties:
+        after:
+          description: New field value. An unset field is JSON null.
+        before:
+          description: Original field value. An unset field is JSON null.
+        field:
+          type: string
+    TimelineKind:
+      type: string
+      enum:
+      - client_created
+      - client_updated
+      - operation_created
+      - operation_updated
+      - document_generated
+    TourEventInput:
+      type: object
+      required:
+      - run_id
+      - event
+      - step
+      properties:
+        event:
+          $ref: '#/components/schemas/TourEventKind'
+        run_id:
+          type: string
+          format: uuid
+        step:
+          $ref: '#/components/schemas/TourStep'
+      additionalProperties: false
+    TourEventKind:
+      type: string
+      enum:
+      - opened
+      - step_viewed
+      - completed
+      - skipped
+    TourOutcome:
+      type: string
+      enum:
+      - completed
+      - skipped
+    TourStep:
+      type: string
+      enum:
+      - clients
+      - company
+      - client
+      - client-form
+      - operation
+      - operation-form
+      - prepare
+      - type
+      - template
+      - continue
+      - document-fields
+      - preview
+      - export
+      - history
+      - done
+    TransferInput:
+      type: object
+      required:
+      - reference
+      properties:
+        expected_total_minor:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 1
+        months:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          maximum: 12
+          minimum: 1
+        reference:
+          type: string
+      additionalProperties: false
+    UpdateContractRequest:
+      type: object
+      description: 'Fields left out stay unchanged. `description: null` clears the description.'
+      properties:
+        company_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Replaces the shared company snapshot with one company, or makes the contract private when null.
+        description:
+          type:
+          - string
+          - 'null'
+        name:
+          type:
+          - string
+          - 'null'
+        shared_company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Replaces the sharing scope with a snapshot of active companies. Mutually exclusive with company_id.
+          maxItems: 100
+          minItems: 1
+      additionalProperties: false
+    UpdateTemplateRequest:
+      type: object
+      required:
+      - name
+      - content_markdown
+      properties:
+        content_markdown:
+          type: string
+          example: |-
+            # Contrato de arrendamiento
+
+            ## Primera. Objeto
+
+            ...
+        name:
+          type: string
+          example: Contrato de arrendamiento
+      additionalProperties: false
+    UserAccess:
+      type: object
+      required:
+      - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: '`true` lets the person work in every active company; `false` removes access.'
+      additionalProperties: false
+    UserItem:
+      type: object
+      required:
+      - email
+      - status
+      - company_ids
+      - created_at
+      properties:
+        company_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        email:
+          type: string
+        id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        name:
+          type:
+          - string
+          - 'null'
+        notice:
+          oneOf:
+          - $ref: '#/components/schemas/Notice'
+          - type: 'null'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+    UserList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserItem'
+    UserPage:
+      type: object
+      required:
+      - items
+      - page
+      - per_page
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserItem'
+        page:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    UserStatus:
+      type: string
+      enum:
+      - pending
+      - invited
+      - active
+      - suspended
+    Vehicle:
+      type: object
+      properties:
+        chassis_number:
+          type:
+          - string
+          - 'null'
+        color:
+          type:
+          - string
+          - 'null'
+        engine_number:
+          type:
+          - string
+          - 'null'
+        make:
+          type:
+          - string
+          - 'null'
+        model:
+          type:
+          - string
+          - 'null'
+        plate:
+          type:
+          - string
+          - 'null'
+        registration_number:
+          type:
+          - string
+          - 'null'
+        vehicle_type:
+          type:
+          - string
+          - 'null'
+        year:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    VerificationDecision:
+      type: string
+      enum:
+      - confirm
+      - reject
+    VerificationInput:
+      type: object
+      required:
+      - decision
+      - report_id
+      properties:
+        decision:
+          $ref: '#/components/schemas/VerificationDecision'
+        report_id:
+          type: string
+          format: uuid
+      additionalProperties: false
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase Auth access token
+tags:
+- name: System
+  description: Service health
+- name: Users
+  description: The authenticated user
+- name: Administration
+  description: Company access and invitations
+- name: Clients
+  description: Global client directory and company-scoped case files for enabled people
+- name: Companies
+  description: Reusable company details owned by the authenticated account
+- name: Files
+  description: Direct uploads to private storage
+- name: Contracts
+  description: Contract records owned by the authenticated user
+- name: Conversions
+  description: Asynchronous PDF and DOCX to Markdown conversions
+- name: Templates
+  description: Original Word templates with variables and legacy editable templates
+- name: Generated documents
+  description: Saved exports and statistics for the authenticated account
+- name: Billing
+  description: Monthly company billing and bank transfers

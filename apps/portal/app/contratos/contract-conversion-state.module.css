@@ -1,0 +1,294 @@
+.progress,
+.failure,
+.preview {
+  min-inline-size: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+}
+
+.progress {
+  --conversion-foreground: #fff;
+  --conversion-muted: color-mix(in srgb, var(--conversion-foreground) 72%, var(--brand-ink));
+  --conversion-line: color-mix(in srgb, var(--conversion-foreground) 22%, var(--brand-ink));
+  --focus-outline: var(--accent);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-8);
+  padding: clamp(var(--space-5), 4vw, var(--space-10));
+  background: var(--brand-ink);
+  color: var(--conversion-foreground);
+}
+
+.progressContent,
+.progressIntro,
+.failureMessage {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.progressContent {
+  gap: var(--space-6);
+}
+
+.fileLabel {
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--conversion-line);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-3);
+  color: var(--conversion-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.fileLabel svg {
+  flex: none;
+}
+
+.progress h2,
+.failure h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 500;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.progress p,
+.failure p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.progress p {
+  margin-block-start: var(--space-2);
+  color: var(--conversion-muted);
+}
+
+.stages {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 2.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  color: var(--conversion-muted);
+  font-size: var(--text-sm);
+}
+
+.stage[aria-current] {
+  border-color: var(--conversion-line);
+  background: color-mix(in srgb, var(--conversion-foreground) 7%, var(--brand-ink));
+  color: var(--conversion-foreground);
+}
+
+.marker {
+  display: grid;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  place-items: center;
+  border: 1px solid var(--conversion-line);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+}
+
+.stage[data-complete] .marker,
+.stage[aria-current] .marker,
+.statusTag {
+  color: var(--accent);
+}
+
+.statusTag {
+  padding-inline-end: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.spinner {
+  animation: conversion-spin 1.2s linear 4;
+}
+
+@keyframes conversion-spin {
+  to { transform: rotate(1turn); }
+}
+
+.illustration {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(var(--space-2), 2vw, var(--space-4));
+  min-inline-size: 0;
+}
+
+.document {
+  display: grid;
+  flex: 0 1 6rem;
+  min-inline-size: 0;
+  min-block-size: 7rem;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--conversion-line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--conversion-foreground) 7%, var(--brand-ink));
+  font-size: var(--text-xs);
+}
+
+.arrow,
+.markdown {
+  color: var(--accent);
+}
+
+.markdown {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.actions,
+.failureActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.actions p {
+  margin: 0;
+}
+
+.link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding-inline: var(--space-4);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.progress .link {
+  border-color: var(--conversion-line);
+  color: var(--conversion-foreground);
+}
+
+.link:hover {
+  background: var(--surface-muted);
+}
+
+.progress .link:hover {
+  background: color-mix(in srgb, var(--conversion-foreground) 9%, var(--brand-ink));
+}
+
+.preview,
+.failure {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(var(--space-4), 4vw, var(--space-6));
+  background: var(--surface);
+}
+
+.preview h2 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.previewEditor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.previewToolbar,
+.previewBody {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.previewToolbar {
+  border-block-end: 1px solid var(--border);
+}
+
+.failure {
+  justify-items: center;
+  gap: var(--space-6);
+  padding-block: clamp(var(--space-8), 6vw, var(--space-16));
+  text-align: center;
+}
+
+.failureIcon {
+  display: grid;
+  inline-size: 3rem;
+  block-size: 3rem;
+  place-items: center;
+  color: var(--danger);
+}
+
+.failureMessage {
+  max-inline-size: 32rem;
+  gap: var(--space-2);
+}
+
+.failureMessage p {
+  color: var(--text-secondary);
+}
+
+.failureMessage strong {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.failureActions {
+  justify-content: center;
+}
+
+.failureActions .retry {
+  min-block-size: 44px;
+  border-color: color-mix(in oklab, var(--accent) 86%, var(--brand-ink));
+  background: var(--accent);
+  color: var(--brand-ink);
+}
+
+.failureActions .retry:disabled {
+  color: var(--text-secondary);
+}
+
+.retryError {
+  color: var(--danger);
+}
+
+@media (max-width: 960px) {
+  .progress {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .illustration {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}

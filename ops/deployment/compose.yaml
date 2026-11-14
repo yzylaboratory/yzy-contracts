@@ -1,0 +1,148 @@
+name: yzy-contracts
+
+x-api-service: &api-service
+  image: yzylabs/yzy-contracts-api:case-document-data-20261113-r70
+  init: true
+  restart: unless-stopped
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  env_file:
+    - ./api.env
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,size=64m,mode=1777
+  deploy:
+    resources:
+      limits:
+        memory: 512M
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  api:
+    <<: *api-service
+    container_name: yzy-contracts-api
+    env_file:
+      - ./api.env
+      - ./api.access.env
+    command: ["serve"]
+    ports:
+      - "127.0.0.1:8841:8080"
+    networks:
+      - supabase
+      - renderer
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    <<: *api-service
+    container_name: yzy-contracts-worker
+    env_file:
+      - ./api.env
+      - ./api.access.env
+    command: ["worker"]
+    networks:
+      - supabase
+      - extractor
+
+  renderer:
+    image: yzy-contracts-renderer:20261110-r17
+    container_name: yzy-contracts-renderer
+    init: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - ./renderer.env
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m,mode=1777
+    cpus: 1.5
+    mem_limit: 768m
+    pids_limit: 128
+    networks:
+      - renderer
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  portal:
+    image: yzy-contracts-portal:case-document-data-20261113-r70
+    container_name: yzy-contracts-portal
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8842:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  doc-extractor:
+    image: yzylabs/doc-extractor-api:0.1.0
+    container_name: yzy-contracts-doc-extractor
+    init: true
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - ./doc-extractor.env
+    environment:
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8000"
+      DOCLING_ARTIFACTS_PATH: "/opt/docling-models"
+      HF_HOME: "/opt/hf-cache"
+      TMPDIR: "/tmp"
+      XDG_CACHE_HOME: "/tmp/cache"
+    ports:
+      - "${DOC_EXTRACTOR_BIND_HOST:-127.0.0.1}:${DOC_EXTRACTOR_HOST_PORT:-8840}:8000"
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - extractor
+
+networks:
+  renderer:
+    internal: true
+  extractor: {}
+  supabase:
+    name: "${SUPABASE_DOCKER_NETWORK:?Set the external database network name}"
+    external: true

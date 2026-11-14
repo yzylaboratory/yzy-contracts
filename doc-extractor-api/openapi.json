@@ -1,0 +1,653 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Doc Extractor API",
+    "description": "Internal microservice that downloads PDF and DOCX contract files from presigned Cloudflare R2 URLs and converts them into clean, structured Markdown using Docling.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness probe",
+        "description": "Lightweight liveness probe confirming the HTTP server process is responsive.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness probe",
+        "description": "Verifies that required internal configuration and the document extraction service are initialized without exposing secrets.",
+        "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is not ready to accept extraction jobs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/extract": {
+      "post": {
+        "tags": [
+          "Extraction"
+        ],
+        "summary": "Extract structured Markdown from a PDF or DOCX stored in Cloudflare R2",
+        "description": "Synchronously downloads a contract document from a presigned Cloudflare R2 HTTPS URL, validates its format and integrity, converts it to structured Markdown via Docling (applying OCR when configured), and returns Markdown, metadata, and warnings.",
+        "operationId": "extract_document_internal_v1_extract_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload or forbidden download URL (`FORBIDDEN_DOWNLOAD_URL`, `INVALID_REQUEST`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `X-Internal-API-Key` header (`UNAUTHORIZED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Storage denied access to the presigned URL (`STORAGE_ACCESS_DENIED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document was not found in Cloudflare R2 (`DOCUMENT_NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Presigned download URL has expired (`PRESIGNED_URL_EXPIRED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Document exceeds `MAX_FILE_SIZE_MB` (`DOCUMENT_TOO_LARGE`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported format, empty document, corrupt document, password-protected file, empty extraction, or Docling conversion failure (`UNSUPPORTED_DOCUMENT_FORMAT`, `EMPTY_DOCUMENT`, `CORRUPT_DOCUMENT`, `PASSWORD_PROTECTED_DOCUMENT`, `EMPTY_EXTRACTION`, `CONVERSION_FAILED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Maximum concurrent extractions reached (`TOO_MANY_CONCURRENT_EXTRACTIONS`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream storage failure during download (`DOWNLOAD_FAILED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Download or Docling conversion timed out (`DOWNLOAD_TIMEOUT`, `EXTRACTION_TIMEOUT`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error (`INTERNAL_SERVER_ERROR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "InternalApiKey": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DocumentInput": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename",
+            "description": "Original file name of the contract document (.pdf or .docx).",
+            "examples": [
+              "contrato_servicios.pdf"
+            ]
+          },
+          "content_type": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Content Type",
+            "description": "MIME type of the document.",
+            "examples": [
+              "application/pdf"
+            ]
+          },
+          "download_url": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 8,
+            "title": "Download Url",
+            "description": "Presigned HTTPS URL pointing to Cloudflare R2.",
+            "examples": [
+              "https://contracts.r2.cloudflarestorage.com/users/123/contrato_servicios.pdf?X-Amz-Signature=example"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "content_type",
+          "download_url"
+        ],
+        "title": "DocumentInput"
+      },
+      "DocumentSummary": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "examples": [
+              "contrato_servicios.pdf"
+            ]
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "application/pdf",
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ],
+            "title": "Content Type",
+            "examples": [
+              "application/pdf"
+            ]
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count",
+            "description": "Number of pages when reliably known (nullable for DOCX or when unavailable).",
+            "examples": [
+              5
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "content_type"
+        ],
+        "title": "DocumentSummary"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Deterministic machine-readable error code.",
+            "examples": [
+              "UNSUPPORTED_DOCUMENT_FORMAT"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Safe human-readable error message without internal stack traces.",
+            "examples": [
+              "Only PDF and DOCX files are supported."
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "ExtractionMetadata": {
+        "properties": {
+          "tables_detected": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Tables Detected",
+            "description": "Count of structured tables detected in the document.",
+            "examples": [
+              2
+            ]
+          },
+          "ocr_used": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Used",
+            "description": "Whether OCR was applied during conversion, or null if not determinable.",
+            "examples": [
+              false
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "description": "Total extraction wall-clock time in milliseconds.",
+            "examples": [
+              1840
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tables_detected",
+          "duration_ms"
+        ],
+        "title": "ExtractionMetadata"
+      },
+      "ExtractionOptions": {
+        "properties": {
+          "ocr_mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "on",
+              "off"
+            ],
+            "title": "Ocr Mode",
+            "description": "OCR strategy: 'auto' (run OCR when needed), 'on' (force full-page OCR), or 'off' (disable OCR).",
+            "default": "auto",
+            "examples": [
+              "auto"
+            ]
+          },
+          "ocr_languages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Ocr Languages",
+            "description": "Prioritized list of ISO 639-1 OCR language codes.",
+            "examples": [
+              [
+                "es",
+                "en"
+              ]
+            ]
+          },
+          "extract_tables": {
+            "type": "boolean",
+            "title": "Extract Tables",
+            "description": "Whether to run table structure recognition on the document.",
+            "default": true,
+            "examples": [
+              true
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExtractionOptions"
+      },
+      "ExtractionRequest": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id",
+            "description": "Correlation identifier generated by the Rust API.",
+            "examples": [
+              "ae17c335-55bc-401a-a46a-391dc7b54d8b"
+            ]
+          },
+          "document": {
+            "$ref": "#/components/schemas/DocumentInput"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ExtractionOptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "document"
+        ],
+        "title": "ExtractionRequest",
+        "examples": [
+          {
+            "document": {
+              "content_type": "application/pdf",
+              "download_url": "https://example.r2.cloudflarestorage.com/contracts/contrato_servicios.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=300",
+              "filename": "contrato_servicios.pdf"
+            },
+            "job_id": "ae17c335-55bc-401a-a46a-391dc7b54d8b",
+            "options": {
+              "extract_tables": true,
+              "ocr_languages": [
+                "es",
+                "en"
+              ],
+              "ocr_mode": "auto"
+            }
+          }
+        ]
+      },
+      "ExtractionResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id",
+            "examples": [
+              "ae17c335-55bc-401a-a46a-391dc7b54d8b"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "title": "Status",
+            "default": "completed",
+            "examples": [
+              "completed"
+            ]
+          },
+          "document": {
+            "$ref": "#/components/schemas/DocumentSummary"
+          },
+          "extraction": {
+            "$ref": "#/components/schemas/ExtractionResultPayload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "document",
+          "extraction"
+        ],
+        "title": "ExtractionResponse"
+      },
+      "ExtractionResultPayload": {
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Markdown",
+            "description": "Normalized Markdown extracted from the document.",
+            "examples": [
+              "# CONTRATO DE SERVICIOS\n\nEntre las partes..."
+            ]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/ExtractionMetadata"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionWarningItem"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Non-fatal extraction warnings requiring human review."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "markdown",
+          "metadata"
+        ],
+        "title": "ExtractionResultPayload"
+      },
+      "ExtractionWarningItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Machine-readable warning code.",
+            "examples": [
+              "LOW_TEXT_DENSITY"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Human-readable explanation of what should be manually reviewed.",
+            "examples": [
+              "Some pages yielded very little text; verify scanned clauses manually."
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ExtractionWarningItem"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "doc-extractor-api",
+            "examples": [
+              "doc-extractor-api"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "0.1.0",
+            "examples": [
+              "0.1.0"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HealthResponse"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready"
+            ],
+            "title": "Status",
+            "default": "ready"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "doc-extractor-api",
+            "examples": [
+              "doc-extractor-api"
+            ]
+          },
+          "checks": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Checks",
+            "examples": [
+              {
+                "config_valid": true,
+                "converter_ready": true
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReadinessResponse"
+      }
+    },
+    "securitySchemes": {
+      "InternalApiKey": {
+        "type": "apiKey",
+        "description": "Shared secret header sent by the internal Rust API (`X-Internal-API-Key`).",
+        "in": "header",
+        "name": "X-Internal-API-Key"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Liveness (`/health`) and readiness (`/ready`) probes for container orchestrators."
+    },
+    {
+      "name": "Extraction",
+      "description": "Internal document conversion endpoints protected by `X-Internal-API-Key`. Downloads PDF and DOCX files from presigned Cloudflare R2 URLs and converts them into structured Markdown via Docling."
+    }
+  ]
+}

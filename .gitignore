@@ -6,9 +6,28 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 
+# Rust and Python output
+target/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
 # Local environment
 .env*
+!.env.example
+*.env
+*.postman_environment.json
 .DS_Store
+
+# Local tooling, generated reports, and media work
+/.claude/
+/.cursor/
+/.playwright-cli/
+/.serena/
+/graphify-out/
+/supabase/.temp/
+/videos/
 
 # Source contracts and Markdown extracts
 *.doc
@@ -16,3 +35,8 @@ next-env.d.ts
 /markdown/
 /contracts-demo/
 /contracts-demo-markdown/
+
+# Synthetic Word templates included with the portal
+!/apps/portal/public/plantillas-demo/carta-saldo.docx
+!/apps/portal/public/plantillas-demo/entrega-documentos.docx
+!/services/api/src/modules/clients/loan-application.docx

@@ -1,0 +1,22 @@
+.heading {
+  display: grid;
+  align-items: center;
+  min-block-size: 24px;
+}
+
+.avatar {
+  --loading-block-radius: 50%;
+}
+
+.field {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.control {
+  --loading-block-radius: 10px;
+}
+
+.button {
+  --loading-block-radius: 18px;
+}

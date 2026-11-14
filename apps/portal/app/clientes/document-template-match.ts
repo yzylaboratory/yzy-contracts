@@ -1,0 +1,22 @@
+import { DOCUMENT_TYPES, hasDocumentTemplateFields, type DocumentType } from "../contratos/document-catalog";
+
+function normalizeDocumentName(value: string) {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+export function documentTypeFromName(name: string) {
+  const normalized = normalizeDocumentName(name);
+  if (normalized === "venta condicional de vehiculo con financiamiento de seguro" || normalized === "venta condicional del seguro") {
+    return DOCUMENT_TYPES.find(document => document.id === "venta_condicional_seguro");
+  }
+  return DOCUMENT_TYPES.find(document =>
+    normalizeDocumentName(document.label) === normalized || normalizeDocumentName(document.id) === normalized);
+}
+
+export function matchDocumentTemplate(type: DocumentType, name: string, keys: readonly string[]) {
+  const namedType = documentTypeFromName(name);
+  if (namedType && namedType.id !== type) return;
+  if (!hasDocumentTemplateFields(type, keys)) return;
+  if (namedType || DOCUMENT_TYPES.filter(document => hasDocumentTemplateFields(document.id, keys)).length === 1) return "matching";
+  return "compatible";
+}

@@ -3,7 +3,7 @@ import { Dashboard } from "./dashboard";
 
 export const metadata: Metadata = {
   title: "Dashboard | YZY Contracts",
-  description: "Resumen de ejemplo de contratos y documentos generados.",
+  description: "Consulta tus contratos recientes y el resumen de documentos generados.",
 };
 
 export default function DashboardPage() {

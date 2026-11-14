@@ -1,0 +1,41 @@
+.listPanel[hidden] { display: none; }
+.filters { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; max-inline-size: 560px; }
+.filters > div { flex: 1 1 220px; min-inline-size: 0; }
+.secondary { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+.lastActivity time { font-variant-numeric: tabular-nums; }
+.accountList { padding: 0; margin: 0; list-style: none; }
+.screenReaderOnly { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.listHeader, .accountRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+}
+.listHeader { color: var(--text-secondary); font-size: 13px; border-block-end: 1px solid var(--border); }
+.accountList > li + li { border-block-start: 1px solid var(--border); }
+.accountRow { width: 100%; min-block-size: 56px; }
+a.accountRow {
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+a.accountRow:hover { background: var(--surface-muted); }
+a.accountRow:focus-visible { outline: 2px solid var(--foreground); outline-offset: -2px; }
+.identity, .lastActivity { display: grid; justify-items: start; gap: 3px; min-inline-size: 0; overflow-wrap: anywhere; }
+.chevron { color: var(--text-secondary); }
+.historyHeader { display: grid; gap: 10px; overflow-wrap: anywhere; }
+.historyIdentity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.historyHeader h2:focus-visible { outline: 2px solid var(--foreground); outline-offset: 4px; border-radius: 3px; }
+
+@media (max-width: 560px) {
+  .listHeader { display: none; }
+  .accountRow { grid-template-columns: minmax(0, 1fr) 18px; gap: 7px 12px; }
+  .lastActivity { grid-row: 2; font-size: 14px; }
+  .chevron { grid-area: 1 / 2 / span 2; }
+}

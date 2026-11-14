@@ -1,0 +1,58 @@
+[project]
+name = "doc-extractor-api"
+version = "0.1.0"
+description = "Internal microservice for converting PDF and DOCX contract documents to structured Markdown via Docling."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "docling>=2.31.0",
+    "fastapi>=0.115.0",
+    "httpx>=0.28.0",
+    "pillow>=11.0.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "pypdf>=5.1.0",
+    "python-docx>=1.1.2",
+    "rapidocr-onnxruntime>=1.4.0",
+    "torch>=2.5.0",
+    "torchvision>=0.20.0",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "reportlab>=4.2.5",
+    "ruff>=0.9.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["S101", "S104", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S107", "S311"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]

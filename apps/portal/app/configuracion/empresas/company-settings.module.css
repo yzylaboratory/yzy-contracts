@@ -1,0 +1,97 @@
+.listHeader,
+.companyRow,
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.listHeader,
+.companyRow {
+  justify-content: space-between;
+}
+
+.companyList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.companyRow {
+  padding-block: 16px;
+  border-block-start: 1px solid var(--border);
+}
+
+.companyRow:last-child {
+  padding-block-end: 0;
+}
+
+.identity {
+  display: grid;
+  flex: 1 1 180px;
+  min-inline-size: 0;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.identity h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.defaultLabel {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fields,
+.customField {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.customField {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: start;
+  padding-block-end: 16px;
+  border-block-end: 1px solid var(--border);
+}
+
+.customField > button {
+  margin-block-start: 24px;
+}
+
+.addVariable,
+.retry > button {
+  justify-self: start;
+}
+
+.retry {
+  display: grid;
+  gap: 12px;
+}
+
+.editorActions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 620px) {
+  .fields,
+  .customField {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .customField > button {
+    justify-self: start;
+    margin-block-start: 0;
+  }
+}

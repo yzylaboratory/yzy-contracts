@@ -1,0 +1,126 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FolderOpen, Handshake, KeyRound, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
+import { DOCUMENT_TYPES, getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
+import { listGeneratedDocuments } from "@/app/contratos/generated-documents-api";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import button from "@/components/arc/button/button.module.css";
+import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
+import { generateFromOperationHref } from "./client-paths";
+import { clientErrorMessage, type Operation } from "./clients-api";
+import { documentTypeFromName } from "./document-template-match";
+import { listDocumentTemplates, resolveDocumentTemplate } from "./operation-templates";
+import styles from "./clients.module.css";
+
+const icons = {
+  venta_condicional: Handshake, venta_condicional_seguro: ShieldCheck, pagare_autentico: FileSignature, entrega_voluntaria: KeyRound,
+  acto_seguro: Shield, pagare_seguro: FileBadge, declaracion_jurada: ClipboardCheck,
+  gps: MapPin, autorizacion_data: FileLock, acuerdo_seguro: ShieldCheck,
+  autorizacion_asegurar_vehiculo: FileCheck, levantamiento_oposicion: Unlock,
+  entrega_vehiculo: Car, entrega_vehiculo_fines_saldo: Receipt, entrega_documentos: FolderOpen, carta_saldo: FileText,
+} satisfies Record<DocumentType, typeof Car>;
+
+const demos: Partial<Record<DocumentType, string>> = {
+  carta_saldo: "/plantillas-demo/carta-saldo.docx",
+  entrega_documentos: "/plantillas-demo/entrega-documentos.docx",
+};
+
+export function DocumentOptionsSkeleton() {
+  return <div className={styles.documentGrid}>{DOCUMENT_TYPES.map(({ id }) => <LoadingBlock key={id} height={144} />)}</div>;
+}
+
+export function OperationDocumentPicker({ accountId, operation }: { accountId: string; operation: Operation }) {
+  const router = useRouter();
+  const [request, setRequest] = useState<{ type: DocumentType }>();
+  const [failure, setFailure] = useState<{ request: NonNullable<typeof request>; message: string; kind: "error" | "missing" | "ambiguous" }>();
+  const currentFailure = failure?.request === request ? failure : undefined;
+  const loading = request && !currentFailure;
+  const failureNotice = useRef<HTMLParagraphElement>(null);
+  const companyId = operation.company_id;
+  const [history, setHistory] = useState<{ types: Set<DocumentType>; unavailable: boolean }>();
+  const [historyAttempt, setHistoryAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const types = new Set<DocumentType>();
+    const perPage = 100;
+    async function loadHistory() {
+      for (let page = 1; !signal.aborted; page += 1) {
+        const { items, total } = await listGeneratedDocuments(accountId, {
+          page, perPage, search: "", format: "all", period: "any", operationId: operation.id,
+        }, signal);
+        for (const record of items) {
+          const type = record.documentType ? getDocumentType(record.documentType) : documentTypeFromName(record.contractName);
+          if (type) types.add(type.id);
+        }
+        if (!items.length || page * perPage >= total || types.size === DOCUMENT_TYPES.length) break;
+      }
+      if (!signal.aborted) setHistory({ types, unavailable: false });
+    }
+    void loadHistory().catch(() => {
+      if (!signal.aborted) setHistory({ types, unavailable: true });
+    });
+    return () => controller.abort();
+  }, [accountId, historyAttempt, operation.id]);
+
+  useEffect(() => {
+    if (!request) return;
+    const controller = new AbortController();
+    const { type } = request;
+    listDocumentTemplates(accountId, companyId, type, controller.signal)
+      .then(templates => {
+        if (controller.signal.aborted) return;
+        const resolved = resolveDocumentTemplate(templates, accountId, companyId, type);
+        if (resolved.kind === "ready") {
+          router.push(generateFromOperationHref(resolved.contract.id, companyId, operation.client_id, operation.id, type));
+          return;
+        }
+        setFailure({ request, kind: resolved.kind, message: resolved.kind === "missing"
+          ? "La empresa necesita una plantilla de Word compatible con este documento."
+          : "Hay varias plantillas compatibles. Revisa las plantillas de la empresa para identificar la que corresponde a este documento." });
+      })
+      .catch(error => {
+        if (!controller.signal.aborted) setFailure({ request, kind: "error", message: clientErrorMessage(error, "No se pudo cargar la plantilla de Word.") });
+      });
+    return () => controller.abort();
+  }, [accountId, companyId, operation.client_id, operation.id, request, router]);
+
+  useEffect(() => { if (currentFailure) failureNotice.current?.focus(); }, [currentFailure]);
+
+  if (loading) return <LoadingContent label={`Cargando ${getDocumentType(request.type)?.label ?? "documento"}…`}><DocumentOptionsSkeleton /></LoadingContent>;
+
+  const demo = currentFailure && demos[currentFailure.request.type];
+  return <div className={styles.stack}>
+    {history?.unavailable && <div className={styles.header}>
+      <p className={styles.muted} role="status">No se pudo comprobar todo el historial de este expediente.</p>
+      <Button type="button" variant="secondary" onClick={() => { setHistory(undefined); setHistoryAttempt(value => value + 1); }}>Reintentar historial</Button>
+    </div>}
+    {currentFailure && <div className={styles.stack}>
+      <p ref={failureNotice} tabIndex={-1} className={styles.failure} role="alert">{currentFailure.message}</p>
+      <div className={styles.actions}>
+        {currentFailure.kind === "missing" && <Link href={`/contratos/nuevo?${new URLSearchParams({ company_id: companyId })}`}>Cargar plantilla</Link>}
+        {currentFailure.kind === "ambiguous" && <Link href="/contratos">Ver plantillas</Link>}
+        {demo && currentFailure.kind === "missing" && <a href={demo} download>Descargar Word de demostración</a>}
+        <Button type="button" variant="secondary" onClick={() => setRequest({ type: currentFailure.request.type })}>Reintentar</Button>
+      </div>
+    </div>}
+    <div className={styles.documentGrid} data-tour="document-type">
+      {DOCUMENT_TYPES.map(({ id, label }) => {
+        const Icon = icons[id];
+        const generated = history?.types.has(id);
+        return <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button" onClick={() => setRequest({ type: id })}>
+          <span className={styles.documentIcon}><Icon size={22} aria-hidden="true" /></span>
+          <span className={styles.documentLabel}>{label}</span>
+          <span className={styles.documentStatus}>
+            {generated && <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
+          </span>
+        </button>;
+      })}
+    </div>
+  </div>;
+}

@@ -1,0 +1,57 @@
+.heading {
+  display: grid;
+  align-items: center;
+  min-block-size: 24px;
+}
+
+.field {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.control {
+  --loading-block-radius: 10px;
+}
+
+.copyField {
+  container-type: inline-size;
+}
+
+.checkbox {
+  --loading-block-radius: 4px;
+  flex: none;
+}
+
+.hint {
+  display: grid;
+  align-items: center;
+  grid-auto-rows: 20px;
+}
+
+.secondLine,
+.thirdLine,
+.fourthLine {
+  display: none;
+}
+
+@container (inline-size < 1020px) {
+  .secondLine {
+    display: block;
+  }
+}
+
+@container (inline-size < 540px) {
+  .thirdLine {
+    display: block;
+  }
+}
+
+@container (inline-size < 370px) {
+  .fourthLine {
+    display: block;
+  }
+}
+
+.button {
+  --loading-block-radius: 18px;
+}

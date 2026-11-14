@@ -1,0 +1,19 @@
+.chartContainer {
+  container-type: inline-size;
+}
+
+.chart {
+  --series-1: var(--foreground);
+  --series-2: var(--tone-violet);
+  --series-3: color-mix(in oklab, var(--text-secondary) 82%, var(--surface));
+  --space-6: var(--space-3);
+  --space-8: var(--space-4);
+  --text-muted: var(--text-secondary);
+  --focus-outline: var(--text-secondary);
+  --focus-outline-offset: -2px;
+}
+
+.chart button {
+  min-block-size: var(--control-height-md);
+  touch-action: manipulation;
+}
