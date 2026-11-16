@@ -15,11 +15,10 @@
 }
 
 .panel {
-  --control-border: #cbd0d9;
-  --editor-border: #cfcfc7;
-  --editor-divider: #e4e4de;
-  --editor-chrome: #fafaf8;
-  --accent-hover: #b9e41f;
+  --control-border: var(--border-strong);
+  --editor-border: var(--border-strong);
+  --editor-divider: var(--border);
+  --editor-chrome: var(--surface-muted);
   --focus-outline: var(--foreground);
 
   display: flex;
@@ -47,7 +46,6 @@
 
 .fileDrop {
   --radius-surface: 12px;
-  --border-strong: #aeb5c2;
 
   position: relative;
   display: flex;
@@ -295,7 +293,7 @@
 .panel .primary {
   border-color: color-mix(in oklab, var(--accent) 86%, var(--foreground));
   background: var(--accent);
-  color: var(--brand-ink);
+  color: var(--accent-foreground);
 }
 
 @media (hover: hover) and (pointer: fine) {

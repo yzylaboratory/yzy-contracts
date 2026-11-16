@@ -1,10 +1,10 @@
 import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import styles from "./dashboard.module.css";
 
-const metricWidths = [112, 150, 132];
+const metricWidths = [112, 150, 132, 140];
 const barHeights = [38, 66, 85, 76, 122, 57];
 const formatWidths = [40, 50, 44];
-const contractWidths = [168, 200, 190, 128];
+const caseWidths = [96, 168, 200, 128];
 
 export default function DashboardLoading() {
   return (
@@ -74,30 +74,33 @@ export default function DashboardLoading() {
 
         <div className={`${styles.panel} ${styles.recent}`}>
           <div className={`${styles.panelHeader} ${styles.skeletonTitle}`}>
-            <LoadingBlock width={146} height={16} />
+            <LoadingBlock width={168} height={16} />
             <LoadingBlock width={58} height={14} />
           </div>
           <div className={`${styles.tableScroll} ${styles.tableSkeletonViewport}`}>
             <table className={`${styles.table} ${styles.tableSkeleton}`}>
               <colgroup>
-                <col style={{ width: "48%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "20%" }} />
                 <col style={{ width: "18%" }} />
-                <col style={{ width: "21%" }} />
-                <col style={{ width: "13%" }} />
+                <col style={{ width: "12%" }} />
               </colgroup>
               <thead>
                 <tr>
+                  <th><LoadingBlock width={78} height={12} /></th>
                   <th><LoadingBlock width={58} height={12} /></th>
-                  <th><LoadingBlock width={64} height={12} /></th>
+                  <th><LoadingBlock width={54} height={12} /></th>
                   <th><LoadingBlock width={54} height={12} /></th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {contractWidths.map(width => (
+                {caseWidths.map(width => (
                   <tr key={width}>
-                    <th><LoadingBlock width={width} height={14} /></th>
-                    <td><LoadingBlock width={58} height={14} /></td>
+                    <th><LoadingBlock width={72} height={14} /></th>
+                    <td><LoadingBlock width={width} height={14} /></td>
+                    <td><LoadingBlock width={64} height={14} /></td>
                     <td><LoadingBlock width={84} height={14} /></td>
                     <td><LoadingBlock className={styles.actionSkeleton} width={18} height={18} /></td>
                   </tr>

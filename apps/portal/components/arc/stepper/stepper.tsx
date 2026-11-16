@@ -156,7 +156,7 @@ export function Stepper({ steps, current, orientation = "horizontal", onStepSele
   const Root = interactive ? "nav" : "div";
   const classes = [styles.root, vertical ? styles.vertical : styles.horizontal, compact ? styles.compact : "", className].filter(Boolean).join(" ");
   return <Root className={classes} aria-label={label} role={interactive ? undefined : "group"}>
-    <ol className={styles.list} style={vertical ? undefined : { gridTemplateColumns: count > 1 ? `repeat(${count - 1}, minmax(0, 1fr)) auto` : "auto" }} onKeyDown={interactive ? onKeyDown : undefined}>
+    <ol className={styles.list} style={vertical ? undefined : { gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }} onKeyDown={interactive ? onKeyDown : undefined}>
       {steps.map((step, index) => {
         const isCurrent = index === active;
         const status: StepperStatus = step.error ? "error" : index < active ? "complete" : isCurrent ? "current" : "upcoming";

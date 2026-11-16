@@ -268,7 +268,7 @@
   min-block-size: 44px;
   border-color: color-mix(in oklab, var(--accent) 86%, var(--brand-ink));
   background: var(--accent);
-  color: var(--brand-ink);
+  color: var(--accent-foreground);
 }
 
 .failureActions .retry:disabled {

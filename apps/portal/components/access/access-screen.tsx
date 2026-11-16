@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { CircleAlert, Clock3, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { signOut } from "@/lib/session";
 import styles from "./access-screen.module.css";
 
@@ -36,7 +37,7 @@ export function AccessScreen({ title = "Comprobando tu acceso…", children, act
   return (
     <main className={styles.page} data-status={status}>
       <section className={styles.card} aria-labelledby="access-title">
-        <div className={styles.brand} translate="no"><span className={styles.mark} aria-hidden="true">Y</span>YZY Contracts</div>
+        <div className={styles.brand} translate="no"><BrandMark className={styles.mark} variant="stone" />YZY Contracts</div>
         {pending && <Clock3 className={styles.icon} aria-hidden="true" size={24} />}
         <div className={styles.content}>
           {status && (

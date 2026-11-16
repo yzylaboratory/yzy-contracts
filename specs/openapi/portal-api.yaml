@@ -455,6 +455,75 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/admin/billing/pricing:
+    get:
+      tags:
+      - Billing
+      operationId: admin_pricing
+      responses:
+        '200':
+          description: Membership price in USD and DOP exchange rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingPricing'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Billing
+      operationId: save_admin_pricing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingPricingInput'
+        required: true
+      responses:
+        '200':
+          description: Membership pricing saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingPricing'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: The pricing revision has changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid pricing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
   /api/v1/admin/companies:
     get:
       tags:
@@ -639,6 +708,51 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: The superadministrator's own access cannot change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/admin/users/{id}/billing:
+    put:
+      tags:
+      - Administration
+      summary: Assigns or removes a person as billing manager of every billing account.
+      operationId: set_user_billing
+      parameters:
+      - name: id
+        in: path
+        description: User ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserBilling'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserItem'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: The person has not signed in to YZY Contracts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Only enabled users can manage billing, and each account needs a manager
           content:
             application/json:
               schema:
@@ -2180,12 +2294,61 @@ paths:
                   message: Conversion not found
       security:
       - bearer_auth: []
+  /api/v1/dashboard:
+    get:
+      tags:
+      - Clients
+      operationId: workspace_dashboard
+      parameters:
+      - name: company_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: 'Workspace KPIs for one company: clients, cases, disbursements, user productivity and generated documents'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDashboard'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found or not accessible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
   /api/v1/expedientes:
     get:
       tags:
       - Clients
       operationId: list_cases
       parameters:
+      - name: company_id
+        in: query
+        description: Company that owns the case files. Clients are global; expedientes are not.
+        required: true
+        schema:
+          type: string
+          format: uuid
       - name: page
         in: query
         required: false
@@ -2210,7 +2373,7 @@ paths:
           type: string
       responses:
         '200':
-          description: Case files with their client and vehicle, newest first
+          description: Case files for one company, with their client and vehicle, newest first
           content:
             application/json:
               schema:
@@ -2221,6 +2384,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found or not accessible
           content:
             application/json:
               schema:
@@ -3092,6 +3261,11 @@ components:
           items:
             type: string
             format: uuid
+        company_prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyPriceInput'
+          description: Optional USD price overrides for companies on this account.
         manager_user_id:
           type: string
           format: uuid
@@ -3518,17 +3692,58 @@ components:
         total:
           type: integer
           format: int64
+    BillingAlert:
+      type: object
+      required:
+      - kind
+      - invoice_id
+      - account_name
+      - due_on
+      - total_minor
+      properties:
+        account_name:
+          type: string
+        due_on:
+          type: string
+          format: date
+        invoice_id:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/BillingAlertKind'
+        total_minor:
+          type: integer
+          format: int64
+    BillingAlertKind:
+      type: string
+      enum:
+      - payment_reminder
+      - due_today
+      - overdue
+      - suspended
     BillingCompany:
       type: object
       required:
       - id
       - name
+      - price_usd_minor
+      - unit_price_minor
       properties:
         id:
           type: string
           format: uuid
         name:
           type: string
+        price_usd_minor:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Override in USD cents. Null uses the global membership price.
+        unit_price_minor:
+          type: integer
+          format: int32
+          description: Effective monthly price in DOP cents after applying the exchange rate.
     BillingInvoice:
       type: object
       required:
@@ -3627,6 +3842,7 @@ components:
       required:
       - accounts
       - invoices
+      - pricing
       properties:
         accounts:
           type: array
@@ -3640,6 +3856,60 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BillingInvoice'
+        pricing:
+          $ref: '#/components/schemas/BillingPricing'
+    BillingPricing:
+      type: object
+      required:
+      - price_usd_minor
+      - exchange_rate_milli
+      - unit_price_minor
+      - revision
+      - updated_at
+      properties:
+        exchange_rate_milli:
+          type: integer
+          format: int32
+          description: DOP per 1 USD in milli-units (60000 = 60.000 DOP).
+        price_usd_minor:
+          type: integer
+          format: int32
+          description: Default membership price per company in USD cents (15000 = USD 150.00).
+        revision:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        unit_price_minor:
+          type: integer
+          format: int32
+          description: 'Default company line in DOP cents: round(price_usd_minor * exchange_rate_milli / 1000).'
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    BillingPricingInput:
+      type: object
+      required:
+      - price_usd_minor
+      - exchange_rate_milli
+      - expected_revision
+      properties:
+        exchange_rate_milli:
+          type: integer
+          format: int32
+          minimum: 1
+        expected_revision:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        price_usd_minor:
+          type: integer
+          format: int32
+          minimum: 1
+      additionalProperties: false
     CaseApplication:
       type: object
       properties:
@@ -3728,6 +3998,7 @@ components:
       - company_name
       - reference
       - contract_date
+      - status
       - vehicle
       - created_at
       properties:
@@ -3760,6 +4031,8 @@ components:
           type:
           - string
           - 'null'
+        status:
+          $ref: '#/components/schemas/OperationStatus'
         vehicle:
           $ref: '#/components/schemas/Vehicle'
     CasePage:
@@ -4175,6 +4448,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Company'
+    CompanyPriceInput:
+      type: object
+      required:
+      - company_id
+      - price_usd_minor
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        price_usd_minor:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Null clears the override and uses the global membership price.
     CompanySnapshot:
       type: object
       description: Values actually used for a document, including any overrides in its form.
@@ -4486,6 +4774,40 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ScreenVisits'
+    DashboardCase:
+      type: object
+      required:
+      - id
+      - client_id
+      - client_name
+      - reference
+      - status
+      - created_at
+      - has_payment_plan
+      properties:
+        actor_name:
+          type:
+          - string
+          - 'null'
+        client_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        has_payment_plan:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        reference:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/OperationStatus'
     DashboardCollections:
       type: object
       required:
@@ -4525,6 +4847,57 @@ components:
           type: integer
           minimum: 0
         transfers_to_review_minor:
+          type: integer
+          format: int64
+    DashboardFormats:
+      type: object
+      required:
+      - pdf
+      - docx
+      - email
+      properties:
+        docx:
+          type: integer
+          format: int64
+        email:
+          type: integer
+          format: int64
+        pdf:
+          type: integer
+          format: int64
+    DashboardMonth:
+      type: object
+      required:
+      - month
+      - total
+      properties:
+        month:
+          type: string
+        total:
+          type: integer
+          format: int64
+    DashboardStatusCounts:
+      type: object
+      required:
+      - solicitud
+      - en_proceso
+      - firma
+      - desembolso
+      - cerrado
+      properties:
+        cerrado:
+          type: integer
+          format: int64
+        desembolso:
+          type: integer
+          format: int64
+        en_proceso:
+          type: integer
+          format: int64
+        firma:
+          type: integer
+          format: int64
+        solicitud:
           type: integer
           format: int64
     DashboardSummary:
@@ -4587,6 +4960,44 @@ components:
         users_seen_this_month:
           type: integer
           format: int64
+    DashboardUserStat:
+      type: object
+      required:
+      - user_id
+      - user_name
+      - is_current_user
+      - disbursements_total
+      - unsigned_cases
+      - pending_disbursement_cases
+      - cases_total
+      - documents_total
+      - time_saved_minutes
+      properties:
+        cases_total:
+          type: integer
+          format: int64
+        disbursements_total:
+          type: integer
+          format: int64
+        documents_total:
+          type: integer
+          format: int64
+        is_current_user:
+          type: boolean
+        pending_disbursement_cases:
+          type: integer
+          format: int64
+        time_saved_minutes:
+          type: integer
+          format: int64
+        unsigned_cases:
+          type: integer
+          format: int64
+        user_id:
+          type: string
+          format: uuid
+        user_name:
+          type: string
     DocumentDetail:
       allOf:
       - $ref: '#/components/schemas/DocumentMetadata'
@@ -4866,6 +5277,11 @@ components:
       properties:
         access:
           $ref: '#/components/schemas/AccessStatus'
+        billing_alert:
+          oneOf:
+          - $ref: '#/components/schemas/BillingAlert'
+            description: Pending membership payment alert for billing managers (from day 7).
+          - type: 'null'
         billing_company_ids:
           type: array
           items:
@@ -4891,7 +5307,7 @@ components:
           items:
             type: string
             format: uuid
-          description: Blocked companies with an overdue invoice in a billing account the caller can manage.
+          description: Suspended companies in a billing account the caller can manage.
         notice:
           oneOf:
           - $ref: '#/components/schemas/Notice'
@@ -4904,7 +5320,7 @@ components:
           items:
             type: string
             format: uuid
-          description: Companies whose workspace is blocked by an overdue invoice.
+          description: Companies whose workspace is suspended (unpaid past day 15).
         role:
           $ref: '#/components/schemas/AccessRole'
         upload_max_bytes:
@@ -4961,6 +5377,7 @@ components:
       - company_id
       - client_id
       - contract_id
+      - status
       - vehicle
       - created_at
       - updated_at
@@ -4996,6 +5413,13 @@ components:
         id:
           type: string
           format: uuid
+        insurance_installment_minor:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          maximum: 9007199254740991
+          minimum: 1
         reference:
           type:
           - string
@@ -5005,6 +5429,8 @@ components:
           - string
           - 'null'
           format: date
+        status:
+          $ref: '#/components/schemas/OperationStatus'
         updated_at:
           type: string
           format: date-time
@@ -5038,6 +5464,13 @@ components:
           oneOf:
           - $ref: '#/components/schemas/Financing'
           - type: 'null'
+        insurance_installment_minor:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          maximum: 9007199254740991
+          minimum: 1
         reference:
           type:
           - string
@@ -5048,9 +5481,19 @@ components:
           - string
           - 'null'
           format: date
+        status:
+          $ref: '#/components/schemas/OperationStatus'
         vehicle:
           $ref: '#/components/schemas/Vehicle'
       additionalProperties: false
+    OperationStatus:
+      type: string
+      enum:
+      - solicitud
+      - en_proceso
+      - firma
+      - desembolso
+      - cerrado
     OperationWrite:
       type: object
       required:
@@ -5078,6 +5521,13 @@ components:
           oneOf:
           - $ref: '#/components/schemas/Financing'
           - type: 'null'
+        insurance_installment_minor:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          maximum: 9007199254740991
+          minimum: 1
         reference:
           type:
           - string
@@ -5088,6 +5538,11 @@ components:
           - string
           - 'null'
           format: date
+        status:
+          oneOf:
+          - $ref: '#/components/schemas/OperationStatus'
+            description: Defaults to `solicitud` when omitted.
+          - type: 'null'
         vehicle:
           $ref: '#/components/schemas/Vehicle'
       additionalProperties: false
@@ -5349,6 +5804,15 @@ components:
           type: boolean
           description: '`true` lets the person work in every active company; `false` removes access.'
       additionalProperties: false
+    UserBilling:
+      type: object
+      required:
+      - manages_billing
+      properties:
+        manages_billing:
+          type: boolean
+          description: '`true` assigns the person as billing manager of every account; `false` removes that role.'
+      additionalProperties: false
     UserItem:
       type: object
       required:
@@ -5356,6 +5820,7 @@ components:
       - status
       - company_ids
       - created_at
+      - manages_billing
       properties:
         company_ids:
           type: array
@@ -5372,6 +5837,9 @@ components:
           - string
           - 'null'
           format: uuid
+        manages_billing:
+          type: boolean
+          description: Whether this person manages at least one billing account.
         name:
           type:
           - string
@@ -5476,6 +5944,87 @@ components:
           type: string
           format: uuid
       additionalProperties: false
+    WorkspaceDashboard:
+      type: object
+      required:
+      - clients_total
+      - cases_total
+      - cases_this_month
+      - cases_without_plan
+      - unsigned_cases
+      - pending_disbursement_cases
+      - disbursed_cases
+      - disbursed_this_month
+      - documents_total
+      - documents_this_month
+      - time_saved_minutes
+      - user_time_saved_minutes
+      - user_disbursements_total
+      - user_documents_total
+      - status_counts
+      - user_stats
+      - months
+      - formats
+      - recent_cases
+      properties:
+        cases_this_month:
+          type: integer
+          format: int64
+        cases_total:
+          type: integer
+          format: int64
+        cases_without_plan:
+          type: integer
+          format: int64
+        clients_total:
+          type: integer
+          format: int64
+        disbursed_cases:
+          type: integer
+          format: int64
+        disbursed_this_month:
+          type: integer
+          format: int64
+        documents_this_month:
+          type: integer
+          format: int64
+        documents_total:
+          type: integer
+          format: int64
+        formats:
+          $ref: '#/components/schemas/DashboardFormats'
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardMonth'
+        pending_disbursement_cases:
+          type: integer
+          format: int64
+        recent_cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardCase'
+        status_counts:
+          $ref: '#/components/schemas/DashboardStatusCounts'
+        time_saved_minutes:
+          type: integer
+          format: int64
+        unsigned_cases:
+          type: integer
+          format: int64
+        user_disbursements_total:
+          type: integer
+          format: int64
+        user_documents_total:
+          type: integer
+          format: int64
+        user_stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardUserStat'
+        user_time_saved_minutes:
+          type: integer
+          format: int64
   securitySchemes:
     bearer_auth:
       type: http

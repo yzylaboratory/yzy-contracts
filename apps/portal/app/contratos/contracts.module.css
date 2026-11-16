@@ -1,7 +1,6 @@
 .panel {
-  --control-border: #cbd0d9;
-  --pager-border: #cfcfc7;
-  --accent-hover: #b9e41f;
+  --control-border: var(--border-strong);
+  --pager-border: var(--border-strong);
   --focus-outline: var(--foreground);
 
   position: relative;
@@ -67,7 +66,7 @@
   border-radius: 18px;
   padding-inline: 22px;
   background: var(--accent);
-  color: var(--brand-ink);
+  color: var(--accent-foreground);
   font-size: 15px;
   font-weight: 600;
 }

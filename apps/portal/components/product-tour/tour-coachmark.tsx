@@ -30,7 +30,7 @@ function useTourTargets(shell: RefObject<HTMLDivElement | null>, enabled: boolea
     let frame = 0;
     function read() {
       frame = 0;
-      const paused = !!document.querySelector(blockingWidgets);
+      const paused = !!document.querySelector(blockingWidgets) || !!root.querySelector('[data-tour="operation-generating"]');
       const loading = !!root.querySelector("[data-portal-loading]");
       const targets: TourTargets = {};
       if (!paused) {

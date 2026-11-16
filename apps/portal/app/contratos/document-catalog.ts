@@ -3,6 +3,12 @@ export const INSURANCE_COMPANY_NAME = "INVERSIONES MARTÍNEZ ROSARIO, S.R.L.";
 const customer = ["cliente_nombre", "cliente_cedula"] as const;
 const vehicle = ["vehiculo_garantia"] as const;
 const signature = ["fecha_firma"] as const;
+/** Identity block left blank on venta condicional / seguro so the client fills it by hand. */
+export const conditionalSaleHandwrittenFields = [
+  "cliente_nombre", "cliente_nombre_firma", "cliente_cedula", "cliente_cedula_numeros", "cliente_cedula_letras",
+  "cliente_direccion", "cliente_direccion_transito",
+  "nombre_completo_del_cliente", "cedula_del_cliente", "domicilio_del_cliente",
+] as const;
 export const insuranceScheduleFields = [
   "cuotas_seguro_numeros", "cuotas_seguro_fechas", "cuotas_seguro_montos", "monto_total_seguro", "monto_total_seguro_letras",
 ] as const;
@@ -33,11 +39,11 @@ const receipt = [...customer, ...vehicle, "operacion_referencia", "fecha_contrat
 
 export const DOCUMENT_TYPES = [
   { id: "venta_condicional", label: "Venta condicional", requiredFields: [
-    ...customer, "cliente_direccion_transito", "vehiculo_matricula", "fecha_contrato", ...signature,
+    "vehiculo_matricula", "fecha_contrato", ...signature,
     "cuotas_intereses", "cuota_final_capital", "abonos_extraordinarios", "total_financiamiento",
   ] },
   { id: "venta_condicional_seguro", label: "Venta condicional de seguro", requiresInsuranceCompany: true, requiredFields: [
-    "fecha_de_firma", "nombre_completo_del_cliente", "cedula_del_cliente", "domicilio_del_cliente", "placa_del_vehiculo",
+    "fecha_de_firma", "placa_del_vehiculo",
     ...Array.from({ length: insuranceSaleInstallmentCount }, (_, index) => insuranceSaleDueDateKey(index + 1)),
     "monto_de_cada_cuota", "monto_total_financiado", "monto_total_financiado_en_letras",
   ] },
@@ -76,6 +82,16 @@ type DocumentDefinition = {
   requiresInsuranceCompany?: true;
 };
 
+export const POST_CLOSING_DOCUMENT_TYPES: readonly DocumentType[] = [
+  "entrega_vehiculo_fines_saldo",
+  "entrega_documentos",
+  "carta_saldo",
+];
+
+export const INITIAL_EXPEDIENTE_DOCUMENT_TYPES: readonly DocumentType[] = DOCUMENT_TYPES
+  .map(document => document.id)
+  .filter(id => !POST_CLOSING_DOCUMENT_TYPES.includes(id));
+
 export function getDocumentType(value: string | null | undefined): DocumentDefinition | undefined {
   return DOCUMENT_TYPES.find(document => document.id === value);
 }
@@ -84,6 +100,7 @@ const compatibleFields: Partial<Record<string, readonly (readonly string[])[]>> 
   cliente_cedula: [["cliente_cedula_numeros"]],
   cliente_direccion: [["cliente_direccion_transito"]],
   vehiculo_garantia: [["vehiculo_descripcion"]],
+  vehiculo_matricula: [["vehiculo_placa"]],
   cuotas_intereses: [["cuotas_intereses_numeros", "cuotas_intereses_fechas", "cuotas_intereses_montos"]],
   cuota_final_capital: [["numero_cuota_final_capital", "fecha_cuota_final_capital", "cuota_final_capital_monto"]],
 };

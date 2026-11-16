@@ -97,8 +97,6 @@
 .companyPicker {
   display: grid;
   gap: 12px;
-  padding-block-end: 16px;
-  border-block-end: 1px solid var(--border);
 }
 
 .companyRetry {
@@ -189,7 +187,7 @@
 
 .form :is(input, textarea).control {
   min-inline-size: 0;
-  border-color: #cbd0d9;
+  border-color: var(--border-strong);
   border-radius: 10px;
 }
 
@@ -349,15 +347,15 @@
   flex: none;
   padding-inline: 8px;
   border-radius: 10px;
-  background: #fdecea;
-  color: #b42318;
+  background: var(--format-pdf-surface);
+  color: var(--format-pdf-ink);
   font-size: 12px;
   font-weight: 600;
 }
 
 .attachment span[data-format="docx"] {
-  background: #e6eeff;
-  color: #1f5fbf;
+  background: var(--format-word-surface);
+  color: var(--format-word-ink);
 }
 
 .emailActions {
@@ -369,10 +367,10 @@
 }
 
 .emailActions .primary {
-  border-color: #add319;
+  border-color: color-mix(in oklab, var(--accent) 86%, var(--foreground));
   border-radius: 16px;
   background: var(--accent);
-  color: var(--brand-ink);
+  color: var(--accent-foreground);
 }
 
 .returnLink {
@@ -436,8 +434,6 @@
   display: grid;
   gap: 12px;
   min-inline-size: 0;
-  padding-block-end: 16px;
-  border-block-end: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
 
@@ -512,8 +508,6 @@
 .fieldSection { display: grid; gap: 12px; min-inline-size: 0; }
 .fieldSection h3 {
   margin: 0;
-  padding-block-end: 8px;
-  border-block-end: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 600;

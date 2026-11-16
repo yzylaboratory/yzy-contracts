@@ -1,13 +1,28 @@
 import { api, ApiError } from "@/lib/api";
 
+export type BillingCompany = {
+  id: string;
+  name: string;
+  price_usd_minor: number | null;
+  unit_price_minor: number;
+};
+
 export type BillingAccount = {
   id: string;
   company_id?: string | null;
   name: string;
   manager_user_id: string;
   starts_on: string;
-  companies: { id: string; name: string }[];
+  companies: BillingCompany[];
   monthly_total_minor: number;
+};
+
+export type BillingPricing = {
+  price_usd_minor: number;
+  exchange_rate_milli: number;
+  unit_price_minor: number;
+  revision: string | null;
+  updated_at: string | null;
 };
 
 export type BillingInvoice = {
@@ -43,9 +58,19 @@ export type BankAccountSettings = {
   updated_at: string | null;
 };
 
-type BillingAccountInput = { name: string; manager_user_id: string; company_ids: string[] };
+type BillingAccountInput = {
+  name: string;
+  manager_user_id: string;
+  company_ids: string[];
+  company_prices?: { company_id: string; price_usd_minor: number | null }[];
+};
 export type BillingDecision = "confirm" | "reject";
-export type BillingOverview = { accounts: BillingAccount[]; invoices: BillingInvoice[]; bank_account: BankAccount | null };
+export type BillingOverview = {
+  accounts: BillingAccount[];
+  invoices: BillingInvoice[];
+  bank_account: BankAccount | null;
+  pricing: BillingPricing;
+};
 
 export function getBilling(accountId: string, signal: AbortSignal) {
   return api<BillingOverview>("/billing", { expectedAccountId: accountId, signal });
@@ -76,6 +101,22 @@ export function getBankAccountSettings(accountId: string, signal?: AbortSignal) 
 export function saveBankAccountSettings(accountId: string, bankAccount: BankAccount, revision: string | null) {
   return api<BankAccountSettings>("/admin/billing/bank-account", {
     method: "PUT", expectedAccountId: accountId, body: { ...bankAccount, expected_revision: revision },
+  });
+}
+
+export function getBillingPricing(accountId: string, signal?: AbortSignal) {
+  return api<BillingPricing>("/admin/billing/pricing", { expectedAccountId: accountId, signal });
+}
+
+export function saveBillingPricing(
+  accountId: string,
+  pricing: { price_usd_minor: number; exchange_rate_milli: number },
+  revision: string | null,
+) {
+  return api<BillingPricing>("/admin/billing/pricing", {
+    method: "PUT",
+    expectedAccountId: accountId,
+    body: { ...pricing, expected_revision: revision },
   });
 }
 

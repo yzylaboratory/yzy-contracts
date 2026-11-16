@@ -52,25 +52,12 @@
   font-weight: 600;
 }
 
-.fields,
-.customField {
+.fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.customField {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-  align-items: start;
-  padding-block-end: 16px;
-  border-block-end: 1px solid var(--border);
-}
-
-.customField > button {
-  margin-block-start: 24px;
-}
-
-.addVariable,
 .retry > button {
   justify-self: start;
 }
@@ -85,13 +72,7 @@
 }
 
 @media (max-width: 620px) {
-  .fields,
-  .customField {
+  .fields {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .customField > button {
-    justify-self: start;
-    margin-block-start: 0;
   }
 }

@@ -17,13 +17,14 @@ registerHooks({
   },
 });
 
-const { DOCUMENT_TYPES, getDocumentType, hasDocumentTemplateFields, hasInsuranceCompanyNameInText, isInsuranceCompanyName } =
+const { DOCUMENT_TYPES, INITIAL_EXPEDIENTE_DOCUMENT_TYPES, POST_CLOSING_DOCUMENT_TYPES, getDocumentType, hasDocumentTemplateFields, hasInsuranceCompanyNameInText, isInsuranceCompanyName } =
   await import("../app/contratos/document-catalog.ts");
-const { expedienteExtraordinaryPayments, extraordinaryPaymentDate, extraordinaryPaymentDates, extraordinaryPaymentValues, resolveExpedienteFields } = await import("../app/contratos/expediente-fields.ts");
+const { expedienteExtraordinaryPayments, extraordinaryPaymentDate, extraordinaryPaymentDates, extraordinaryPaymentValues, isExpedienteField, resolveExpedienteFields } = await import("../app/contratos/expediente-fields.ts");
 
 process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-key";
+const { isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
 const { extractSalesCommitment, formatWordTemplateValue } = await import("../app/contratos/native-document.ts");
 const { getClient, listClients, listClientTimeline, listOperations, saveClient, saveOperation } =
   await import("../app/clientes/clients-api.ts");
@@ -32,7 +33,14 @@ const { clientHref, clientsHref, expedienteHref, generateFromOperationHref } = a
 const { displayClientIdentity, displayClientPhone } = await import("../app/clientes/client-masks.ts");
 const { supabase } = await import("../lib/supabase.ts");
 const { matchDocumentTemplate } = await import("../app/clientes/document-template-match.ts");
-const { companyFieldGroups, companyWitnessField } = await import("../app/configuracion/empresas/company-fields.ts");
+const {
+  companyClauseDefaults,
+  companyContractClauseKeys,
+  companyFieldGroups,
+  companyProfileValue,
+  companyWitnessField,
+  isCompanyContractClauseField,
+} = await import("../app/configuracion/empresas/company-fields.ts");
 const { calculateMonthlyPayments, installmentDraft, validateMonthlyPayments } = await import("../app/clientes/monthly-payment-plan.ts");
 
 test("edited installments keep their amounts and dates in both contracts", () => {
@@ -53,7 +61,7 @@ test("edited installments keep their amounts and dates in both contracts", () =>
   const note = resolveExpedienteFields("pagare_autentico", client, updated, {}).values;
   assert.match(sale.cuotas_intereses_fechas, /25\/02\/2027/);
   assert.match(sale.cuotas_intereses_montos, /8,000\.25/);
-  assert.match(note.cuotas_intereses, /25 de febrero de 2027/);
+  assert.match(note.cuotas_intereses, /VEINTICINCO \(25\) DE FEBRERO DEL AÑO DOS MIL VEINTISIETE \(2027\)/);
   assert.match(note.cuotas_intereses, /8,000\.25/);
   for (const values of [sale, note]) {
     assert.equal(values.fecha_cuota_final_capital, "2027-04-29");
@@ -155,8 +163,10 @@ test("sale totals use interest plus final principal and keep extraordinary payme
   const { values, issues } = resolveExpedienteFields("venta_condicional", client, operation, {});
   assert.deepEqual(issues, []);
   assert.equal(values.total_financiamiento, "RD$52,345.68");
-  assert.equal(values.cliente_cedula, "000-0000000-1");
-  assert.equal(values.cliente_direccion_transito, "Calle de Prueba y de tránsito por la capital de la República Dominicana");
+  assert.equal(values.cliente_nombre, "");
+  assert.equal(values.cliente_cedula, "");
+  assert.equal(values.cliente_direccion, "");
+  assert.equal(values.cliente_direccion_transito, "");
   assert.equal(values.fecha_contrato, operation.signature_date);
   assert.equal(values.fecha_firma, operation.signature_date);
   assert.match(values.abonos_extraordinarios, /1 de mayo de 2025, RD\$2,222\.22/);
@@ -191,13 +201,20 @@ test("the promissory note writes identity and every payment in numbers and words
     salesCommitmentParagraph: "se compromete a pagar las cuotas pactadas",
   });
   assert.deepEqual(issues, []);
-  assert.equal(values.cliente_cedula_letras, "cero cero cero guion cero cero cero cero cero cero cero guion uno");
+  assert.equal(values.cliente_cedula_letras, "CERO CERO CERO GUION CERO CERO CERO CERO CERO CERO CERO GUION UNO");
+  assert.equal(
+    resolveExpedienteFields("pagare_autentico", { ...client, identity: "001-1465695-2" }, operation, {
+      salesCommitmentParagraph: "se compromete a pagar las cuotas pactadas",
+    }).values.cliente_cedula_letras,
+    "CERO CERO UNO GUION CIENTO CUARENTA Y SEIS QUINIENTOS SESENTA Y NUEVE CINCO GUION DOS",
+  );
   assert.equal(values.cantidad_cuotas, "3");
-  assert.equal(values.cantidad_cuotas_letras, "tres");
-  assert.match(values.cuotas_intereses, /RD\$0\.01 \(cero pesos dominicanos con un centavo\)/);
-  assert.match(values.cuotas_intereses, /RD\$2,345\.67 \(dos mil trescientos cuarenta y cinco pesos dominicanos con sesenta y siete centavos\)/);
-  assert.match(values.cuota_final_capital, /RD\$50,000\.00 \(cincuenta mil pesos dominicanos con cero centavos\)/);
-  assert.equal(values.total_financiamiento_letras, "cincuenta y dos mil trescientos cuarenta y cinco pesos dominicanos con sesenta y ocho centavos");
+  assert.equal(values.cantidad_cuotas_letras, "TRES");
+  assert.match(values.cuotas_intereses, /CERO PESOS CON 01\/100 CENTAVOS DOMINICANOS \(RD\$0\.01\)/);
+  assert.match(values.cuotas_intereses, /DOS MIL TRESCIENTOS CUARENTA Y CINCO PESOS CON 67\/100 CENTAVOS DOMINICANOS \(RD\$2,345\.67\)/);
+  assert.match(values.cuota_final_capital, /TREINTA Y UNO \(31\) DE OCTUBRE DEL AÑO DOS MIL VEINTICINCO \(2025\)/);
+  assert.match(values.cuota_final_capital, /CINCUENTA MIL PESOS CON 00\/100 CENTAVOS DOMINICANOS \(RD\$50,000\.00\)/);
+  assert.equal(values.total_financiamiento_letras, "CINCUENTA Y DOS MIL TRESCIENTOS CUARENTA Y CINCO PESOS CON 68/100 CENTAVOS DOMINICANOS");
 });
 
 test("the company profile stores the six witness variables used by the promissory note", () => {
@@ -215,7 +232,10 @@ test("uniform interest keeps every due date and displays the shared amount once"
     interest_installments: operation.financing.interest_installments.map(payment => ({ ...payment, amount_minor: 100 })),
   };
   const { values } = resolveExpedienteFields("pagare_autentico", client, { ...operation, financing }, {});
-  assert.equal(values.cuotas_intereses, "2 cuotas de RD$1.00 (un peso dominicano con cero centavos) cada una. Vencimientos el 30/09/2024 y 31/10/2024");
+  assert.equal(
+    values.cuotas_intereses,
+    "DOS (2) CUOTAS DE UN PESO CON 00/100 CENTAVOS DOMINICANOS (RD$1.00) CADA UNA. VENCIMIENTOS EL TREINTA (30) DE SEPTIEMBRE DEL AÑO DOS MIL VEINTICUATRO (2024) y TREINTA Y UNO (31) DE OCTUBRE DEL AÑO DOS MIL VEINTICUATRO (2024)",
+  );
 });
 
 test("the balance letter accepts confirmed zero and never derives the balance from the plan", () => {
@@ -251,7 +271,7 @@ test("the insurance issuer match requires the complete legal name and the count 
   assert.equal(resolveExpedienteFields("acto_seguro", client, operation, context).values.cantidad_cuotas_seguro, "10");
   const edited = resolveExpedienteFields("pagare_seguro", client, operation, { ...context, insuranceInstallmentCount: 21 });
   assert.deepEqual(edited.issues, []);
-  assert.equal(edited.values.cantidad_cuotas_seguro_letras, "veintiuno");
+  assert.equal(edited.values.cantidad_cuotas_seguro_letras, "VEINTIUNO");
   assert.equal(edited.values.empresa_seguro_nombre, context.insuranceCompanyName);
 });
 
@@ -262,7 +282,7 @@ test("the percentage installment starts a calendar month after signing, independ
   assert.ok(missing.issues.some(issue => issue.key === "fecha_firma"));
   assert.ok(!missing.issues.some(issue => issue.key === "fecha_contrato"));
   const receipt = resolveExpedienteFields("entrega_documentos", client, operation, {});
-  assert.equal(receipt.values.fecha_contrato, operation.contract_date);
+  assert.equal(receipt.values.fecha_contrato, operation.signature_date);
   const { values } = resolveExpedienteFields("venta_condicional", client, operation, {});
   assert.equal(values.fecha_ancla_cuota_extraordinaria, "2024-10-01");
   const leapYear = resolveExpedienteFields("venta_condicional", client, { ...operation, signature_date: "2028-01-31" }, {});
@@ -366,11 +386,67 @@ test("the insurance act uses explicit rows, aligned Word columns, and an exact t
     assert.equal(formatWordTemplateValue({ key, label: key, kind: "text", required: true }, values[key]), expected);
   }
   assert.equal(values.monto_total_seguro, "RD$35.01");
-  assert.equal(values.monto_total_seguro_letras, "treinta y cinco pesos dominicanos con un centavo");
+  assert.equal(values.monto_total_seguro_letras, "TREINTA Y CINCO PESOS CON 01/100 CENTAVOS DOMINICANOS");
   assert.equal(hasDocumentTemplateFields("acto_seguro", getDocumentType("acto_seguro").requiredFields.filter(key => key !== "cuotas_seguro_montos")), false);
   const note = resolveExpedienteFields("pagare_seguro", client, operation, context);
   assert.equal(note.values.cuotas_seguro_fechas, undefined);
   assert.deepEqual(note.issues, []);
+
+  const missingRegisteredAmount = resolveExpedienteFields("acto_seguro", client, operation, {
+    insuranceCompanyName: "INVERSIONES MARTINEZ ROSARIO, SRL",
+  });
+  assert.deepEqual(missingRegisteredAmount.issues.map(issue => issue.key), ["monto_de_cada_cuota"]);
+  assert.equal(missingRegisteredAmount.values.monto_total_seguro, undefined);
+
+  const registeredAct = resolveExpedienteFields("acto_seguro", client, {
+    ...operation,
+    signature_date: "2028-01-31",
+    insurance_installment_minor: 750050,
+  }, {
+    insuranceCompanyName: "INVERSIONES MARTINEZ ROSARIO, SRL",
+  });
+  assert.deepEqual(registeredAct.issues, []);
+  assert.equal(registeredAct.values.cantidad_cuotas_seguro, "10");
+  assert.equal(registeredAct.values.cantidad_cuotas_seguro_letras, "DIEZ");
+  assert.equal(registeredAct.values.cuotas_seguro_numeros, "1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
+  assert.match(registeredAct.values.cuotas_seguro_fechas, /^29\/02\/2028\n31\/03\/2028/);
+  assert.match(registeredAct.values.cuotas_seguro_fechas, /\n30\/11\/2028$/);
+  assert.equal(registeredAct.values.cuotas_seguro_montos, Array(10).fill("RD$7,500.50").join("\n"));
+  assert.equal(registeredAct.values.monto_total_seguro, "RD$75,005.00");
+  assert.equal(registeredAct.values.monto_total_seguro_letras, "SETENTA Y CINCO MIL CINCO PESOS CON 00/100 CENTAVOS DOMINICANOS");
+});
+
+test("company contract clauses keep the model defaults for the seller company", () => {
+  assert.deepEqual([...companyContractClauseKeys], [
+    "empresa_mora_diaria_porcentaje",
+    "empresa_hora_limite_pago",
+    "empresa_dias_gracia",
+    "empresa_porcentaje_uso_rescision",
+    "empresa_ciudad_tribunal",
+    "empresa_periodo_revision_tasa_meses",
+    "empresa_dias_aviso_revision_tasa",
+  ]);
+  for (const key of companyContractClauseKeys) {
+    assert.equal(isCompanyContractClauseField(key), true);
+    assert.equal(companyProfileValue({}, key), companyClauseDefaults[key]);
+  }
+  assert.equal(companyProfileValue({ empresa_mora_diaria_porcentaje: "4%" }, "empresa_mora_diaria_porcentaje"), "4%");
+  assert.equal(isCompanyContractClauseField("empresa_rnc"), false);
+  assert.equal(isCompanyContractClauseField("hora_limite_para_el_pago"), true);
+  assert.equal(companyProfileValue({ empresa_hora_limite_pago: "5:00 p. m." }, "hora_limite_para_el_pago"), "5:00 p. m.");
+  assert.equal(companyProfileValue({}, "porcentaje_de_mora_diaria_sobre_la_cuota"), "6%");
+  assert.equal(companyProfileValue({}, "porcentaje_por_uso_del_vehiculo_al_rescindir"), "5%");
+  const financing = companyFieldGroups.find(group => group.label === "Financiamiento");
+  const other = companyFieldGroups.find(group => group.label === "Otros datos");
+  assert.deepEqual(financing.fields.map(field => field.key), ["empresa_mora_diaria_porcentaje"]);
+  assert.deepEqual(other.fields.map(field => field.key), [
+    "empresa_hora_limite_pago",
+    "empresa_dias_gracia",
+    "empresa_porcentaje_uso_rescision",
+    "empresa_ciudad_tribunal",
+    "empresa_periodo_revision_tasa_meses",
+    "empresa_dias_aviso_revision_tasa",
+  ]);
 });
 
 test("the insurance sale selects its own template and uses the signature and insurance amount", () => {
@@ -380,12 +456,28 @@ test("the insurance sale selects its own template and uses the signature and ins
   assert.equal(matchDocumentTemplate("venta_condicional", "Venta condicional de vehículo con financiamiento de seguro", keys), undefined);
   assert.equal(matchDocumentTemplate(type, "Venta condicional", keys), undefined);
   const signed = { ...operation, signature_date: "2028-01-31", vehicle: { ...operation.vehicle, plate: "PLACA-TEST" } };
-  const { values } = resolveExpedienteFields(type, client, signed, {
+  const missingAmount = resolveExpedienteFields(type, client, signed, {
+    insuranceCompanyName: "Inversiones Martínez Rosario SRL",
+  });
+  assert.deepEqual(missingAmount.issues.map(issue => issue.key), ["monto_de_cada_cuota"]);
+  assert.equal(missingAmount.values.monto_de_cada_cuota, undefined);
+
+  const savedAmount = resolveExpedienteFields(type, client, { ...signed, insurance_installment_minor: 750050 }, {
+    insuranceCompanyName: "Inversiones Martínez Rosario SRL",
+  });
+  assert.deepEqual(savedAmount.issues, []);
+  assert.equal(savedAmount.values.monto_de_cada_cuota, "RD$7,500.50");
+  assert.equal(savedAmount.values.monto_total_financiado, "RD$75,005.00");
+
+  const { values } = resolveExpedienteFields(type, client, { ...signed, insurance_installment_minor: 750050 }, {
     insuranceCompanyName: "Inversiones Martínez Rosario SRL",
     insuranceCompanyValues: { empresa_rnc: "000000000" },
     insuranceSaleInstallmentMinor: 919800,
   });
   assert.equal(values.fecha_de_firma, "2028-01-31");
+  assert.equal(values.nombre_completo_del_cliente, "");
+  assert.equal(values.cedula_del_cliente, "");
+  assert.equal(values.domicilio_del_cliente, "");
   assert.equal(values.fecha_de_vencimiento_de_la_cuota_1, "2028-02-29");
   assert.equal(values.fecha_de_vencimiento_de_la_cuota_2, "2028-03-31");
   assert.equal(values.fecha_de_vencimiento_de_la_cuota_10, "2028-11-30");
@@ -422,3 +514,126 @@ test("the downloadable demonstration Word files contain all required markers", (
   assert.equal(DOCUMENT_TYPES.length, 16);
   assert.equal(getDocumentType("desembolso"), undefined);
 });
+
+test("initial expediente generation excludes post-closing document types", () => {
+  assert.deepEqual([...POST_CLOSING_DOCUMENT_TYPES], [
+    "entrega_vehiculo_fines_saldo",
+    "entrega_documentos",
+    "carta_saldo",
+  ]);
+  assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.length, 13);
+  for (const excluded of POST_CLOSING_DOCUMENT_TYPES) {
+    assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.includes(excluded), false);
+  }
+  const combined = new Set([...INITIAL_EXPEDIENTE_DOCUMENT_TYPES, ...POST_CLOSING_DOCUMENT_TYPES]);
+  assert.equal(combined.size, DOCUMENT_TYPES.length);
+});
+
+test("insurance promissory note resolves installment amounts, totals, due dates, and issuer representative", () => {
+  const signed = { ...operation, signature_date: "2028-01-31", insurance_installment_minor: 500_025 };
+  const resolved = resolveExpedienteFields("pagare_seguro", client, signed, {
+    insuranceCompanyName: "INVERSIONES MARTINEZ ROSARIO, SRL",
+    insuranceInstallmentCount: 4,
+    insuranceCompanyValues: {
+      empresa_representante_nombre: "Representante Seguro Demo",
+    },
+  });
+  assert.deepEqual(resolved.issues, []);
+  assert.equal(resolved.values.monto_cuota_seguro, "RD$5,000.25");
+  assert.equal(resolved.values.monto_cuota_seguro_letras, "CINCO MIL PESOS CON 25/100 CENTAVOS DOMINICANOS");
+  assert.equal(resolved.values.monto_total_seguro, "RD$20,001.00");
+  assert.equal(resolved.values.monto_total_seguro_letras, "VEINTE MIL UN PESOS CON 00/100 CENTAVOS DOMINICANOS");
+  assert.equal(resolved.values.fecha_primera_cuota_seguro, "2028-02-29");
+  assert.equal(resolved.values.fecha_ultima_cuota_seguro, "2028-05-31");
+  assert.equal(resolved.values.representante_seguro_nombre, "Representante Seguro Demo");
+
+  assert.equal(isExpedienteField("monto_cuota_seguro", "pagare_seguro"), true);
+  assert.equal(isExpedienteField("fecha_primera_cuota_seguro", "pagare_seguro"), true);
+  assert.equal(isExpedienteField("monto_cuota_seguro", "venta_condicional"), false);
+  assert.equal(isInsuranceIssuerField("representante_seguro_nombre"), true);
+
+  const templateFields = [
+    { key: "representante_seguro_nombre", label: "Representante del seguro", kind: "text", required: true },
+    { key: "monto_cuota_seguro", label: "Monto cuota seguro", kind: "text", required: true },
+  ];
+  const merged = resolveCompanyAndDerivedValues(
+    templateFields,
+    { values: { empresa_representante_nombre: "Empresa Vendedora Demo" } },
+    resolved.values,
+    key => isExpedienteField(key, "pagare_seguro") || isInsuranceIssuerField(key),
+  );
+  assert.equal(merged.representante_seguro_nombre, "Representante Seguro Demo");
+  assert.equal(merged.monto_cuota_seguro, "RD$5,000.25");
+});
+
+test("guided tour copy adapts across intake sub-stages and pre-generated expediente documents", async () => {
+  const { tourCopy } = await import("../components/product-tour/tour-steps.ts");
+  const placeholder = /** @type {HTMLElement} */ ({});
+
+  const step2 = tourCopy("operation-form", { "operation-form": placeholder });
+  assert.match(step2.title, /solicitud de préstamo/i);
+  assert.match(step2.description, /fecha de firma/i);
+  assert.match(step2.description, /cuotas del seguro/i);
+
+  const step3 = tourCopy("operation-form", { "operation-form": placeholder, "operation-plan": placeholder });
+  assert.match(step3.title, /plan de pagos/i);
+  assert.match(step3.description, /abonos extraordinarios/i);
+
+  const step4 = tourCopy("operation-form", { "operation-form": placeholder, "operation-review": placeholder });
+  assert.match(step4.title, /Revisa y emite/i);
+  assert.match(step4.description, /generar automáticamente/i);
+
+  const readyDocs = tourCopy("prepare", { "document-prepare": placeholder, "expediente-documents-ready": placeholder });
+  assert.equal(readyDocs.target, "document-prepare");
+  assert.match(readyDocs.description, /ya están listos/i);
+  assert.equal(readyDocs.next?.step, "done");
+});
+
+test("payment plan masks RD$ currency values and parses typed and settled amounts", async () => {
+  const { formatMoneyInput, parseAmountMinor } = await import("../app/clientes/amount-input.ts");
+  assert.equal(formatMoneyInput(2_000_050), "RD$20,000.50");
+  assert.equal(formatMoneyInput(0), "RD$0.00");
+  assert.equal(parseAmountMinor("RD$20,000"), 2_000_000);
+  assert.equal(parseAmountMinor("RD$20,000."), 2_000_000);
+  assert.equal(parseAmountMinor("RD$20,000.5"), 2_000_050);
+  assert.equal(parseAmountMinor("RD$20,000.50"), 2_000_050);
+  assert.equal(parseAmountMinor("8000,25"), 800_025);
+  assert.equal(parseAmountMinor("RD$"), undefined);
+
+  const generated = calculateMonthlyPayments("2027-01-31", 2_000_000, 2, 10_000_000);
+  const rows = generated.map(installmentDraft);
+  assert.deepEqual(rows.map(row => row.amount), ["RD$20,000.00", "RD$120,000.00"]);
+  assert.equal(validateMonthlyPayments(rows).total, 14_000_000);
+});
+
+test("vehicle plate resolves conditional sale without requiring registration_number", () => {
+  const plateOnlyOperation = {
+    ...operation,
+    vehicle: {
+      vehicle_type: "Automóvil privado",
+      make: "Audi",
+      model: "Q3",
+      year: "2026",
+      color: "Azul",
+      plate: "A123456",
+      chassis_number: "CHS-01",
+      engine_number: "V4",
+    },
+  };
+  const sale = resolveExpedienteFields("venta_condicional", client, plateOnlyOperation, {});
+  assert.deepEqual(sale.issues, []);
+  assert.equal(sale.values.vehiculo_placa, "A123456");
+  assert.equal(sale.values.vehiculo_matricula, "A123456");
+  assert.equal(sale.values.placa_del_vehiculo, "A123456");
+  assert.doesNotMatch(sale.values.vehiculo_garantia, /Matrícula/);
+  assert.match(sale.values.vehiculo_garantia, /Placa A123456/);
+  assert.equal(
+    hasDocumentTemplateFields("venta_condicional", [
+      "vehiculo_placa", "fecha_contrato", "fecha_firma",
+      "cuotas_intereses", "cuota_final_capital", "abonos_extraordinarios", "total_financiamiento",
+    ]),
+    true,
+  );
+});
+
+

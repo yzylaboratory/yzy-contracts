@@ -305,6 +305,7 @@ async fn openapi_documents_every_endpoint_with_bearer_auth_and_tags() {
         "/api/v1/admin/billing/accounts",
         "/api/v1/admin/billing/accounts/{id}",
         "/api/v1/admin/billing/bank-account",
+        "/api/v1/admin/billing/pricing",
         "/api/v1/admin/billing/invoices",
         "/api/v1/admin/billing/invoices/{id}/verification",
         "/api/v1/conversions/{id}",

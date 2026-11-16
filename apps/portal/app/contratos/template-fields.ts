@@ -1,4 +1,5 @@
 import { isEmailAddress } from "./document-export";
+import { notarialActDate, notarialDate } from "./expediente-fields";
 
 export type TemplateFieldType = "text" | "date" | "identity" | "amount" | "duration" | "email" | "money" | "integer" | "phone";
 export type TemplateField = {
@@ -6,7 +7,7 @@ export type TemplateField = {
   label: string;
   kind: TemplateFieldType;
   required: boolean;
-  dateStyle?: "numeric" | "long";
+  dateStyle?: "numeric" | "long" | "notarial" | "notarialAct";
   placeholder?: string;
   width?: "wide" | "compact";
   sourceTexts?: string[];
@@ -32,8 +33,8 @@ const defaults: Record<TemplateFieldType, Pick<TemplateField, "placeholder" | "w
   phone: { placeholder: "XXX-XXX-XXXX", width: "compact" },
 };
 
-/** Pesos as the documents print them: RD$25,000.00, optionally followed by the amount in words. */
-export const moneyPattern = /^RD\$\d{1,3}(?:,\d{3})*\.\d{2}(?: \(.+\))?$/;
+/** Pesos as the documents print them: RD$25,000.00, optionally with words before or after. */
+export const moneyPattern = /^(?:RD\$\d{1,3}(?:,\d{3})*\.\d{2}(?: \(.+\))?|.+ \(RD\$\d{1,3}(?:,\d{3})*\.\d{2}\))$/;
 const legacy: Record<string, Pick<TemplateField, "label"> & Partial<TemplateField>> = {
   ARRENDADOR: { label: "Nombre del arrendador", placeholder: "Nombre completo…" },
   CEDULA_ARRENDADOR: { label: "Cédula del arrendador", kind: "identity" },
@@ -255,7 +256,11 @@ export function formatTemplateValue(field: TemplateField, input: string) {
   const value = input.trim();
   if (field.kind === "date" && field.dateStyle) {
     const date = parseCalendarDate(value);
-    if (date) return dateFormatters[field.dateStyle].format(date);
+    if (date) {
+      if (field.dateStyle === "notarial") return notarialDate(date);
+      if (field.dateStyle === "notarialAct") return notarialActDate(date);
+      return dateFormatters[field.dateStyle].format(date);
+    }
   }
   return field.kind === "identity" ? value.replace(/^(\d{3})(\d{7})(\d)$/, "$1-$2-$3") : value;
 }

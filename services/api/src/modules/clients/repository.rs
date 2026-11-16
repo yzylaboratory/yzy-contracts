@@ -5,38 +5,39 @@ use crate::error::ApiError;
 
 use super::dto::{
     CaseListItem, CasePage, Client, ClientPage, ClientPatch, ClientTimelineEvent,
-    ClientTimelinePage, ListClients, ListTimeline, Operation, OperationPatch,
+    ClientTimelinePage, ListCases, ListClients, ListTimeline, Operation, OperationPatch,
 };
 use super::history::Snapshot;
 
-pub(super) async fn list_cases(db: &PgPool, query: &ListClients) -> sqlx::Result<CasePage> {
+pub(super) async fn list_cases(db: &PgPool, query: &ListCases) -> sqlx::Result<CasePage> {
     let (items, total): (Json<Vec<CaseListItem>>, i64) = sqlx::query_as(
         "WITH search AS (
-           SELECT translate(lower($1::text), 'áéíóúüñ', 'aeiouun') AS text,
-                  NULLIF(regexp_replace(lower($1), '[[:space:]-]+', '', 'g'), '') AS identity
+           SELECT translate(lower($2::text), 'áéíóúüñ', 'aeiouun') AS text,
+                  NULLIF(regexp_replace(lower($2), '[[:space:]-]+', '', 'g'), '') AS identity
          ), filtered AS NOT MATERIALIZED (
            SELECT o.id, o.client_id, c.name AS client_name, c.identity AS client_identity,
-                  o.company_id, co.name AS company_name, o.reference, o.contract_date,
+                  o.company_id, co.name AS company_name, o.reference, o.contract_date, o.status,
                   o.vehicle, o.created_at
            FROM yzy_contracts.client_operations o
            JOIN yzy_contracts.clients c ON c.id = o.client_id
            JOIN yzy_contracts.companies co ON co.id = o.company_id
            CROSS JOIN search
-           WHERE o.deleted_at IS NULL AND (search.text IS NULL
+           WHERE o.deleted_at IS NULL AND o.company_id = $1 AND (search.text IS NULL
              OR strpos(translate(lower(concat_ws(' ', o.reference, c.name,
                   o.vehicle->>'make', o.vehicle->>'model', o.vehicle->>'plate',
                   o.vehicle->>'registration_number', o.vehicle->>'chassis_number')),
                   'áéíóúüñ', 'aeiouun'), search.text) > 0
-             OR strpos(lower(c.identity), lower($1)) > 0
+             OR strpos(lower(c.identity), lower($2)) > 0
              OR strpos(regexp_replace(lower(c.identity), '[[:space:]-]+', '', 'g'), search.identity) > 0)
          )
          SELECT COALESCE(
                   (SELECT jsonb_agg(to_jsonb(page) ORDER BY created_at DESC, id DESC)
-                   FROM (SELECT * FROM filtered ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3) page),
+                   FROM (SELECT * FROM filtered ORDER BY created_at DESC, id DESC LIMIT $3 OFFSET $4) page),
                   '[]'::jsonb
                 ),
                 (SELECT count(*) FROM filtered)",
     )
+    .bind(query.company_id)
     .bind(query.q.as_deref().map(str::trim).filter(|q| !q.is_empty()))
     .bind(query.per_page)
     .bind((query.page - 1).saturating_mul(query.per_page))
@@ -328,8 +329,8 @@ pub(super) async fn create_operation(
     let mut tx = db.begin().await?;
     let saved: Option<Operation> = sqlx::query_as(
         "INSERT INTO yzy_contracts.client_operations
-            (company_id, client_id, contract_id, reference, contract_date, vehicle, financing, application, signature_date)
-         SELECT $2, yzy_contracts.resolve_client_id($3), $4, $5, $6, $7, $8, $9, $10
+            (company_id, client_id, contract_id, reference, contract_date, vehicle, financing, application, signature_date, status, insurance_installment_minor)
+         SELECT $2, yzy_contracts.resolve_client_id($3), $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'solicitud'), $12
          WHERE yzy_contracts.has_company_membership($1, $2)
            AND ($4::uuid IS NULL OR yzy_contracts.can_use_client_contract($1, $4, $2))
            AND EXISTS (SELECT 1 FROM yzy_contracts.clients WHERE id = yzy_contracts.resolve_client_id($3))
@@ -345,6 +346,8 @@ pub(super) async fn create_operation(
     .bind(body.financing.flatten().map(Json))
     .bind(body.application.flatten().map(Json))
     .bind(body.signature_date.flatten().map(|date| date.0))
+    .bind(body.status)
+    .bind(body.insurance_installment_minor.flatten())
     .fetch_optional(&mut *tx)
     .await
     .map_err(operation_write_error)?;
@@ -444,16 +447,15 @@ pub(super) async fn update_operation(
         });
     let previous_plan = previous.financing.as_ref();
     let extraordinary_amounts = body.extraordinary_payment_amounts_minor.as_deref();
-    if body.financing.is_none() {
-        if extraordinary_amounts.is_some()
+    if body.financing.is_none()
+        && (extraordinary_amounts.is_some()
             || previous_plan.is_some_and(|plan| {
                 (signature != previous.signature_date
                     && (plan.monthly_plan.is_some() || plan.extraordinary_from_signature))
                     || (requested_amount != previous_amount && plan.monthly_plan.is_some())
-            })
-        {
-            body.financing = Some(previous.financing.clone());
-        }
+            }))
+    {
+        body.financing = Some(previous.financing.clone());
     }
     if let Some(Some(financing)) = &mut body.financing {
         financing.calculate_monthly(signature, requested_amount)?;
@@ -471,6 +473,8 @@ pub(super) async fn update_operation(
            financing = CASE WHEN $11 THEN $12 ELSE financing END,
            application = CASE WHEN $14 THEN $15 ELSE application END,
            signature_date = CASE WHEN $16 THEN $17 ELSE signature_date END,
+           status = CASE WHEN $18 THEN $19 ELSE status END,
+           insurance_installment_minor = CASE WHEN $20 THEN $21 ELSE insurance_installment_minor END,
            updated_at = statement_timestamp()
          WHERE company_id = $2 AND client_id = yzy_contracts.resolve_client_id($3) AND id = $4
            AND deleted_at IS NULL AND yzy_contracts.has_company_membership($1, $2)
@@ -494,6 +498,10 @@ pub(super) async fn update_operation(
     .bind(body.application.flatten().map(Json))
     .bind(body.signature_date.is_some())
     .bind(body.signature_date.flatten().map(|date| date.0))
+    .bind(body.status.is_some())
+    .bind(body.status)
+    .bind(body.insurance_installment_minor.is_some())
+    .bind(body.insurance_installment_minor.flatten())
     .fetch_optional(&mut *tx)
     .await
     .map_err(operation_write_error)?;

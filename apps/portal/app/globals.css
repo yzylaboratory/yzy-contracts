@@ -1,6 +1,100 @@
 :root {
   --font-geist: "Geist Variable", system-ui, sans-serif;
   --font-inter: "Inter Variable", system-ui, sans-serif;
+
+  /* Brand: Stone Gray · Ink Navy · Burgundy — no other chromatic accents */
+  --brand-stone: #e7e3dc;
+  --brand-ink: #14213d;
+  --brand-burgundy: #7a1f2b;
+  --accent: var(--brand-burgundy);
+  --accent-strong: #5e1821;
+  --accent-hover: #621823;
+  --accent-foreground: #ffffff;
+  --accent-subtle: color-mix(in oklab, var(--brand-burgundy) 12%, transparent);
+  --control-on: var(--brand-burgundy);
+  --control-glyph: #ffffff;
+  --control-thumb-on: #ffffff;
+  --control-fill: var(--brand-burgundy);
+
+  /* Semantic + chart tones stay inside the triad */
+  --danger: var(--brand-burgundy);
+  --warning: color-mix(in oklab, var(--brand-burgundy) 55%, var(--brand-stone));
+  --success: color-mix(in oklab, var(--brand-ink) 78%, var(--brand-stone));
+  --info: var(--brand-ink);
+  --tone-teal: var(--brand-ink);
+  --tone-sky: var(--brand-ink);
+  --tone-orchid: var(--brand-burgundy);
+  --tone-violet: var(--brand-burgundy);
+  --tone-rose: var(--brand-burgundy);
+  --tone-amber: color-mix(in oklab, var(--brand-burgundy) 70%, var(--brand-stone));
+  --tone-green: var(--brand-ink);
+  --series-1: var(--brand-burgundy);
+  --series-2: var(--brand-ink);
+  --series-3: color-mix(in oklab, var(--brand-ink) 45%, var(--brand-stone));
+  --series-4: color-mix(in oklab, var(--brand-burgundy) 55%, var(--brand-stone));
+  --arc-gradient-from: color-mix(in oklab, var(--brand-stone) 70%, var(--brand-burgundy));
+  --arc-gradient-to: color-mix(in oklab, var(--brand-stone) 78%, var(--brand-ink));
+  --arc-gradient-foreground: var(--brand-ink);
+  --arc-gradient-soft: linear-gradient(135deg, var(--brand-stone), color-mix(in oklab, var(--brand-stone) 88%, var(--brand-ink)));
+  --arc-gradient-line: linear-gradient(100deg, color-mix(in oklab, var(--brand-burgundy) 35%, var(--brand-stone)), color-mix(in oklab, var(--brand-ink) 35%, var(--brand-stone)));
+  --arc-gradient-ink: linear-gradient(100deg, var(--brand-burgundy), var(--brand-ink));
+
+  /* Document format chips */
+  --format-pdf-surface: color-mix(in oklab, var(--brand-burgundy) 14%, var(--brand-stone));
+  --format-pdf-ink: var(--brand-burgundy);
+  --format-word-surface: color-mix(in oklab, var(--brand-ink) 12%, var(--brand-stone));
+  --format-word-ink: var(--brand-ink);
+}
+
+:root:not([data-theme="dark"]) {
+  --background: var(--brand-stone);
+  --surface: #fbf9f6;
+  --surface-raised: #ffffff;
+  --surface-muted: #ddd8cf;
+  --foreground: var(--brand-ink);
+  --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
+  --text-muted: color-mix(in oklab, var(--brand-ink) 52%, var(--brand-stone));
+  --border: color-mix(in oklab, var(--brand-ink) 12%, var(--brand-stone));
+  --border-subtle: color-mix(in oklab, var(--brand-ink) 8%, var(--brand-stone));
+  --border-strong: color-mix(in oklab, var(--brand-ink) 28%, var(--brand-stone));
+}
+
+:root[data-theme="dark"] {
+  --brand-ink: #0f182c;
+  --accent: #a33a48;
+  --accent-strong: #c45a66;
+  --accent-hover: #b34754;
+  --accent-foreground: #ffffff;
+  --accent-subtle: color-mix(in oklab, #a33a48 18%, transparent);
+  --control-on: #a33a48;
+  --control-glyph: #ffffff;
+  --control-thumb-on: #ffffff;
+  --control-fill: #a33a48;
+  --danger: #a33a48;
+  --warning: color-mix(in oklab, #a33a48 65%, var(--brand-stone));
+  --success: color-mix(in oklab, var(--brand-stone) 55%, #0f182c);
+  --info: var(--brand-stone);
+  --tone-teal: color-mix(in oklab, var(--brand-stone) 70%, #0f182c);
+  --tone-sky: color-mix(in oklab, var(--brand-stone) 70%, #0f182c);
+  --tone-orchid: #a33a48;
+  --tone-violet: #a33a48;
+  --tone-rose: #a33a48;
+  --tone-amber: color-mix(in oklab, #a33a48 70%, var(--brand-stone));
+  --tone-green: color-mix(in oklab, var(--brand-stone) 70%, #0f182c);
+  --series-1: #a33a48;
+  --series-2: var(--brand-stone);
+  --series-3: color-mix(in oklab, var(--brand-stone) 45%, #0f182c);
+  --series-4: color-mix(in oklab, #a33a48 55%, var(--brand-stone));
+  --format-pdf-surface: color-mix(in oklab, #a33a48 22%, transparent);
+  --format-pdf-ink: #c45a66;
+  --format-word-surface: color-mix(in oklab, var(--brand-stone) 14%, transparent);
+  --format-word-ink: var(--brand-stone);
+  --arc-gradient-from: color-mix(in oklab, #0f182c 70%, #a33a48);
+  --arc-gradient-to: color-mix(in oklab, #0f182c 78%, var(--brand-stone));
+  --arc-gradient-foreground: var(--brand-stone);
+  --arc-gradient-soft: linear-gradient(135deg, #0f182c, color-mix(in oklab, #0f182c 88%, #a33a48));
+  --arc-gradient-line: linear-gradient(100deg, #a33a48, color-mix(in oklab, var(--brand-stone) 40%, #0f182c));
+  --arc-gradient-ink: linear-gradient(100deg, #c45a66, var(--brand-stone));
 }
 
 *,

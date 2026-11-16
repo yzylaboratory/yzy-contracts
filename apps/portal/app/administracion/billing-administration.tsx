@@ -4,15 +4,22 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
-import { billingError, getBillingAccounts, getBillingInvoices, saveBillingAccount, verifyTransfer, type BillingAccount, type BillingDecision, type BillingInvoice, type BillingPage } from "@/app/facturacion/billing-api";
-import { BillingDialog, billingAmount, billingDate, invoicePeriod, InvoiceBreakdown, InvoiceStatus } from "@/app/facturacion/billing-presentation";
+import { billingError, getBillingAccounts, getBillingInvoices, getBillingPricing, saveBillingAccount, verifyTransfer, type BillingAccount, type BillingDecision, type BillingInvoice, type BillingPage, type BillingPricing } from "@/app/facturacion/billing-api";
+import { BillingDialog, billingAmount, billingDate, billingUsdAmount, invoicePeriod, InvoiceBreakdown, InvoiceStatus } from "@/app/facturacion/billing-presentation";
 import styles from "@/app/facturacion/billing.module.css";
 import { billingReviewSection } from "@/lib/admin-navigation";
 import { getAdminUsers, type AdminUser } from "./admin-api";
 import { AdminPagination } from "./admin-pagination";
 import { BillingBankAccount } from "./billing-bank-account";
+import { BillingPricingSettings } from "./billing-pricing";
 
-type AdminBillingData = { accounts: BillingPage<BillingAccount>; reported: BillingPage<BillingInvoice>; invoices: BillingPage<BillingInvoice>; managers: AdminUser[] };
+type AdminBillingData = {
+  accounts: BillingPage<BillingAccount>;
+  reported: BillingPage<BillingInvoice>;
+  invoices: BillingPage<BillingInvoice>;
+  managers: AdminUser[];
+  pricing: BillingPricing;
+};
 type Dialog = { kind: "account"; account: BillingAccount } | { kind: "invoice"; invoice: BillingInvoice };
 
 const billingPageSize = 10;
@@ -20,6 +27,7 @@ const billingPageSize = 10;
 export function BillingAdministration({ accountId }: { accountId: string }) {
   return <div className={styles.workspace}>
     <BillingAccountsAndInvoices accountId={accountId} />
+    <BillingPricingSettings key={`pricing-${accountId}`} accountId={accountId} />
     <BillingBankAccount key={accountId} accountId={accountId} />
   </div>;
 }
@@ -42,8 +50,9 @@ function BillingAccountsAndInvoices({ accountId }: { accountId: string }) {
       getBillingInvoices(accountId, signal, reviewPage, billingPageSize, true),
       getBillingInvoices(accountId, signal, invoicesPage, billingPageSize, false),
       getAdminUsers(accountId, "", "active", signal),
-    ]).then(([accounts, reported, invoices, managers]) => {
-      if (!signal.aborted) setResult({ key: requestKey, data: { accounts, reported, invoices, managers: managers.items } });
+      getBillingPricing(accountId, signal),
+    ]).then(([accounts, reported, invoices, managers, pricing]) => {
+      if (!signal.aborted) setResult({ key: requestKey, data: { accounts, reported, invoices, managers: managers.items, pricing } });
     }).catch((error: unknown) => {
       if (!signal.aborted) setResult({ key: requestKey, error: billingError(error, "No se pudo cargar la facturación. Intenta de nuevo.") });
     });
@@ -59,7 +68,7 @@ function BillingAccountsAndInvoices({ accountId }: { accountId: string }) {
     <Button type="button" variant="secondary" loading={refreshing} disabled={refreshing} onClick={() => setAttempt(value => value + 1)}>Reintentar</Button>
   </div>;
 
-  const { accounts, reported, invoices, managers } = current.data;
+  const { accounts, reported, invoices, managers, pricing } = current.data;
   if (!refreshing) {
     const last = (page: BillingPage<unknown>) => Math.max(1, Math.ceil(page.total / page.per_page));
     if (accountsPage > last(accounts)) setAccountsPage(last(accounts));
@@ -100,11 +109,11 @@ function BillingAccountsAndInvoices({ accountId }: { accountId: string }) {
           <table className={styles.table}>
             <thead><tr><th scope="col">Cuenta</th><th scope="col">Responsable</th><th scope="col">Empresas</th><th scope="col" className={styles.numeric}>Total mensual</th><th scope="col" className={styles.rowAction}>Acciones</th></tr></thead>
             <tbody>{accounts.items.map(account => <tr key={account.id}>
-              <th scope="row">{account.name}<br /><span className={styles.muted}>Desde el {billingDate(account.starts_on)}</span></th>
+              <th scope="row">{account.name}<br /><span className={styles.muted}>Sin cobro hasta el {billingDate(account.starts_on)}</span></th>
               <td>{account.manager_user_id === accountId ? "Superadministrador"
                 : managers.find(user => user.id === account.manager_user_id)?.name
                   ?? managers.find(user => user.id === account.manager_user_id)?.email ?? "Responsable deshabilitado"}</td>
-              <td>{account.companies.map(company => company.name).join(", ") || "Sin cobros programados"}</td>
+              <td>{account.companies.map(company => `${company.name} (${billingUsdAmount(company.price_usd_minor ?? pricing.price_usd_minor)})`).join(", ") || "Sin cobros programados"}</td>
               <td className={styles.numeric}>{billingAmount(account.monthly_total_minor)}</td>
               <td className={styles.rowAction}><Button type="button" variant="secondary" aria-haspopup="dialog" disabled={refreshing} aria-label={`Editar cuenta de ${account.name}`}
                 onClick={() => { setNotice(""); setDialog({ kind: "account", account }); }}>Editar cuenta</Button></td>
@@ -121,7 +130,7 @@ function BillingAccountsAndInvoices({ accountId }: { accountId: string }) {
           : <p className={styles.muted}>No hay otras facturas.</p>}
       </section>
       {dialog?.kind === "account" && <BillingAccountDialog accountId={accountId} account={dialog.account} managers={managers}
-        onClose={() => setDialog(null)} onSaved={savedAccount} />}
+        pricing={pricing} onClose={() => setDialog(null)} onSaved={savedAccount} />}
       {dialog?.kind === "invoice" && <ReviewDialog accountId={accountId} invoice={dialog.invoice}
         onClose={() => setDialog(null)} onVerified={verified} />}
     </div>
@@ -162,12 +171,18 @@ function InvoiceTable({ invoices, reviewing = false, refreshing, onOpen, onPage 
   </>;
 }
 
-function BillingAccountDialog({ accountId, account, managers, onClose, onSaved }: {
-  accountId: string; account: BillingAccount; managers: AdminUser[];
+function BillingAccountDialog({ accountId, account, managers, pricing, onClose, onSaved }: {
+  accountId: string; account: BillingAccount; managers: AdminUser[]; pricing: BillingPricing;
   onClose: () => void; onSaved: (account: BillingAccount) => void;
 }) {
   const [name, setName] = useState(account.name);
   const [managerId, setManagerId] = useState(account.manager_user_id);
+  const [companyPrices, setCompanyPrices] = useState<Record<string, string>>(() => Object.fromEntries(
+    account.companies.map(company => [
+      company.id,
+      ((company.price_usd_minor ?? pricing.price_usd_minor) / 100).toFixed(2),
+    ]),
+  ));
   const [managerPortal, setManagerPortal] = useState<HTMLDialogElement | null>(null);
   const formRef = useCallback((form: HTMLFormElement | null) => {
     setManagerPortal(form?.closest("dialog") ?? null);
@@ -196,11 +211,30 @@ function BillingAccountDialog({ accountId, account, managers, onClose, onSaved }
       nameInput.current?.focus();
       return;
     }
+    const prices: { company_id: string; price_usd_minor: number | null }[] = [];
+    for (const company of account.companies) {
+      const raw = companyPrices[company.id]?.replace(",", ".") ?? "";
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setError("Indica un precio en USD mayor que cero para cada empresa.");
+        return;
+      }
+      const priceUsdMinor = Math.round(parsed * 100);
+      prices.push({
+        company_id: company.id,
+        price_usd_minor: priceUsdMinor === pricing.price_usd_minor ? null : priceUsdMinor,
+      });
+    }
     sending.current = true;
     setBusy(true);
     setError("");
     try {
-      onSaved(await saveBillingAccount(accountId, account.id, { name: name.trim(), manager_user_id: managerId, company_ids: account.companies.map(company => company.id) }));
+      onSaved(await saveBillingAccount(accountId, account.id, {
+        name: name.trim(),
+        manager_user_id: managerId,
+        company_ids: account.companies.map(company => company.id),
+        company_prices: prices,
+      }));
     } catch (failure) {
       setError(billingError(failure, "No se pudo guardar la cuenta. Intenta de nuevo."));
     } finally {
@@ -219,6 +253,30 @@ function BillingAccountDialog({ accountId, account, managers, onClose, onSaved }
         <Select ref={managerInput} name="manager_user_id" label="Responsable de facturación" required disabled={busy}
           value={managerAvailable ? managerId : ""} placeholder="Selecciona un usuario habilitado…"
           options={managerOptions} portalContainer={managerPortal} onValueChange={id => { setManagerId(id); setError(""); }} />
+        {account.companies.length > 0 && (
+          <fieldset className={styles.priceFields}>
+            <legend>Precio por empresa (USD / mes)</legend>
+            <p className={styles.muted}>
+              Precio global actual: {billingUsdAmount(pricing.price_usd_minor)}. Si dejas el mismo valor, se usa el global.
+            </p>
+            {account.companies.map(company => (
+              <Input
+                key={company.id}
+                name={`price-${company.id}`}
+                label={company.name}
+                inputMode="decimal"
+                autoComplete="off"
+                required
+                disabled={busy}
+                value={companyPrices[company.id] ?? ""}
+                onChange={event => {
+                  setCompanyPrices(previous => ({ ...previous, [company.id]: event.target.value }));
+                  setError("");
+                }}
+              />
+            ))}
+          </fieldset>
+        )}
         {error && <p className={styles.error} role="alert">{error}</p>}
         <div className={styles.actions}>
           <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Cancelar</Button>

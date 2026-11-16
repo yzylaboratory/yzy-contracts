@@ -147,17 +147,16 @@ async fn persist(
                 return Err(ApiError::CompanyNotFound);
             }
         }
-        if let Some(kind) = &body.document_type {
-            if body.operation_id.is_none()
+        if let Some(kind) = &body.document_type
+            && (body.operation_id.is_none()
                 || !kind.starts_with(|ch: char| ch.is_ascii_lowercase())
                 || !kind
                     .bytes()
-                    .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == b'_')
-            {
-                return Err(ApiError::Validation(
-                    "Invalid expediente document type".into(),
-                ));
-            }
+                    .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == b'_'))
+        {
+            return Err(ApiError::Validation(
+                "Invalid expediente document type".into(),
+            ));
         }
         if let Some(operation) = body.operation_id {
             clients::require_generation_scope(

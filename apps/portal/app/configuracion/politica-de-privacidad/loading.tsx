@@ -1,5 +1,5 @@
 import { LoadingBlock, PortalLoading } from "@/components/loading/loading-ui";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 import styles from "../legal-document.module.css";
 
 const headingWidths = [218, 240, 216, 310, 180];
@@ -10,7 +10,7 @@ export default function PrivacyPolicyLoading() {
       currentPage="/configuracion"
       title="Políticas de privacidad"
       description="Cómo YZY Contracts utiliza los datos y qué puedes hacer para gestionarlos."
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
       label="Cargando las políticas de privacidad…"
     >
       <div className={styles.document}>

@@ -113,7 +113,9 @@ export function tourCopy(step: TourStep, targets: TourTargets): TourCopy {
     case "clients":
       return {
         title: "Abre Expedientes",
-        description: targets["clients-nav"] ? "En Expedientes puedes abrir un expediente y preparar sus documentos." : "Abre el menú y entra en Expedientes para empezar.",
+        description: targets["clients-nav"]
+          ? "En Expedientes puedes abrir un expediente o crear uno nuevo con su plan de pagos y sus documentos iniciales."
+          : "Abre el menú y entra en Expedientes para empezar.",
         target: targets["clients-nav"] ? "clients-nav" : "mobile-menu",
       };
     case "company":
@@ -125,43 +127,65 @@ export function tourCopy(step: TourStep, targets: TourTargets): TourCopy {
     case "client":
       if (targets["client-register"]) return {
         title: "Elige el cliente del expediente",
-        description: "Busca y selecciona un cliente existente o pulsa Nuevo cliente para registrarlo.",
+        description: "Busca y selecciona un cliente existente con Usar cliente, o pulsa Nuevo cliente para registrarlo.",
         target: targets["client-list"] ? "client-list" : "client-register",
       };
       return {
         title: "Abre o crea un expediente",
-        description: targets["client-existing"] ? "Busca por referencia, vehículo o cliente y abre el expediente que necesitas. Pulsa Nuevo expediente para registrar otra compra." : "Pulsa Nuevo expediente para elegir o registrar al cliente.",
+        description: targets["client-existing"]
+          ? "Busca por referencia, vehículo o cliente y abre el expediente que necesitas, o pulsa Nuevo expediente para registrar otro financiamiento."
+          : "Pulsa Nuevo expediente para elegir o registrar al cliente e iniciar el financiamiento.",
         target: targets["client-list"] ? "client-list" : "client-start",
       };
     case "client-form":
       return {
         title: "Registra los datos del cliente",
-        description: "Completa los datos requeridos y pulsa Guardar cliente para continuar al expediente.",
+        description: "Completa los datos personales, laborales, cónyuge y referencias requeridas, y pulsa Guardar cliente para continuar al expediente.",
         target: "client-form",
       };
     case "operation":
       return {
         title: "Elige un expediente",
-        description: targets["operation-choices"] ? "Abre un expediente del listado o pulsa Nuevo expediente para registrar otra compra." : "Pulsa Nuevo expediente para empezar.",
+        description: targets["operation-choices"]
+          ? "Abre un expediente del listado o pulsa Nuevo expediente para registrar otro financiamiento."
+          : "Pulsa Nuevo expediente para empezar.",
         target: targets["operation-choices"] ? "operation-choices" : "client-start",
         next: targets["operation-choices"] ? { label: "Usar uno existente", step: "prepare" } : undefined,
       };
     case "operation-form":
+      if (targets["operation-plan"]) return {
+        title: "Configura el plan de pagos",
+        description: "Calcula o edita las cuotas mensuales y completa los abonos extraordinarios requeridos; luego pulsa Continuar a revisión.",
+        target: "operation-form",
+      };
+      if (targets["operation-review"]) return {
+        title: "Revisa y emite el expediente",
+        description: "Verifica todos los datos y pulsa Confirmar y guardar expediente para guardarlo y generar automáticamente sus documentos iniciales.",
+        target: "operation-form",
+      };
       return {
         title: "Completa la solicitud de préstamo",
-        description: "Indica el monto y los datos del vehículo. Revisa la solicitud y confirma para guardar el expediente con su referencia.",
+        description: "Indica la fecha de solicitud, el monto, la fecha de firma, las cuotas del seguro y los datos del vehículo; luego pulsa Continuar al plan de pagos.",
         target: "operation-form",
       };
     case "prepare":
+      if (targets["operation-choices"]) return {
+        title: "Documentos del expediente",
+        description: "Pulsa Ver expediente en el expediente que quieras usar.",
+        target: "operation-choices",
+      };
       return {
-        title: "Genera el documento",
-        description: targets["operation-choices"] ? "Pulsa Ver expediente en el expediente que quieras usar." : "En el expediente, pulsa Generar Documento.",
-        target: targets["operation-choices"] ? "operation-choices" : "document-prepare",
+        title: "Documentos del expediente",
+        description: targets["expediente-documents-ready"]
+          ? "Tus documentos iniciales ya están listos para vista previa o descarga. Si necesitas emitir documentos de cierre (como la Carta de saldo) o regenerar alguno, pulsa Generar Documento."
+          : "Desde aquí puedes previsualizar y descargar los documentos del expediente, o pulsar Generar Documento para emitir los contratos disponibles.",
+        target: "document-prepare",
+        next: { label: "Continuar", step: "done" },
       };
     case "type":
       return {
         title: "Elige el tipo de documento",
-        description: "Pulsa el documento que quieres generar para este expediente.",
+        description: "Pulsa el documento que quieres emitir (como la Carta de saldo o Entrega de documentos) o volver a generar para este expediente.",
         target: "document-type",
       };
     case "document-fields":
@@ -189,6 +213,9 @@ export function tourCopy(step: TourStep, targets: TourTargets): TourCopy {
         target: "expediente-return",
       };
     case "done":
-      return { title: "Consulta tus documentos", description: "Puedes volver a descargar los documentos que generaste y consultar su historial en el expediente." };
+      return {
+        title: "Consulta tus documentos",
+        description: "En el expediente puedes previsualizar o descargar cualquier documento en PDF o Word y consultar todo el historial de cambios.",
+      };
   }
 }

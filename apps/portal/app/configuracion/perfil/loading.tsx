@@ -1,5 +1,5 @@
 import { PortalLoading } from "@/components/loading/loading-ui";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 import { ProfileSkeleton, profileLoadingLabel } from "./profile-skeleton";
 
 export default function ProfileLoading() {
@@ -8,7 +8,7 @@ export default function ProfileLoading() {
       currentPage="/configuracion"
       title="Perfil"
       description="Consulta los datos de tu cuenta y edita tu nombre."
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
       label={profileLoadingLabel}
     >
       <ProfileSkeleton />

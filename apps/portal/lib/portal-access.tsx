@@ -11,6 +11,14 @@ import { clearNavigationDrafts } from "./use-navigation-draft";
 export type AccessCompany = { id: string; name: string };
 export const companyPickerPath = "/empresas";
 export type AccessNotice = "queued" | "sent" | "unavailable" | null;
+export type BillingAlertKind = "payment_reminder" | "due_today" | "overdue" | "suspended";
+export type BillingAlert = {
+  kind: BillingAlertKind;
+  invoice_id: string;
+  account_name: string;
+  due_on: string;
+  total_minor: number;
+};
 export type PortalIdentity = {
   id: string;
   email: string | null;
@@ -21,6 +29,7 @@ export type PortalIdentity = {
   billing_company_ids?: string[];
   overdue_company_ids?: string[];
   manageable_overdue_company_ids?: string[];
+  billing_alert?: BillingAlert | null;
   upload_max_bytes?: number;
   onboarding_pending?: boolean;
   notice: AccessNotice;

@@ -35,7 +35,7 @@
   block-size: 42px;
   border-radius: 12px;
   background: var(--accent);
-  color: var(--brand-ink);
+  color: var(--accent-foreground);
 }
 
 .card h2,
@@ -132,7 +132,7 @@
 
 .accessButton:focus-visible,
 .settingsButton:focus-visible {
-  outline: 2px solid var(--accent, #7747ff);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
   z-index: 1;
 }
@@ -154,7 +154,7 @@
 .failure { margin: 0; color: var(--danger); }
 
 .blockedCard:hover { border-color: var(--border); }
-.blockedCard .icon { background: #fce4e0; color: #80271d; }
+.blockedCard .icon { background: color-mix(in oklab, var(--brand-burgundy) 12%, var(--brand-stone)); color: var(--brand-burgundy); }
 .blockedStatus { color: var(--danger); font-size: 14px; font-weight: 650; }
 .billingLink {
   display: inline-flex;

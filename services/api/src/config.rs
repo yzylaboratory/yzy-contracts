@@ -25,6 +25,17 @@ pub struct Config {
     pub conversion_max_attempts: i32,
     pub worker_poll_interval: Duration,
     pub request_timeout: Duration,
+    pub billing_mail: Option<BillingMailConfig>,
+}
+
+#[derive(Clone)]
+pub struct BillingMailConfig {
+    /// Base URL of yzy-notifications (no trailing slash), e.g. http://yzy-notifications:3000
+    pub notifications_url: String,
+    pub service_token: String,
+    /// Allowlisted product id in yzy-notifications PRODUCT_FROM_JSON.
+    pub product: String,
+    pub portal_url: String,
 }
 
 #[derive(Clone)]
@@ -112,7 +123,42 @@ impl Config {
             conversion_max_attempts,
             worker_poll_interval: seconds("WORKER_POLL_INTERVAL_SECS")?,
             request_timeout: seconds("REQUEST_TIMEOUT_SECS")?,
+            billing_mail: billing_mail_config()?,
         })
+    }
+}
+
+fn billing_mail_config() -> anyhow::Result<Option<BillingMailConfig>> {
+    let notifications_url = env::var("YZY_NOTIFICATIONS_URL")
+        .ok()
+        .map(|value| value.trim().trim_end_matches('/').to_owned())
+        .filter(|value| !value.is_empty());
+    let service_token = env::var("YZY_NOTIFICATIONS_TOKEN")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty());
+    let portal_url = env::var("BILLING_PORTAL_URL")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty());
+    let product = env::var("YZY_NOTIFICATIONS_PRODUCT")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "yzy-contracts".to_owned());
+    match (notifications_url, service_token, portal_url) {
+        (None, None, None) => Ok(None),
+        (Some(notifications_url), Some(service_token), Some(portal_url)) => {
+            Ok(Some(BillingMailConfig {
+                notifications_url,
+                service_token,
+                product,
+                portal_url,
+            }))
+        }
+        _ => bail!(
+            "Billing mail requires YZY_NOTIFICATIONS_URL, YZY_NOTIFICATIONS_TOKEN and BILLING_PORTAL_URL together"
+        ),
     }
 }
 

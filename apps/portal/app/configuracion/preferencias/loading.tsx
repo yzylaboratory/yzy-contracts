@@ -1,5 +1,5 @@
 import { PortalLoading } from "@/components/loading/loading-ui";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 import { PreferencesSkeleton, preferencesLoadingLabel } from "./preferences-skeleton";
 
 export default function PreferencesLoading() {
@@ -7,8 +7,8 @@ export default function PreferencesLoading() {
     <PortalLoading
       currentPage="/configuracion"
       title="Preferencias"
-      description="Elige el idioma, el formato de salida y tus preferencias de correo."
-      breadcrumb={<SettingsBackLink />}
+      description="Elige el formato de salida y tus preferencias de correo."
+      backLink={settingsBackLink}
       label={preferencesLoadingLabel}
     >
       <PreferencesSkeleton />

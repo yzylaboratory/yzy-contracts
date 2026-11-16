@@ -5,11 +5,12 @@ import styles from "./clients.module.css";
 const steps = [
   { id: "client", label: "Cliente" },
   { id: "application", label: "Solicitud de préstamo" },
+  { id: "payment-plan", label: "Plan de pagos" },
   { id: "review", label: "Revisión y confirmación" },
 ];
 
 export function CaseIntakeSteps({ current, onStepSelect, children }: {
-  current: 0 | 1 | 2;
+  current: 0 | 1 | 2 | 3;
   onStepSelect?: (index: number) => void;
   children: ReactNode;
 }) {

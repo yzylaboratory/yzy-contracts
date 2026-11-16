@@ -366,6 +366,7 @@ impl TestApp {
             conversion_max_attempts: 3,
             worker_poll_interval: Duration::from_secs(1),
             request_timeout: Duration::from_secs(10),
+            billing_mail: None,
         };
 
         let storage = Arc::new(FakeStorage::default());

@@ -15,6 +15,8 @@ import { companyPickerPath, portalLanding, usePortalAccess } from "@/lib/portal-
 import { usePortalVisit } from "@/lib/portal-visit";
 import { signOut } from "@/lib/session";
 import { AccessScreen } from "@/components/access/access-screen";
+import { BrandMark } from "@/components/brand/brand-mark";
+import { BillingAlertNotice } from "./billing-alert-notice";
 import { MembershipBlockedNotice } from "./membership-blocked-notice";
 import { PortalThemeSwitch } from "./portal-theme-switch";
 import { useProductTour } from "@/components/product-tour/product-tour";
@@ -75,7 +77,7 @@ type PortalShellProps = {
   description?: string;
   companyId?: string;
   breadcrumb?: ReactNode;
-  backLink?: { href: string; label: string; tour?: string };
+  backLink?: { href: string; label: string; tour?: string; onSelect?: () => void };
   confirmNavigation?: () => boolean;
   requiresBillingAccess?: boolean;
   onboardingAvailable?: boolean;
@@ -188,7 +190,7 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
       <aside className={styles.sidebar} onKeyDown={closeMenuOnEscape}>
         <div className={styles.sidebarHeader}>
           <div className={styles.brand}>
-            <span className={styles.mark} aria-hidden="true">Y</span>
+            <BrandMark className={styles.mark} variant="ink" />
             <span className={styles.brandName}>YZY Contracts</span>
           </div>
           {showNavigation && <Button
@@ -234,7 +236,16 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
       <div className={styles.workspace}>
         <header className={styles.header}>
           {headerBack && (
-            <Link className={styles.companyBack} href={headerBack.href} onNavigate={navigate} data-tour={backLink?.tour}>
+            <Link className={styles.companyBack} href={headerBack.href} data-tour={backLink?.tour}
+              onNavigate={event => {
+                if (confirmNavigation && !confirmNavigation()) {
+                  event.preventDefault();
+                  return;
+                }
+                if (!backLink?.onSelect) return;
+                event.preventDefault();
+                backLink.onSelect();
+              }}>
               <ArrowLeft size={16} aria-hidden="true" /> {headerBack.label}
             </Link>
           )}
@@ -260,10 +271,24 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
           </div>
           {hasTour && <TourCoachmark route={hasTour} auto={workspacePage || companyPicker} shell={shell} accountTrigger={accountTrigger} />}
           {!identity || destination ? loadingFallback ?? <Skeleton label="Cargando contenido…" />
-            : workspaceBlocked ? <MembershipBlockedNotice canManageBilling={canManageBlocked} /> : children}
+            : <>
+              {identity.billing_alert && !workspaceBlocked && <BillingAlertNotice alert={identity.billing_alert} />}
+              {workspaceBlocked ? <MembershipBlockedNotice canManageBilling={canManageBlocked} /> : children}
+            </>}
         </main>
 
-        <footer className={styles.credit}>YZY CONTRACTS powered by YZY LABS</footer>
+        <footer className={styles.credit}>
+          YZY Contracts powered by{" "}
+          <a
+            href="https://yzylabs.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.creditLink}
+            translate="no"
+          >
+            YZY LABS SRL
+          </a>
+        </footer>
       </div>
     </div>
   );

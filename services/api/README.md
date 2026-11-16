@@ -72,7 +72,7 @@ Configura ambas variables del renderizador o déjalas sin definir. La URL base a
 
 `PUT /api/v1/generated-documents/{id}/artifact` recibe un multipart con la parte JSON `metadata` y la parte binaria `artifact`. En registros de correo, el binario corresponde al adjunto. `GET` sobre la misma ruta recupera esos bytes con acceso por propietario. El historial conserva las entradas antiguas con `has_artifact: false`.
 
-Configura `SUPABASE_JWKS_URL` con el endpoint de claves de tu proyecto y `SUPABASE_JWT_ISSUER` con el valor exacto de `iss` que emiten sus tokens. Para Supabase, la audiencia habitual es `authenticated`.
+Configura `SUPABASE_JWKS_URL` con el endpoint de claves de tu proyecto y `SUPABASE_JWT_ISSUER` con el valor exacto de `iss` que emiten sus tokens. Para Supabase, la audiencia habitual es `authenticated`. En producción, apunta el JWKS al Kong interno de la red Docker compartida; si la API consulta el dominio público detrás de Cloudflare, un challenge 403 deja la autenticación en `AUTH_UNAVAILABLE` para todos los usuarios.
 
 ## Instalación y ejecución local
 
@@ -293,13 +293,15 @@ servidor `CONTRACTS_BILLING_BANK_NAME`, `CONTRACTS_BILLING_ACCOUNT_HOLDER`,
 `CONTRACTS_BILLING_ACCOUNT_TYPE` y `CONTRACTS_BILLING_ACCOUNT_NUMBER` si están
 configuradas las cuatro.
 
-En **Administración → Facturación**, selecciona el responsable y las empresas
-que pagan. La cuenta consolida RD$2,000 mensuales por empresa asignada. Las
-cuentas nuevas comienzan el primer día del mes siguiente, salvo que indiques
-otro primer día. Las altas y bajas de empresas en cuentas existentes aplican
-desde el mes siguiente. Guardar una cuenta sin empresas detiene futuros cobros
-y conserva las facturas previas. Si archivas una empresa, retírala también de su
-cuenta de facturación para detener los próximos cobros.
+En **Administración → Usuarios**, marca uno o varios responsables de facturación.
+Cada persona marcada administra todas las cuentas de facturación activas. En
+**Administración → Facturación** puedes fijar el responsable principal de cada
+cuenta y las empresas que pagan. La cuenta consolida RD$2,000 mensuales por
+empresa asignada. Las cuentas nuevas comienzan el primer día del mes siguiente,
+salvo que indiques otro primer día. Las altas y bajas de empresas en cuentas
+existentes aplican desde el mes siguiente. Guardar una cuenta sin empresas
+detiene futuros cobros y conserva las facturas previas. Si archivas una empresa,
+retírala también de su cuenta de facturación para detener los próximos cobros.
 
 La factura vence al terminar el primer día del mes, hora de Santo Domingo.
 Desde el segundo día, las facturas impagas bloquean nuevas generaciones de las

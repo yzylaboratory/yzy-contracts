@@ -59,8 +59,16 @@ export type ClientProfile = Values<typeof housingFields, boolean> & Values<typeo
 
 export type CaseApplication = ClientProfile & { application_date?: string | null; requested_amount_minor?: number | null };
 
-const familyRelationships = ["Padre", "Madre", "Hermano/a", "Hijo/a", "Abuelo/a", "Tío/a", "Primo/a", "Sobrino/a", "Cuñado/a", "Suegro/a"];
-const personalRelationships = ["Amigo/a", "Compañero/a de trabajo", "Vecino/a", "Jefe/a", "Conocido/a"];
+const familyRelationships = [
+  "Padre", "Madre", "Hermano/a", "Hijo/a", "Esposo/a", "Abuelo/a", "Nieto/a",
+  "Tío/a", "Primo/a", "Sobrino/a", "Cuñado/a", "Suegro/a", "Yerno/Nuera",
+  "Padrastro/Madrastra", "Hijastro/a", "Padrino/Madrina", "Ahijado/a",
+  "Consuegro/a", "Familiar político", "Otro pariente",
+];
+const personalRelationships = [
+  "Amigo/a", "Compañero/a de trabajo", "Vecino/a", "Jefe/a", "Compañero/a de estudio",
+  "Conocido/a", "Cliente", "Proveedor", "Otro",
+];
 
 /** Phones saved before the mask (with letters, extensions or other lengths) stay editable as written. */
 function isLegacyPhone(value: string) {

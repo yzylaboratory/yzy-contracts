@@ -1,19 +1,8 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
-import navigationStyles from "./settings-navigation.module.css";
 import styles from "./settings.module.css";
 
-export function SettingsBackLink({ confirmNavigation }: { confirmNavigation?: () => boolean } = {}) {
-  return (
-    <Link className={navigationStyles.back} href="/configuracion" onNavigate={confirmNavigation && (event => {
-      if (!confirmNavigation()) event.preventDefault();
-    })}>
-      <ArrowLeft size={18} aria-hidden="true" />
-      Volver a Configuración
-    </Link>
-  );
-}
+/** Header back control for settings subpages (replaces the default “Mis empresas” link). */
+export const settingsBackLink = { href: "/configuracion", label: "Volver a Configuración" } as const;
 
 export type SettingsNotice = { kind: "saved" | "restored"; text: string };
 

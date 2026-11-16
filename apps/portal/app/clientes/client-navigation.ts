@@ -57,6 +57,11 @@ export function useClientDirectoryRevision(scope: string) {
   return useSyncExternalStore(subscribe, () => directoryRevisions.get(scope) ?? 0, () => 0);
 }
 
+export function markClientDirectoryUpdated(scope: string) {
+  directoryRevisions.set(scope, (directoryRevisions.get(scope) ?? 0) + 1);
+  notify();
+}
+
 export function useClientSave<T extends Client | Operation>(key: string, onDirty: (dirty: boolean) => void,
   onSaved: (value: T, fromThisVisit: boolean) => void, directoryScope?: string) {
   const result = useSyncExternalStore(subscribe, () => saves.get(key), () => undefined);
