@@ -164,10 +164,9 @@ test("sale totals use interest plus final principal and keep extraordinary payme
   const { values, issues } = resolveExpedienteFields("venta_condicional", client, operation, {});
   assert.deepEqual(issues, []);
   assert.equal(values.total_financiamiento, "RD$52,345.68");
-  assert.equal(values.cliente_nombre, "");
   assert.equal(values.cliente_cedula, "000-0000000-1");
-  assert.equal(values.cliente_direccion, "");
-  assert.equal(values.cliente_direccion_transito, "");
+  assert.ok(values.cliente_nombre);
+  assert.ok(values.cliente_direccion_transito);
   assert.equal(values.fecha_contrato, operation.signature_date);
   assert.equal(values.fecha_firma, operation.signature_date);
   assert.match(values.abonos_extraordinarios, /1 de mayo de 2025, RD\$2,222\.22/);
@@ -840,11 +839,7 @@ test("all contract addresses are uppercased across expediente, company, notary, 
         empresa_representante_direccion: "calle Proyecto # 35, Villa Mella",
       },
     });
-    if (id === "venta_condicional") {
-      assert.equal(resolved.values.cliente_direccion, "");
-      assert.equal(resolved.values.cliente_direccion_transito, "");
-      assert.equal(resolved.values.domicilio_del_cliente, "");
-    } else {
+    {
       assert.equal(resolved.values.cliente_direccion, "CALLE DE PRUEBA");
       assert.equal(
         resolved.values.cliente_direccion_transito,
