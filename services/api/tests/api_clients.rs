@@ -1706,6 +1706,50 @@ async fn insurance_installment_amount_is_stored_per_case_and_recorded_in_its_his
 }
 
 #[tokio::test]
+async fn clients_delete_only_when_they_have_no_case_files() {
+    let app = TestApp::start().await;
+    let owner = app.superadmin().await;
+    let company = app
+        .legacy_company(owner, "Empresa de borrado de clientes")
+        .await;
+    let spare = add_client(&app, owner, "Cliente sin expediente").await;
+    let spare_id = spare["id"].as_str().unwrap();
+    let spare_detail = format!("{CLIENTS}/{spare_id}");
+    let kept = add_client(&app, owner, "Cliente con expediente").await;
+    let kept_id = kept["id"].as_str().unwrap();
+    let kept_detail = format!("{CLIENTS}/{kept_id}");
+    let collection = format!("{CLIENTS}/{kept_id}/operations");
+    let (status, case) = app
+        .post(
+            owner,
+            &collection,
+            json!({"company_id": company, "vehicle": {}}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{case}");
+
+    assert_eq!(
+        app.delete(owner, &kept_detail).await.0,
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        error_code(&app.delete(owner, &kept_detail).await.1),
+        "CLIENT_IN_USE"
+    );
+    assert_eq!(app.get(owner, &kept_detail).await.0, StatusCode::OK);
+
+    assert_eq!(
+        app.delete(owner, &spare_detail).await.0,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(app.get(owner, &spare_detail).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(
+        app.delete(owner, &spare_detail).await.0,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
 async fn only_the_billing_manager_soft_deletes_a_case_file() {
     let app = TestApp::start().await;
     let admin = app.superadmin().await;

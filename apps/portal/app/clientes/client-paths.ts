@@ -10,6 +10,17 @@ export function clientsHref(page?: number, newExpediente = false) {
   return params.size ? `/clientes?${params}` : "/clientes";
 }
 
+export function clientDirectoryHref(page?: number, create = false) {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.set("page", String(page));
+  if (create) params.set("nuevo", "1");
+  return params.size ? `/directorio-clientes?${params}` : "/directorio-clientes";
+}
+
+export function clientDirectoryRecordHref(clientId: string) {
+  return `/directorio-clientes/${encodeURIComponent(clientId)}`;
+}
+
 export function clientHref(clientId: string) {
   return `/clientes/${encodeURIComponent(clientId)}`;
 }

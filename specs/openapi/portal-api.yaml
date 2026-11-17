@@ -1022,6 +1022,48 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+    delete:
+      tags:
+      - Clients
+      operationId: delete_client
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Client removed when it has no case files
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Client still has case files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
     patch:
       tags:
       - Clients
@@ -6407,6 +6449,13 @@ components:
           type:
           - string
           - 'null'
+        source_document:
+          oneOf:
+          - $ref: '#/components/schemas/VehicleDocument'
+            description: |-
+              Document the vehicle data was taken from. An imported vehicle described
+              by a bill of lading has no plate, type or engine number yet.
+          - type: 'null'
         vehicle_type:
           type:
           - string
@@ -6416,6 +6465,11 @@ components:
           - string
           - 'null'
       additionalProperties: false
+    VehicleDocument:
+      type: string
+      enum:
+      - vehicle_registration
+      - bill_of_lading
     VehicleOwner:
       type: object
       properties:

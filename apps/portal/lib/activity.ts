@@ -11,7 +11,8 @@ type PortalActivityEvent = "portal_visit" | "portal_redirect" | "not_found" | "d
 export function activityScreenForPath(pathname: string): ActivityScreen | null {
   switch (pathname) {
     case "/dashboard": return "dashboard";
-    case "/clientes": return "clients";
+    case "/clientes":
+    case "/directorio-clientes": return "clients";
     case "/contratos": return "contracts";
     case "/contratos/nuevo": return "contract_create";
     case "/docs-generados": return "generated_documents";
@@ -21,7 +22,7 @@ export function activityScreenForPath(pathname: string): ActivityScreen | null {
     case "/login": return "login";
   }
   if (pathname === adminRoutes.dashboard || pathname.startsWith(`${adminRoutes.dashboard}/`)) return "administration";
-  if (/^\/clientes\/[^/]+$/.test(pathname)) return "client_record";
+  if (/^\/(?:clientes|directorio-clientes)\/[^/]+$/.test(pathname)) return "client_record";
   if (/^\/contratos\/[^/]+\/editar$/.test(pathname)) return "contract_edit";
   if (/^\/(?:clientes|contratos)\/[^/]+\/generar$/.test(pathname)) return "document_generate";
   if (/^\/configuracion(?:\/[^/]+)?$/.test(pathname)) return "settings";

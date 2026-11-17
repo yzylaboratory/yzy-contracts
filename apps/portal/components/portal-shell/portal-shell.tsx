@@ -26,6 +26,7 @@ import styles from "./portal-shell.module.css";
 
 const workspaceNavigation = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/directorio-clientes", label: "Clientes", icon: "users" },
   { href: "/clientes", label: "Expedientes", icon: "cases" },
 ] as const;
 
@@ -68,7 +69,7 @@ function NavLink({ href, label, icon, collapsed, current, onNavigate, tour }: {
   return collapsed ? <Tooltip content={label} side="right">{link}</Tooltip> : link;
 }
 
-const workspacePages = ["/dashboard", "/clientes", "/contratos", "/docs-generados"] as const;
+const workspacePages = ["/dashboard", "/directorio-clientes", "/clientes", "/contratos", "/docs-generados"] as const;
 
 type PortalShellProps = {
   currentPage: (typeof workspacePages)[number] | typeof companyPickerPath | "/configuracion" | typeof adminRoutes.dashboard | "/facturacion";
@@ -110,7 +111,7 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
   const settingsPage = currentPage === "/configuracion";
   const hasBillingAccess = identity?.can_manage_billing === true;
   const hasBusinessAccess = !isAdmin && identity?.access === "active" && identity.companies.length > 0;
-  const globalClients = currentPage === "/clientes";
+  const globalClients = currentPage === "/clientes" || currentPage === "/directorio-clientes";
   const companyPicker = currentPage === companyPickerPath;
   const workspacePage = workspacePages.some(page => page === currentPage);
   const companySettingsPage = pathname === "/configuracion/empresas";

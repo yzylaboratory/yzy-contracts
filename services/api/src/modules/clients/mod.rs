@@ -28,7 +28,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(loan_pdf::download))
         .routes(routes!(loan_pdf::download_docx))
         .routes(routes!(list_clients, create_client))
-        .routes(routes!(get_client, update_client))
+        .routes(routes!(get_client, update_client, delete_client))
         .routes(routes!(list_timeline))
         .routes(routes!(list_operations, create_operation))
         .routes(routes!(get_operation, update_operation, delete_operation))
@@ -206,6 +206,25 @@ async fn update_client(
         .await?
         .map(Json)
         .ok_or(ApiError::ClientNotFound)
+}
+
+#[utoipa::path(
+    delete, path = "/api/v1/clients/{client_id}", tag = "Clients", security(("bearer_auth" = [])),
+    params(("client_id" = Uuid, Path)),
+    responses(
+        (status = 204, description = "Client removed when it has no case files"),
+        (status = 401, body = ErrorEnvelope), (status = 403, body = ErrorEnvelope),
+        (status = 404, body = ErrorEnvelope),
+        (status = 409, description = "Client still has case files", body = ErrorEnvelope),
+        (status = 422, body = ErrorEnvelope)
+    )
+)]
+async fn delete_client(
+    State(state): State<AppState>,
+    ApiPath(client): ApiPath<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    repository::delete_client(&state.db, client).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(

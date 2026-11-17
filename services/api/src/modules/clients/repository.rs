@@ -122,6 +122,27 @@ pub(super) async fn find_client(db: &PgPool, client: Uuid) -> sqlx::Result<Optio
     .await
 }
 
+pub(super) async fn delete_client(db: &PgPool, client: Uuid) -> Result<(), ApiError> {
+    let deleted: bool = sqlx::query_scalar("SELECT yzy_contracts.delete_client($1)")
+        .bind(client)
+        .fetch_one(db)
+        .await
+        .map_err(|error| {
+            if error
+                .as_database_error()
+                .is_some_and(|error| error.code() == Some("23503".into()))
+            {
+                return ApiError::ClientInUse;
+            }
+            ApiError::from(error)
+        })?;
+    if deleted {
+        Ok(())
+    } else {
+        Err(ApiError::ClientNotFound)
+    }
+}
+
 fn client_write_error(error: sqlx::Error) -> ApiError {
     if error
         .as_database_error()

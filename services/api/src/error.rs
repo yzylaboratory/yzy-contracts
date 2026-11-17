@@ -39,6 +39,8 @@ pub enum ApiError {
     ClientNotFound,
     #[error("Ya existe un cliente con esa identificación.")]
     ClientIdentityConflict,
+    #[error("El cliente tiene expedientes y no se puede eliminar.")]
+    ClientInUse,
     #[error("No se encontró el expediente.")]
     ClientOperationNotFound,
     #[error("{0}")]
@@ -122,6 +124,7 @@ impl ApiError {
             Self::ContractNotFound => "CONTRACT_NOT_FOUND",
             Self::ClientNotFound => "CLIENT_NOT_FOUND",
             Self::ClientIdentityConflict => "CLIENT_IDENTITY_CONFLICT",
+            Self::ClientInUse => "CLIENT_IN_USE",
             Self::ClientOperationNotFound => "CLIENT_OPERATION_NOT_FOUND",
             Self::CaseReferenceConflict(_) => "CASE_REFERENCE_CONFLICT",
             Self::CompanyNotFound => "COMPANY_NOT_FOUND",
@@ -195,6 +198,7 @@ impl ApiError {
             | Self::CompanyNotArchived
             | Self::CompanyInUse(_)
             | Self::ClientIdentityConflict
+            | Self::ClientInUse
             | Self::CaseReferenceConflict(_)
             | Self::GeneratedDocumentConflict => StatusCode::CONFLICT,
             Self::UploadExpired => StatusCode::GONE,
