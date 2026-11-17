@@ -189,6 +189,44 @@ test("only a vehicle imported with a bill of lading can be sold without plate or
   assert.ok(!insurance.issues.some(issue => issue.key === "placa_del_vehiculo"), JSON.stringify(insurance.issues));
 });
 
+test("every document generates with a registered vehicle and with one imported by bill of lading", () => {
+  const vehicleKeys = [
+    "vehiculo_garantia", "vehiculo_descripcion", "vehiculo_tipo", "vehiculo_marca", "vehiculo_modelo", "vehiculo_anio", "vehiculo_ano",
+    "vehiculo_color", "vehiculo_matricula", "vehiculo_chasis", "vehiculo_placa", "vehiculo_motor",
+    "tipo_del_vehiculo", "marca_del_vehiculo", "modelo_del_vehiculo", "anio_del_vehiculo", "color_del_vehiculo",
+    "placa_del_vehiculo", "numero_de_chasis_del_vehiculo", "numero_de_serie_del_motor",
+  ];
+  const optional = new Set(["vehiculo_tipo", "vehiculo_matricula", "vehiculo_placa", "vehiculo_motor",
+    "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor"]);
+  const imported = { make: "HONDA", model: "CR-V", year: "2021", color: "GRIS", chassis_number: "7FARW1H57ME023296" };
+  const scenarios = {
+    registration: { ...imported, vehicle_type: "JEEP", plate: "G563979", registration_number: "G563979", engine_number: "071688", source_document: "vehicle_registration" },
+    unmarked: { ...imported, vehicle_type: "JEEP", plate: "G563979", engine_number: "071688" },
+    bill_of_lading: { ...imported, source_document: "bill_of_lading" },
+  };
+  const variables = vehicleKeys.map(key => ({ key, occurrences: 1 }));
+  for (const { id: type } of DOCUMENT_TYPES) {
+    for (const [scenario, vehicle] of Object.entries(scenarios)) {
+      const label = `${type} / ${scenario}`;
+      const { values, issues } = resolveExpedienteFields(type, client, { ...operation, vehicle }, { insuranceSaleInstallmentMinor: 100 });
+      const vehicleIssues = issues.filter(issue => vehicleKeys.includes(issue.key));
+      assert.deepEqual(vehicleIssues, [], label);
+      const { fields } = buildContractTemplateFields("", variables, type, vehicle);
+      const blocked = fields.filter(field => field.required && !values[field.key]?.trim()).map(field => field.key);
+      assert.deepEqual(blocked, [], label);
+      for (const key of ["marca_del_vehiculo", "numero_de_chasis_del_vehiculo", "vehiculo_garantia"]) assert.ok(values[key], `${label}: ${key}`);
+      if (scenario === "bill_of_lading") {
+        assert.deepEqual(fields.filter(field => !field.required && vehicleKeys.includes(field.key)).map(field => field.key).sort(), [...optional].sort(), label);
+        assert.doesNotMatch(values.vehiculo_garantia, /placa|tipo|motor/i, label);
+      } else {
+        assert.equal(fields.filter(field => vehicleKeys.includes(field.key)).every(field => field.required), true, label);
+      }
+    }
+  }
+  const missing = resolveExpedienteFields("venta_condicional", client, { ...operation, vehicle: imported }, {});
+  assert.match(missing.issues.find(issue => issue.key === "vehiculo_matricula").message, /Bill of lading \(importado\)/);
+});
+
 test("templates make the vehicle type, plate, registration and engine optional only for a bill of lading", () => {
   const keys = ["vehiculo_marca", "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
     "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor"];

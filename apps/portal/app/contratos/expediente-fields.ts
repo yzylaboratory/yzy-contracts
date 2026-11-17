@@ -423,6 +423,7 @@ function addInsuranceSale(values: Record<string, string>, operation: OperationWr
   }
 }
 
+const missingPlate = "Completa la placa en el expediente o, si el vehículo es importado, elige «Bill of lading (importado)» en Documento del vehículo.";
 const fieldMessages: Record<string, string> = {
   cliente_nombre: "Completa el nombre en el expediente.",
   cliente_cedula: "Registra una cédula de 11 dígitos en el expediente.",
@@ -433,7 +434,8 @@ const fieldMessages: Record<string, string> = {
   cliente_correo: "Completa el correo en el expediente.",
   cliente_origen_ingresos: "Completa el origen de los ingresos en el expediente.",
   cliente_ocupacion: "Completa la ocupación del cliente en el expediente.",
-  vehiculo_matricula: "Completa la placa en la operación.",
+  vehiculo_matricula: missingPlate,
+  placa_del_vehiculo: missingPlate,
   vehiculo_garantia: "Completa los datos de la garantía vehicular en la operación.",
   operacion_referencia: "Completa la referencia en la operación.",
   fecha_contrato: "Registra la fecha del contrato en la operación.",
