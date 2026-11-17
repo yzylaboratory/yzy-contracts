@@ -1226,7 +1226,6 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
         "CALLE A &amp; B",
         "CONCEPTO: N/A",
         "NOMBRE: N/A",
-        "SINT-0004",
     ];
     Mock::given(method("POST"))
         .and(path("/v1/render/pdf"))
@@ -1265,14 +1264,13 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
         .respond_with(
             ResponseTemplate::new(200).set_body_raw(b"%PDF-1.4\n%%EOF".to_vec(), "application/pdf"),
         )
-        .expect(2)
+        .expect(4)
         .mount(&app.extractor)
         .await;
     let (status, result) = app.get(owner, &pdf).await;
     assert_eq!(status, StatusCode::OK, "{result}");
 
-    // A registered vehicle needs its plate and type; one imported with a bill
-    // of lading does not have them yet.
+    // The type is required unless the vehicle was imported with a bill of lading.
     let mut imported = json!({
         "make":"Honda", "model":"Civic", "year":"2025", "color":"Blanco",
         "chassis_number":"SINT-0003", "engine_number":"SINT-0004"
@@ -1301,6 +1299,43 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
     assert_eq!(edited["vehicle"]["source_document"], "bill_of_lading");
     let (status, result) = app.get(owner, &pdf).await;
     assert_eq!(status, StatusCode::OK, "{result}");
+    for plate in [None, Some("SINT-0002")] {
+        imported.as_object_mut().unwrap().remove("engine_number");
+        if let Some(plate) = plate {
+            imported["plate"] = json!(plate);
+        }
+        let (status, edited) = app
+            .patch(
+                owner,
+                &operation_detail(company, client_id, id),
+                json!({ "vehicle": imported }),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{edited}");
+        let (status, result) = app.get(owner, &pdf).await;
+        assert_eq!(status, StatusCode::OK, "{result}");
+    }
+    let render_requests = app.extractor.received_requests().await.unwrap();
+    let expected_descriptions = [
+        "COLOR: BLANCO, PLACA: SINT-0002, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: SINT-0004",
+        "COLOR: BLANCO, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: SINT-0004",
+        "COLOR: BLANCO, CHASIS N.º: SINT-0003",
+        "COLOR: BLANCO, PLACA: SINT-0002, CHASIS N.º: SINT-0003",
+    ];
+    assert_eq!(render_requests.len(), expected_descriptions.len());
+    for (request, description) in render_requests.iter().zip(expected_descriptions) {
+        use std::io::{Cursor, Read};
+        let mut word = zip::ZipArchive::new(Cursor::new(&request.body)).unwrap();
+        let mut xml = String::new();
+        word.by_name("word/document.xml")
+            .unwrap()
+            .read_to_string(&mut xml)
+            .unwrap();
+        assert!(
+            xml.contains(&format!("{description}</w:t>")),
+            "{description}"
+        );
+    }
     let (status, timeline) = app
         .get(owner, &format!("{CLIENTS}/{client_id}/timeline"))
         .await;
