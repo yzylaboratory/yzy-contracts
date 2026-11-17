@@ -9,7 +9,8 @@ import { hasOperationCompanyScope } from "@/app/clientes/operation-templates";
 import { conditionalSaleHandwrittenFields, documentFieldAliases, getDocumentType, insuranceScheduleFields, isInsuranceSaleCalculatedField } from "@/app/contratos/document-catalog";
 import { matchDocumentTemplate, documentTypeFromName } from "@/app/clientes/document-template-match";
 import { buildCompanySnapshot, buildContractTemplateFields, fileBase, getContractCompanyFields } from "@/app/contratos/contract-template-fields";
-import { documentClauseCase, expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesBoldNotarialDate, usesSignatureAsContractDate, usesUppercaseDocumentData } from "@/app/contratos/expediente-fields";
+import { nativeFieldLabel } from "@/app/contratos/native-field-label";
+import { caseVehicleKeys, missingVehicleMessage, documentClauseCase, expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesBoldNotarialDate, usesSignatureAsContractDate, usesUppercaseDocumentData } from "@/app/contratos/expediente-fields";
 import { applicationAmountLabel, applicationDateLabel, clientContractFields } from "@/components/case-application/case-application";
 import { usePortalPreferences } from "@/app/configuracion/preferences-store";
 import { companyContractClauseField, companyFieldLimit, companyNotaryField, companyProfileLimit, companyProfileValue, companyValueLimit, companyValuesSize, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
@@ -247,7 +248,17 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     const source = wordsSource(field.key, fields);
     return source ? [[field.key, source] as const] : [];
   })), [fields]);
-  const missingFields = fields.filter(field => !context.documentInputs.has(field.key) && !reviewKeys.has(field.key) &&
+  // Vehicle data comes from the case file; a gap is reported there, never typed on the document.
+  const templateVehicleGaps = expediente
+    ? fields.filter(field => caseVehicleKeys.has(field.key) && validateTemplateField(field, context.values[field.key] ?? ""))
+    : [];
+  const vehicleGaps = [...templateVehicleGaps, ...(expediente ? context.issues
+    .filter(issue => caseVehicleKeys.has(issue.key) && !templateVehicleGaps.some(field => field.key === issue.key) &&
+      !documentFieldAliases(issue.key).some(group => group.every(alias => Boolean(context.values[alias]?.trim()))))
+    .map(issue => ({ key: issue.key, label: nativeFieldLabel(issue.key) })) : [])];
+  const vehicleIssue = vehicleGaps.length ? { key: "vehiculo", message: missingVehicleMessage(vehicleGaps) } : undefined;
+  const missingFields = fields.filter(field => !(expediente && caseVehicleKeys.has(field.key)) &&
+    !context.documentInputs.has(field.key) && !reviewKeys.has(field.key) &&
     !companyNotaryField(field.key) &&
     !companyWitnessField(field.key) &&
     !companyContractClauseField(field.key) &&
@@ -315,9 +326,10 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const missingKeys = new Set(missingFields.map(field => field.key));
   const editableIssueKey = (key: string) => missingKeys.has(key) ? key
     : documentFieldAliases(key).flat().find(alias => missingKeys.has(alias) && !values[alias]?.trim());
-  const summaryIssues = context.issues.filter(issue =>
+  const summaryIssues = [...context.issues.filter(issue =>
     (!context.documentInputs.has(issue.key) || issue.key === "parrafo_compromiso_pago") &&
-    !editableIssueKey(issue.key) && !hasDocumentValue(issue.key));
+    !(expediente && caseVehicleKeys.has(issue.key)) &&
+    !editableIssueKey(issue.key) && !hasDocumentValue(issue.key)), ...(vehicleIssue ? [vehicleIssue] : [])];
   const compactTourFields = expediente?.type === "carta_saldo" && !needsSourceConfirmation &&
     (companies.kind === "loading" || Boolean(selectedCompany)) && summaryIssues.length === 0 &&
     fields.every(field => context.documentInputs.has(field.key) ||
@@ -380,8 +392,10 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   function validateDocument(output: GeneratedFormat) {
     const nextErrors: Record<string, string> = {};
     setExpedienteValidation(true);
+    if (vehicleIssue) nextErrors.vehiculo = vehicleIssue.message;
     for (const issue of context.issues) {
       if (!context.documentInputs.has(issue.key) && hasDocumentValue(issue.key)) continue;
+      if (expediente && caseVehicleKeys.has(issue.key)) continue;
       nextErrors[context.documentInputs.has(issue.key) ? `expediente-${issue.key}` : `contract-${editableIssueKey(issue.key) ?? issue.key}`] = issue.message;
     }
     if (companyRequired && !selectedCompany) {
@@ -397,6 +411,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     }
     for (const field of fields) {
       if (derivedWords.has(field.key)) continue;
+      if (expediente && caseVehicleKeys.has(field.key)) continue;
       const value = values[field.key];
       const error = validateTemplateField(field, value);
       const errorKey = context.documentInputs.has(field.key) ? `expediente-${field.key}` : `contract-${field.key}`;

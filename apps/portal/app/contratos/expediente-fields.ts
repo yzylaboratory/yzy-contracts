@@ -215,6 +215,26 @@ const baseFields = new Set([
   ...vehicleFields.map(([key]) => key),
 ]);
 
+/** Vehicle markers filled from the case file; they are completed there, not on the document. */
+export const caseVehicleKeys: ReadonlySet<string> = new Set([
+  ...vehicleFields.map(([key]) => key), "vehiculo_garantia", "vehiculo_descripcion", "vehiculo_ano",
+  "tipo_del_vehiculo", "marca_del_vehiculo", "modelo_del_vehiculo", "anio_del_vehiculo", "color_del_vehiculo",
+  "placa_del_vehiculo", "numero_de_chasis_del_vehiculo", "numero_de_serie_del_motor",
+]);
+const billOfLadingOptionalKeys = new Set([
+  "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
+  "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor",
+]);
+
+/** One message for the vehicle data a document still needs from the case file. */
+export function missingVehicleMessage(fields: readonly { key: string; label: string }[]) {
+  const labels = fields.map(field => field.label).join(", ");
+  const importedHint = fields.every(field => billOfLadingOptionalKeys.has(field.key))
+    ? " Si el vehículo es importado, elige «Bill of lading (importado)» en Documento del vehículo."
+    : "";
+  return `Completa en el expediente: ${labels}.${importedHint}`;
+}
+
 export function isExpedienteField(key: string, type?: DocumentType) {
   return baseFields.has(key) ||
     (type === "acto_seguro" && insuranceScheduleMarkers.has(key)) ||

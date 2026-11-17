@@ -19,7 +19,7 @@ registerHooks({
 
 const { DOCUMENT_TYPES, INITIAL_EXPEDIENTE_DOCUMENT_TYPES, INSURANCE_DOCUMENT_TYPES, POST_CLOSING_DOCUMENT_TYPES, getDocumentType, hasDocumentTemplateFields, hasInsuranceCompanyNameInText, initialExpedienteDocumentTypes, isInsuranceCompanyName, isInsuranceDocumentType } =
   await import("../app/contratos/document-catalog.ts");
-const { expedienteExtraordinaryPayments, extraordinaryPaymentDate, extraordinaryPaymentDates, extraordinaryPaymentValues, isExpedienteField, notarialActDate, resolveExpedienteFields, usesNotarialDocumentStyle, usesUppercaseDocumentData } = await import("../app/contratos/expediente-fields.ts");
+const { caseVehicleKeys, missingVehicleMessage, expedienteExtraordinaryPayments, extraordinaryPaymentDate, extraordinaryPaymentDates, extraordinaryPaymentValues, isExpedienteField, notarialActDate, resolveExpedienteFields, usesNotarialDocumentStyle, usesUppercaseDocumentData } = await import("../app/contratos/expediente-fields.ts");
 
 process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
@@ -224,6 +224,15 @@ test("every document generates with a registered vehicle and with one imported b
   }
   const missing = resolveExpedienteFields("venta_condicional", client, { ...operation, vehicle: imported }, {});
   assert.match(missing.issues.find(issue => issue.key === "vehiculo_matricula").message, /Bill of lading \(importado\)/);
+});
+
+test("missing vehicle data points to the case file and to the bill of lading only when it would help", () => {
+  assert.ok(["vehiculo_matricula", "vehiculo_motor", "placa_del_vehiculo", "vehiculo_garantia"].every(key => caseVehicleKeys.has(key)));
+  assert.equal(
+    missingVehicleMessage([{ key: "vehiculo_matricula", label: "Vehículo matrícula" }, { key: "vehiculo_motor", label: "Vehículo motor" }]),
+    "Completa en el expediente: Vehículo matrícula, Vehículo motor. Si el vehículo es importado, elige «Bill of lading (importado)» en Documento del vehículo.",
+  );
+  assert.equal(missingVehicleMessage([{ key: "vehiculo_marca", label: "Vehículo marca" }]), "Completa en el expediente: Vehículo marca.");
 });
 
 test("templates make the vehicle type, plate, registration and engine optional only for a bill of lading", () => {

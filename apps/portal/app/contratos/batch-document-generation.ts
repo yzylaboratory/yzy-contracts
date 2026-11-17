@@ -31,7 +31,7 @@ import {
   isInsuranceCompanyName,
   type DocumentType,
 } from "./document-catalog";
-import { isExpedienteField, percentageDateKey, resolveExpedienteFields, usesBoldNotarialDate, usesUppercaseDocumentData } from "./expediente-fields";
+import { caseVehicleKeys, isExpedienteField, missingVehicleMessage, percentageDateKey, resolveExpedienteFields, usesBoldNotarialDate, usesUppercaseDocumentData } from "./expediente-fields";
 import { saveGeneratedArtifact, type DocumentFormat, type GeneratedFormat, type GeneratedOutput } from "./generated-documents-api";
 import { hasInsuranceIssuerInContract, NativeDocumentError, prepareNativeDocument, readSalesCommitmentFromContract } from "./native-document";
 import { wordsSource } from "./native-field-kinds";
@@ -294,6 +294,8 @@ export async function generateInitialExpedienteDocuments(input: {
         documentFieldAliases(key).some(group => group.every(alias => Boolean(values[alias]?.trim())))
       );
 
+      const vehicleGaps = fields.filter(field => caseVehicleKeys.has(field.key) && validateTemplateField(field, values[field.key] ?? ""));
+      if (vehicleGaps.length) throw new NativeDocumentError(missingVehicleMessage(vehicleGaps));
       for (const issue of resolved.issues) {
         if (!hasDocumentValue(issue.key)) {
           throw new NativeDocumentError(issue.message);
