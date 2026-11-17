@@ -1,4 +1,4 @@
-import { companyFieldLabel, companyWitnessField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
+import { companyContractClauseField, companyFieldLabel, companyNotaryField, companyWitnessField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
 
 const wordLabels = new Map<string, string>([
   ["adquisicion", "adquisición"],
@@ -34,6 +34,10 @@ const wordLabels = new Map<string, string>([
 export function nativeFieldLabel(key: string) {
   const witness = companyWitnessField(key);
   if (witness) return witness.label;
+  const notary = companyNotaryField(key);
+  if (notary) return notary.label;
+  const clause = companyContractClauseField(key);
+  if (clause) return clause.label;
   if (key === "fecha_firma" || key === "fecha_de_firma") return "Fecha de firma";
   if (key === "fecha_ancla_cuota_extraordinaria") return "Fecha de inicio de la cuota porcentual";
   if (isCompanyField(key)) return companyFieldLabel(key);

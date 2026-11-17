@@ -11,6 +11,11 @@
   line-height: 20px;
 }
 
+.metric {
+  color: inherit;
+  text-decoration: none;
+}
+
 .metric article,
 .metricSkeleton {
   display: grid;
@@ -29,31 +34,66 @@
 }
 
 .metric article > span {
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 700;
-  line-height: 48px;
+  line-height: 44px;
 }
 
 .metric article > p {
-  display: none;
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 18px;
 }
 
-.lime {
-  --surface: var(--accent);
-  --foreground: var(--brand-ink);
-  --text-secondary: var(--brand-ink);
+/* Exactly three brand surfaces: burgundy · ink · stone */
+.burgundy {
+  --surface: var(--brand-burgundy);
+  --foreground: #ffffff;
+  --text-secondary: color-mix(in oklab, #ffffff 82%, var(--brand-burgundy));
 }
 
 .ink {
   --surface: var(--brand-ink);
-  --foreground: #fff;
-  --text-secondary: #c9cbd1;
+  --foreground: #ffffff;
+  --text-secondary: color-mix(in oklab, var(--brand-stone) 78%, #ffffff);
 }
 
-.violet {
-  --surface: #5b3ff2;
-  --foreground: #fff;
-  --text-secondary: #e6e0ff;
+.stone {
+  --surface: var(--brand-stone);
+  --foreground: var(--brand-ink);
+  --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
+}
+
+.stone article {
+  border: 1px solid color-mix(in oklab, var(--brand-ink) 14%, var(--brand-stone));
+}
+
+:global(:root[data-theme="dark"]) .burgundy {
+  --surface: var(--brand-burgundy);
+}
+
+:global(:root[data-theme="dark"]) .stone {
+  --surface: var(--brand-stone);
+  --foreground: var(--brand-ink);
+  --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
+}
+
+.statusCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.planHint {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
 }
 
 .analytics {
@@ -78,6 +118,148 @@
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
+}
+
+.panelSubtext {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.pipeline {
+  flex: 1 1 360px;
+}
+
+.teamPanel {
+  flex: 1.4 1 440px;
+}
+
+.summaryStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.summaryPill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-muted);
+}
+
+.summaryPillLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.summaryPillValue {
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stageList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stageRow {
+  display: grid;
+  grid-template-columns: minmax(112px, 136px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.stageInfo {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.stageName {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.stageHint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.stageTrack {
+  block-size: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.stageFill {
+  block-size: 100%;
+  border-radius: 999px;
+}
+
+.stageFillBurgundy {
+  background: var(--brand-burgundy);
+}
+
+.stageFillInk {
+  background: var(--brand-ink);
+}
+
+.stageNumbers {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+  min-inline-size: 64px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stageNumbers strong {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.stageNumbers span {
+  color: var(--text-secondary);
+}
+
+.userCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.youBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--brand-ink);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.numericStrong {
+  color: var(--foreground) !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .monthly {

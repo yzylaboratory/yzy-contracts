@@ -1,48 +1,118 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Download, Eye } from "lucide-react";
+import { DocumentPreviewDialog } from "@/app/contratos/document-preview-dialog";
 import { downloadBlob } from "@/app/contratos/document-export";
 import { Button } from "@/components/arc/button/button";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { isActiveAccount } from "@/lib/api";
+import { recordPortalActivity } from "@/lib/activity";
 import { getLoanApplicationPdf, type Client, type Operation } from "./clients-api";
 import { missingLoanClientFields, missingLoanVehicleFields } from "./loan-application-fields";
+import table from "@/app/contratos/contracts.module.css";
 import styles from "./clients.module.css";
 
-export function LoanApplicationDownload({ accountId, client, operation, onCompleteClient, onCompleteApplication }: {
-  accountId: string; client: Client; operation: Operation; onCompleteClient: () => void; onCompleteApplication: () => void;
-}) {
-  const button = useRef<HTMLButtonElement>(null);
-  const [downloading, setDownloading] = useState(false);
-  const [failure, setFailure] = useState(false);
+export function loanApplicationDocumentState(client: Client, operation: Operation) {
   const clientIncomplete = missingLoanClientFields(client).length > 0;
   const applicationIncomplete = missingLoanVehicleFields(operation.vehicle).length > 0 ||
     !operation.application?.application_date || !(Number(operation.application.requested_amount_minor) > 0);
+  return { clientIncomplete, applicationIncomplete, blocked: clientIncomplete || applicationIncomplete };
+}
+
+export function LoanApplicationIncompleteActions({ client, operation, onCompleteClient, onCompleteApplication }: {
+  client: Client; operation: Operation; onCompleteClient: () => void; onCompleteApplication: () => void;
+}) {
+  const { clientIncomplete, applicationIncomplete, blocked } = loanApplicationDocumentState(client, operation);
+  if (!blocked) return null;
+  return <div className={styles.stack}>
+    <p className={styles.muted}>Completa los datos pendientes para ver o descargar la solicitud en PDF.</p>
+    <div className={styles.actions}>
+      {clientIncomplete && <Button type="button" variant="secondary" onClick={onCompleteClient}>Completar datos del cliente</Button>}
+      {applicationIncomplete && <Button type="button" variant="secondary" onClick={onCompleteApplication}>Completar solicitud</Button>}
+    </div>
+  </div>;
+}
+
+/** Icon actions for the documents table row. */
+export function LoanApplicationDownload({ accountId, client, operation }: {
+  accountId: string; client: Client; operation: Operation;
+}) {
+  const downloadButton = useRef<HTMLButtonElement>(null);
+  const previewButton = useRef<HTMLButtonElement>(null);
+  const [busy, setBusy] = useState<"download" | "preview" | null>(null);
+  const [failure, setFailure] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const { blocked } = loanApplicationDocumentState(client, operation);
+  const reference = operation.reference?.replace(/[^a-z0-9-]/gi, "-") || operation.id;
+  const filename = `solicitud-de-prestamo-${reference}.pdf`;
+
+  useEffect(() => {
+    if (!previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  async function loadPdf() {
+    const blob = await getLoanApplicationPdf(accountId, operation.id);
+    if (!(await isActiveAccount(accountId))) return null;
+    return blob;
+  }
 
   async function download() {
     setFailure(false);
-    setDownloading(true);
+    setBusy("download");
     try {
-      const blob = await getLoanApplicationPdf(accountId, operation.id);
-      if (await isActiveAccount(accountId) && button.current) {
-        const reference = operation.reference?.replace(/[^a-z0-9-]/gi, "-") || operation.id;
-        downloadBlob(blob, `solicitud-de-prestamo-${reference}.pdf`);
-      }
+      const blob = await loadPdf();
+      if (blob && downloadButton.current) downloadBlob(blob, filename);
     } catch {
       setFailure(true);
     } finally {
-      setDownloading(false);
+      setBusy(null);
+    }
+  }
+
+  async function preview() {
+    setFailure(false);
+    setBusy("preview");
+    try {
+      const blob = await loadPdf();
+      if (!blob || !previewButton.current) return;
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch {
+      setFailure(true);
+    } finally {
+      setBusy(null);
     }
   }
 
   return <>
-    {clientIncomplete || applicationIncomplete ? <p className={styles.muted}>Completa los datos pendientes para descargar la solicitud en PDF.</p> : null}
-    <div className={styles.actions}>
-      {clientIncomplete && <Button type="button" variant="secondary" onClick={onCompleteClient}>Completar datos del cliente</Button>}
-      {applicationIncomplete && <Button type="button" variant="secondary" onClick={onCompleteApplication}>Completar solicitud</Button>}
-      <Button ref={button} type="button" variant="secondary" disabled={clientIncomplete || applicationIncomplete} loading={downloading} onClick={() => void download()}>
-        Descargar solicitud en PDF
-      </Button>
+    <div className={table.rowActions}>
+      <Tooltip content="Vista previa">
+        <Button ref={previewButton} type="button" variant="ghost" className={`${table.rowAction} ${styles.documentAction}`}
+          aria-label="Vista previa de la solicitud de préstamo" aria-haspopup="dialog"
+          disabled={blocked || busy === "download"} loading={busy === "preview"} onClick={() => void preview()}>
+          <Eye size={18} aria-hidden="true" />
+        </Button>
+      </Tooltip>
+      <Tooltip content="Descargar PDF">
+        <Button ref={downloadButton} type="button" variant="ghost" className={`${table.rowAction} ${styles.documentAction}`}
+          aria-label="Descargar solicitud de préstamo en PDF"
+          disabled={blocked || busy === "preview"} loading={busy === "download"} onClick={() => void download()}>
+          <Download size={18} aria-hidden="true" />
+        </Button>
+      </Tooltip>
     </div>
     {failure && <p className={styles.failure} role="alert">No se pudo preparar la solicitud. Intenta de nuevo.</p>}
+    {previewUrl && (
+      <DocumentPreviewDialog
+        pdfUrl={previewUrl}
+        documentName={filename}
+        onOpen={() => recordPortalActivity(accountId, "document_previewed", "client_record")}
+        onClose={() => {
+          setPreviewUrl(null);
+          previewButton.current?.focus();
+        }}
+      />
+    )}
   </>;
 }

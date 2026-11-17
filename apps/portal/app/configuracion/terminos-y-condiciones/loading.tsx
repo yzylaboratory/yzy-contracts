@@ -1,6 +1,6 @@
 import { LoadingBlock, PortalLoading } from "@/components/loading/loading-ui";
 import styles from "../legal-document.module.css";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 
 const sections = [
   { headingWidth: 148, paragraphs: [["100%", "96%", "71%"]] },
@@ -18,7 +18,7 @@ export default function TermsLoading() {
       currentPage="/configuracion"
       title="Términos y condiciones"
       description="Condiciones de uso del portal y de los documentos que generas."
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
       label="Cargando los términos y condiciones…"
     >
       <div className={styles.document}>

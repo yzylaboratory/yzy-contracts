@@ -29,7 +29,7 @@
   gap: clamp(16px, 3vw, 24px);
 }
 
-.intakeSteps { padding: 12px 4px; }
+.intakeSteps { inline-size: 100%; max-inline-size: 880px; margin-inline: auto; padding: 12px 4px; }
 .reviewReferences { display: grid; gap: 12px; margin: 0; padding-inline-start: 24px; }
 
 .header,
@@ -189,6 +189,32 @@
   color: var(--foreground);
 }
 
+.directoryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.directoryActions .deleteIconAction {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: 0;
+  color: var(--danger);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .directoryActions .deleteIconAction:hover:not(:disabled) {
+    color: var(--danger);
+    background: var(--surface-muted);
+  }
+}
+
+.directoryActions .deleteIconAction:active:not(:disabled) {
+  color: var(--danger);
+  background: var(--surface-muted);
+}
+
 .recordFrame {
   container-type: inline-size;
 }
@@ -329,3 +355,71 @@
   gap: 12px;
 }
 @media (max-width: 480px) { .inlineField { grid-template-columns: minmax(0, 1fr); } }
+
+.documentsTable {
+  min-inline-size: 560px;
+}
+
+.documentsTable time {
+  white-space: nowrap;
+}
+
+.documentName,
+.documentMeta {
+  display: block;
+}
+
+.documentName {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.documentMeta {
+  margin-block-start: 2px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.documentFormat {
+  display: inline-block;
+  border-radius: 12px;
+  padding: 2px 10px;
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.documentFormat[data-format="pdf"] {
+  background: var(--format-pdf-surface);
+  color: var(--format-pdf-ink);
+}
+
+.documentFormat[data-format="docx"] {
+  background: var(--format-word-surface);
+  color: var(--format-word-ink);
+}
+
+.documentAction {
+  min-inline-size: 44px;
+}
+
+.documentsMobile {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .documentsTable {
+    min-inline-size: 0;
+  }
+
+  .documentsDetail {
+    display: none;
+  }
+
+  .documentsMobile {
+    display: block;
+  }
+}

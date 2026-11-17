@@ -8,6 +8,10 @@ use uuid::Uuid;
 const CLIENTS: &str = "/api/v1/clients";
 const CASES: &str = "/api/v1/expedientes";
 
+fn cases_for(company: Uuid) -> String {
+    format!("{CASES}?company_id={company}")
+}
+
 fn operation_detail(company: Uuid, client: &str, operation: &str) -> String {
     format!("/api/v1/companies/{company}/clients/{client}/operations/{operation}")
 }
@@ -268,7 +272,9 @@ async fn case_directory_lists_each_purchase_and_searches_across_clients_and_vehi
         .unwrap();
 
     let detail = format!("{CASES}/{}", ids[1].as_str().unwrap());
-    for path in [CASES, &detail] {
+    let active_cases = cases_for(company);
+    let archived_cases = cases_for(archived);
+    for path in [active_cases.as_str(), &detail] {
         assert_eq!(
             app.request(Method::GET, path, None, None).await.0,
             StatusCode::UNAUTHORIZED
@@ -288,9 +294,14 @@ async fn case_directory_lists_each_purchase_and_searches_across_clients_and_vehi
         StatusCode::OK
     );
 
-    let (status, result) = app.get(member, CASES).await;
+    assert_eq!(
+        app.get(member, CASES).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    let (status, result) = app.get(member, &active_cases).await;
     assert_eq!(status, StatusCode::OK, "{result}");
-    assert_eq!(result["total"], 3);
+    assert_eq!(result["total"], 2);
     assert_eq!(result["page"], 1);
     assert_eq!(result["per_page"], 20);
     assert_eq!(
@@ -300,46 +311,59 @@ async fn case_directory_lists_each_purchase_and_searches_across_clients_and_vehi
             .iter()
             .filter(|item| item["client_id"] == client["id"])
             .count(),
-        2
+        1
     );
-    assert_eq!(
+    assert!(
         result["items"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|item| item["id"] == ids[1])
-            .unwrap()["company_name"],
+            .all(|item| item["company_id"] == json!(company))
+    );
+
+    let (status, archived_page) = app.get(member, &archived_cases).await;
+    assert_eq!(status, StatusCode::OK, "{archived_page}");
+    assert_eq!(archived_page["total"], 1);
+    assert_eq!(archived_page["items"][0]["id"], ids[1]);
+    assert_eq!(
+        archived_page["items"][0]["company_name"],
         "Financiera histórica"
     );
 
-    let mut expected = ids.clone();
+    let mut expected: Vec<_> = ids.iter().filter(|&id| *id != ids[1]).cloned().collect();
     expected.sort_by(|left, right| right.as_str().cmp(&left.as_str()));
     for (index, id) in expected.iter().enumerate() {
         let page = index + 1;
         let (status, result) = app
-            .get(member, &format!("{CASES}?page={page}&per_page=1"))
+            .get(member, &format!("{active_cases}&page={page}&per_page=1"))
             .await;
         assert_eq!(status, StatusCode::OK, "{result}");
         assert_eq!(result["page"], page);
-        assert_eq!(result["total"], 3);
+        assert_eq!(result["total"], 2);
         assert_eq!(result["items"].as_array().unwrap().len(), 1);
         assert_eq!(result["items"][0]["id"], *id);
     }
     for (query, total) in [
-        ("ines", 2),
-        ("00000000011", 2),
+        ("ines", 1),
+        ("00000000011", 1),
         ("honda%20civic", 1),
-        ("numero%20dos", 1),
+        ("numero%20dos", 0),
         ("sin%20coincidencias", 0),
         ("---", 0),
     ] {
-        let (status, result) = app.get(member, &format!("{CASES}?q={query}")).await;
+        let (status, result) = app.get(member, &format!("{active_cases}&q={query}")).await;
         assert_eq!(status, StatusCode::OK, "{result}");
         assert_eq!(result["total"], total, "{query}: {result}");
     }
+    assert_eq!(
+        app.get(member, &format!("{archived_cases}&q=numero%20dos"))
+            .await
+            .1["total"],
+        1
+    );
     for query in ["per_page=101", "page=0", "q=%00"] {
         assert_eq!(
-            app.get(member, &format!("{CASES}?{query}")).await.0,
+            app.get(member, &format!("{active_cases}&{query}")).await.0,
             StatusCode::UNPROCESSABLE_ENTITY
         );
     }
@@ -1193,7 +1217,7 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
     let (status, edited) = app.patch(owner, &operation_detail(company, client_id, id), json!({
         "vehicle": {
             "vehicle_type":"Automóvil", "make":"Honda", "model":"Civic", "year":"2025", "color":"Blanco",
-            "registration_number":"SINT-0001", "plate":"SINT-0002", "chassis_number":"SINT-0003", "engine_number":"SINT-0004"
+            "plate":"SINT-0002", "chassis_number":"SINT-0003", "engine_number":"SINT-0004"
         }
     })).await;
     assert_eq!(status, StatusCode::OK, "{edited}");
@@ -1454,6 +1478,56 @@ async fn monthly_plan_uses_the_original_signing_day_and_recalculates_on_signatur
 }
 
 #[tokio::test]
+async fn operation_status_defaults_to_solicitud_and_can_be_updated() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Financiera sintética").await;
+    let client = add_client(&app, admin, "Cliente sintético").await;
+    let client_id = client["id"].as_str().unwrap();
+    let collection = format!("{CLIENTS}/{client_id}/operations");
+    let (status, created) = app
+        .post(
+            admin,
+            &collection,
+            json!({"company_id": company, "vehicle": {}}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(created["status"], "solicitud");
+    let detail = operation_detail(company, client_id, created["id"].as_str().unwrap());
+    let (status, updated) = app
+        .patch(admin, &detail, json!({"status": "en_proceso"}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{updated}");
+    assert_eq!(updated["status"], "en_proceso");
+    let (status, invalid) = app
+        .patch(admin, &detail, json!({"status": "archivado"}))
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{invalid}");
+    for next in ["firma", "desembolso", "cerrado"] {
+        let (status, body) = app.patch(admin, &detail, json!({"status": next})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["status"], next);
+    }
+    let (_, timeline) = app
+        .get(
+            admin,
+            &format!(
+                "{CLIENTS}/{client_id}/timeline?operation_id={}",
+                created["id"].as_str().unwrap()
+            ),
+        )
+        .await;
+    assert!(timeline["items"].as_array().unwrap().iter().any(|event| {
+        event["changes"].as_array().is_some_and(|changes| {
+            changes
+                .iter()
+                .any(|change| change["field"] == "status" && change["after"] == "cerrado")
+        })
+    }));
+}
+
+#[tokio::test]
 async fn signature_date_is_stored_per_case_and_recorded_in_its_history() {
     let app = TestApp::start().await;
     let admin = app.superadmin().await;
@@ -1510,6 +1584,87 @@ async fn signature_date_is_stored_per_case_and_recorded_in_its_history() {
 }
 
 #[tokio::test]
+async fn insurance_installment_amount_is_stored_per_case_and_recorded_in_its_history() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Financiera de seguro").await;
+    let client = add_client(&app, admin, "Cliente de seguro").await;
+    let client_id = client["id"].as_str().unwrap();
+    let collection = format!("{CLIENTS}/{client_id}/operations");
+
+    for invalid in [0_i64, -100_i64, 9_007_199_254_740_992_i64] {
+        let (status, error) = app
+            .post(
+                admin,
+                &collection,
+                json!({"company_id": company, "vehicle": {}, "insurance_installment_minor": invalid}),
+            )
+            .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{error}");
+    }
+
+    let (status, created) = app
+        .post(
+            admin,
+            &collection,
+            json!({"company_id": company, "vehicle": {}, "insurance_installment_minor": 919800}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(created["insurance_installment_minor"], 919800);
+
+    let operation_id = created["id"].as_str().unwrap();
+    let detail = operation_detail(company, client_id, operation_id);
+    assert_eq!(
+        app.get(admin, &format!("{CASES}/{operation_id}")).await.1["insurance_installment_minor"],
+        919800
+    );
+
+    for invalid in [0_i64, -1_i64, 9_007_199_254_740_992_i64] {
+        let (status, error) = app
+            .patch(
+                admin,
+                &detail,
+                json!({"insurance_installment_minor": invalid}),
+            )
+            .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{error}");
+    }
+
+    let (status, updated) = app
+        .patch(
+            admin,
+            &detail,
+            json!({"insurance_installment_minor": 1050000}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{updated}");
+    assert_eq!(updated["insurance_installment_minor"], 1050000);
+
+    let (_, timeline) = app
+        .get(
+            admin,
+            &format!("{CLIENTS}/{client_id}/timeline?operation_id={operation_id}"),
+        )
+        .await;
+    assert!(timeline["items"].as_array().unwrap().iter().any(|event| {
+        event["changes"].as_array().is_some_and(|changes| {
+            changes.iter().any(|change| {
+                change["field"] == "insurance_installment_minor"
+                    && change["before"] == 919800
+                    && change["after"] == 1050000
+            })
+        })
+    }));
+
+    let (status, cleared) = app
+        .patch(admin, &detail, json!({"insurance_installment_minor": null}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{cleared}");
+    assert!(cleared["insurance_installment_minor"].is_null());
+}
+
+#[tokio::test]
 async fn only_the_billing_manager_soft_deletes_a_case_file() {
     let app = TestApp::start().await;
     let admin = app.superadmin().await;
@@ -1562,7 +1717,7 @@ async fn only_the_billing_manager_soft_deletes_a_case_file() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(app.delete(manager, &detail).await.0, StatusCode::NOT_FOUND);
-    let (_, cases) = app.get(admin, CASES).await;
+    let (_, cases) = app.get(admin, &cases_for(company)).await;
     assert_eq!(cases["total"], 0, "{cases}");
     let (_, operations) = app
         .get(admin, &format!("{CLIENTS}/{client_id}/operations"))
@@ -1578,4 +1733,92 @@ async fn only_the_billing_manager_soft_deletes_a_case_file() {
     .unwrap();
     assert!(deleted_at.is_some());
     assert_eq!(deleted_by, Some(manager.id));
+}
+
+#[tokio::test]
+async fn workspace_dashboard_summarizes_company_cases_and_clients() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Dashboard Norte SRL").await;
+    let other = app.legacy_company(admin, "Dashboard Sur SRL").await;
+
+    let first = add_client(&app, admin, "Cliente dashboard uno").await;
+    let second = add_client(&app, admin, "Cliente dashboard dos").await;
+    let first_id = first["id"].as_str().unwrap();
+    let second_id = second["id"].as_str().unwrap();
+
+    let (status, with_plan) = app
+        .post(
+            admin,
+            &format!("{CLIENTS}/{first_id}/operations"),
+            json!({
+                "company_id": company,
+                "reference": "DN-0001",
+                "vehicle": {"make": "Honda"},
+                "financing": {
+                    "interest_installments": [{"date": "2026-02-28", "amount_minor": 100000}],
+                    "final_principal": {"date": "2027-01-31", "amount_minor": 3000000}
+                }
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{with_plan}");
+
+    let (status, without_plan) = app
+        .post(
+            admin,
+            &format!("{CLIENTS}/{second_id}/operations"),
+            json!({"company_id": company, "reference": "DN-0002", "vehicle": {"make": "Toyota"}}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{without_plan}");
+
+    let (status, other_case) = app
+        .post(
+            admin,
+            &format!("{CLIENTS}/{first_id}/operations"),
+            json!({"company_id": other, "reference": "DS-0001", "vehicle": {"make": "Kia"}}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{other_case}");
+
+    let with_plan_id = with_plan["id"].as_str().unwrap();
+    let (status, updated) = app
+        .patch(
+            admin,
+            &format!("{CLIENTS}/{first_id}/operations/{with_plan_id}"),
+            json!({"status": "desembolso"}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{updated}");
+
+    let (status, dashboard) = app
+        .get(admin, &format!("/api/v1/dashboard?company_id={company}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{dashboard}");
+    assert!(dashboard["clients_total"].as_i64().unwrap() >= 2);
+    assert_eq!(dashboard["cases_total"], 2);
+    assert_eq!(dashboard["cases_this_month"], 2);
+    assert_eq!(dashboard["cases_without_plan"], 1);
+    assert_eq!(dashboard["unsigned_cases"], 1);
+    assert_eq!(dashboard["pending_disbursement_cases"], 1);
+    assert_eq!(dashboard["disbursed_cases"], 1);
+    assert_eq!(dashboard["disbursed_this_month"], 1);
+    assert_eq!(dashboard["time_saved_minutes"], 30);
+    assert_eq!(dashboard["user_time_saved_minutes"], 30);
+    assert_eq!(dashboard["user_disbursements_total"], 1);
+    assert_eq!(dashboard["status_counts"]["solicitud"], 1);
+    assert_eq!(dashboard["status_counts"]["desembolso"], 1);
+    assert!(dashboard["user_stats"].as_array().unwrap().is_empty());
+    assert_eq!(dashboard["recent_cases"].as_array().unwrap().len(), 2);
+    assert_eq!(dashboard["months"].as_array().unwrap().len(), 6);
+    assert_eq!(dashboard["formats"]["pdf"], 0);
+    assert_eq!(dashboard["recent_cases"][0]["has_payment_plan"], false);
+    assert_eq!(dashboard["recent_cases"][1]["has_payment_plan"], true);
+
+    let stranger = app.user().await;
+    let (status, denied) = app
+        .get(stranger, &format!("/api/v1/dashboard?company_id={company}"))
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{denied}");
 }

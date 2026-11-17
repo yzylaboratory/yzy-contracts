@@ -1,6 +1,6 @@
 "use client";
 
-import type { InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes } from "react";
 import { Input } from "@/components/arc/input/input";
 import inputStyles from "@/components/arc/input/input.module.css";
 
@@ -29,15 +29,27 @@ type Shared = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" |
 };
 
 /** Peso amount with the same size as every other field. Stores "RD$25,000.00". */
-export function MoneyField({ label, description, error, value, onValueChange, ...props }: Shared & { label: string; description?: string; error?: string }) {
-  return <Input {...props} label={label} description={description} error={error} type="text" inputMode="decimal" autoComplete="off"
-    placeholder="RD$0.00" value={value} onChange={event => onValueChange(typeMoney(event.target.value))}
-    onBlur={event => { onValueChange(settleMoney(value)); props.onBlur?.(event); }} />;
-}
+export const MoneyField = forwardRef<HTMLInputElement, Shared & { label: string; description?: string; error?: string }>(
+  function MoneyField({ label, description, error, value, onValueChange, onBlur, ...props }, ref) {
+    return <Input {...props} ref={ref} label={label} description={description} error={error} type="text" inputMode="decimal" autoComplete="off"
+      placeholder="RD$0.00" value={value} onChange={event => onValueChange(typeMoney(event.target.value))}
+      onBlur={event => {
+        const settled = settleMoney(value);
+        if (settled !== value) onValueChange(settled);
+        onBlur?.(event);
+      }} />;
+  },
+);
 
 /** Unlabelled variant for table cells; the column header and aria-label name it. */
-export function MoneyCell({ value, onValueChange, className, ...props }: Shared) {
-  return <input {...props} className={[inputStyles.input, className].filter(Boolean).join(" ")} type="text" inputMode="decimal"
-    autoComplete="off" placeholder="RD$0.00" value={value} onChange={event => onValueChange(typeMoney(event.target.value))}
-    onBlur={event => { onValueChange(settleMoney(value)); props.onBlur?.(event); }} />;
-}
+export const MoneyCell = forwardRef<HTMLInputElement, Shared>(
+  function MoneyCell({ value, onValueChange, onBlur, className, ...props }, ref) {
+    return <input {...props} ref={ref} className={[inputStyles.input, className].filter(Boolean).join(" ")} type="text" inputMode="decimal"
+      autoComplete="off" placeholder="RD$0.00" value={value} onChange={event => onValueChange(typeMoney(event.target.value))}
+      onBlur={event => {
+        const settled = settleMoney(value);
+        if (settled !== value) onValueChange(settled);
+        onBlur?.(event);
+      }} />;
+  },
+);

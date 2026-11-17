@@ -100,6 +100,7 @@ export type AdminUser = {
   email: string;
   status: UserStatus;
   created_at: string;
+  manages_billing: boolean;
 };
 
 export type AdminUsersPage = { items: AdminUser[]; page: number; per_page: number; total: number };
@@ -118,6 +119,12 @@ export function getAdminUsers(accountId: string, query: string, status: UserStat
 export function setUserAccess(accountId: string, userId: string, enabled: boolean) {
   return api<AdminUser>(`/admin/users/${encodeURIComponent(userId)}/access`, {
     method: "PUT", body: { enabled }, expectedAccountId: accountId,
+  });
+}
+
+export function setUserBilling(accountId: string, userId: string, managesBilling: boolean) {
+  return api<AdminUser>(`/admin/users/${encodeURIComponent(userId)}/billing`, {
+    method: "PUT", body: { manages_billing: managesBilling }, expectedAccountId: accountId,
   });
 }
 

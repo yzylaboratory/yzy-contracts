@@ -1,0 +1,581 @@
+.stage {
+  position: relative;
+  display: grid;
+  gap: 20px;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid color-mix(in oklab, var(--brand-ink) 18%, var(--border));
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--brand-burgundy) 9%, transparent) 0%, transparent 55%),
+    radial-gradient(110% 90% at 100% 100%, color-mix(in oklab, var(--brand-ink) 11%, transparent) 0%, transparent 60%),
+    var(--surface-raised);
+  box-shadow:
+    0 20px 44px -26px color-mix(in oklab, var(--brand-ink) 28%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #ffffff 55%, transparent);
+  overflow: hidden;
+  min-inline-size: 0;
+}
+
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--foreground) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 4%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 85% 80% at 50% 45%, black 35%, transparent 100%);
+  pointer-events: none;
+}
+
+.stageComplete {
+  border-color: color-mix(in oklab, var(--brand-ink) 38%, var(--border));
+}
+
+.topBar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  z-index: 1;
+}
+
+.headingGroup {
+  display: grid;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  inline-size: fit-content;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 28%, transparent);
+  background: color-mix(in oklab, var(--brand-burgundy) 10%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.liveBadgeComplete {
+  border-color: color-mix(in oklab, var(--brand-ink) 30%, transparent);
+  background: color-mix(in oklab, var(--brand-ink) 12%, var(--surface));
+  color: var(--foreground);
+}
+
+.liveDot {
+  position: relative;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.liveDotPulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+}
+
+.stageTitle {
+  margin: 0;
+  font-family: var(--font-geist);
+  font-size: clamp(19px, 2.3vw, 24px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.stageSubtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.metrics {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricCount {
+  font-family: var(--font-geist);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.metricPercent {
+  font-family: var(--font-geist);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--foreground);
+}
+
+.progressWrap {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+}
+
+.progressTrack {
+  position: relative;
+  block-size: 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 9%, var(--surface-muted));
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px color-mix(in oklab, #000000 12%, transparent);
+}
+
+.progressFill {
+  position: relative;
+  block-size: 100%;
+  inline-size: 100%;
+  border-radius: 999px;
+  background: var(--arc-gradient-ink);
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+
+.progressSheen {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 38%;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, #ffffff 42%, transparent), transparent);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.arena {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (min-width: 820px) {
+  .arena {
+    grid-template-columns: minmax(270px, 0.94fr) minmax(0, 1.16fr);
+  }
+}
+
+.pressViewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-block-size: 310px;
+  padding: 24px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 50% 48%, color-mix(in oklab, var(--brand-burgundy) 9%, transparent) 0%, transparent 66%),
+    color-mix(in oklab, var(--surface) 88%, var(--surface-muted));
+  overflow: hidden;
+  perspective: 1100px;
+}
+
+.orbitalOuter,
+.orbitalInner {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orbitalOuter {
+  inline-size: 270px;
+  block-size: 270px;
+  border: 1px dashed color-mix(in oklab, var(--brand-ink) 18%, transparent);
+}
+
+.orbitalInner {
+  inline-size: 212px;
+  block-size: 212px;
+  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 16%, transparent);
+  border-inline-start-color: color-mix(in oklab, var(--brand-burgundy) 55%, transparent);
+}
+
+.folioDeck {
+  position: relative;
+  inline-size: min(100%, 272px);
+  min-block-size: 236px;
+  transform-style: preserve-3d;
+}
+
+.folioBack2,
+.folioBack1 {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  pointer-events: none;
+}
+
+.folioBack2 {
+  transform: translate3d(12px, 12px, -30px) rotate(2.5deg);
+  opacity: 0.55;
+}
+
+.folioBack1 {
+  transform: translate3d(6px, 6px, -15px) rotate(1.2deg);
+  opacity: 0.8;
+}
+
+.folioActive {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  min-block-size: 236px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--brand-ink) 20%, var(--border));
+  background: var(--surface-raised);
+  box-shadow:
+    0 22px 38px -22px color-mix(in oklab, var(--brand-ink) 45%, transparent),
+    0 4px 12px -4px color-mix(in oklab, var(--brand-ink) 14%, transparent);
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.folioHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block-end: 10px;
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.folioBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.folioFormat {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.folioMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.folioDocTitle {
+  margin: 0;
+  font-family: var(--font-geist);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.folioClient {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.folioLines {
+  display: grid;
+  gap: 8px;
+  padding-block: 4px;
+}
+
+.clauseLine {
+  block-size: 7px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--brand-ink) 16%, var(--surface-muted)),
+    color-mix(in oklab, var(--brand-ink) 8%, var(--surface-muted))
+  );
+  transform-origin: left center;
+  will-change: transform, opacity;
+}
+
+.clauseLineAccent {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--brand-burgundy) 34%, var(--surface-muted)),
+    color-mix(in oklab, var(--brand-ink) 18%, var(--surface-muted))
+  );
+}
+
+.scanBeam {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 38px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--brand-burgundy) 18%, transparent) 55%,
+    color-mix(in oklab, var(--brand-burgundy) 45%, transparent) 85%,
+    transparent
+  );
+  border-block-end: 1.5px solid color-mix(in oklab, var(--brand-burgundy) 65%, transparent);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.sealWrap {
+  position: absolute;
+  inset-inline-end: 14px;
+  inset-block-end: 14px;
+  pointer-events: none;
+}
+
+.sealRipple {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+}
+
+.notarySeal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
+  background: color-mix(in oklab, var(--surface-raised) 92%, var(--accent-subtle));
+  color: var(--accent-strong);
+  font-family: var(--font-geist);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 14px -6px color-mix(in oklab, var(--brand-burgundy) 45%, transparent);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.completeCrest {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 18px 12px;
+  text-align: center;
+}
+
+.completeIconCircle {
+  display: grid;
+  place-items: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: 50%;
+  background: var(--arc-gradient-ink);
+  color: #ffffff;
+  box-shadow: 0 12px 26px -10px color-mix(in oklab, var(--brand-burgundy) 55%, transparent);
+}
+
+.ledger {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  min-inline-size: 0;
+}
+
+.ledgerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-inline: 4px;
+}
+
+.ledgerTitle {
+  margin: 0;
+  font-family: var(--font-geist);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.ledgerSummary {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.ledgerList {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  display: grid;
+  gap: 6px;
+  max-block-size: 274px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.ledgerRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  z-index: 0;
+}
+
+.ledgerRowDone {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--surface-raised) 70%, transparent);
+  border-color: var(--border-subtle);
+}
+
+.ledgerRowPending {
+  color: var(--text-secondary);
+}
+
+.ledgerRowError {
+  color: var(--danger);
+  background: color-mix(in oklab, var(--brand-burgundy) 8%, var(--surface));
+  border-color: color-mix(in oklab, var(--brand-burgundy) 28%, transparent);
+}
+
+.activeBackdrop {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 36%, var(--border));
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--brand-burgundy) 10%, var(--surface-raised)),
+    var(--surface-raised)
+  );
+  box-shadow: 0 8px 20px -12px color-mix(in oklab, var(--brand-ink) 35%, transparent);
+  z-index: -1;
+}
+
+.rowIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+  color: var(--text-secondary);
+}
+
+.rowIconActive {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.rowIconDone {
+  background: color-mix(in oklab, var(--brand-ink) 14%, var(--surface-muted));
+  color: var(--foreground);
+}
+
+.rowIconError {
+  background: color-mix(in oklab, var(--brand-burgundy) 18%, transparent);
+  color: var(--danger);
+}
+
+.rowLabel {
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowState {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rowStateActive {
+  color: var(--accent-strong);
+}
+
+.rowStateDone {
+  color: var(--text-secondary);
+}
+
+.rowStatePending {
+  color: var(--text-muted);
+}
+
+.rowStateError {
+  color: var(--danger);
+}
+
+.stageFooter {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block-start: 4px;
+}
+
+.footerNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbitalOuter,
+  .orbitalInner,
+  .scanBeam,
+  .progressSheen,
+  .liveDotPulse {
+    animation: none !important;
+  }
+}

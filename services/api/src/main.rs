@@ -12,7 +12,7 @@ use yzy_contracts_api::{
         storage::R2Storage,
     },
     modules::auth::jwt::JwtVerifier,
-    workers::conversion::ConversionWorker,
+    workers::{billing::BillingWorker, conversion::ConversionWorker},
 };
 
 const USAGE: &str = "usage: yzy-contracts-api <serve|worker|migrate|openapi>";
@@ -84,9 +84,14 @@ async fn worker() -> anyhow::Result<()> {
         shutdown_signal().await;
         let _ = stop_sender.send(true);
     });
-    ConversionWorker::new(state, extractor)
-        .run(stop_receiver)
-        .await;
+    let billing_state = state.clone();
+    let conversion = ConversionWorker::new(state, extractor);
+    let billing = BillingWorker::new(billing_state);
+    let conversion_stop = stop_receiver.clone();
+    let billing_stop = stop_receiver;
+    let conversion_task = tokio::spawn(async move { conversion.run(conversion_stop).await });
+    let billing_task = tokio::spawn(async move { billing.run(billing_stop).await });
+    let _ = tokio::join!(conversion_task, billing_task);
     Ok(())
 }
 

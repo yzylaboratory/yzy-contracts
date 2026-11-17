@@ -6,22 +6,22 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { expedienteDocumentsHref, expedienteHref } from "@/app/clientes/client-paths";
 import { MonthlyPaymentTable } from "@/app/clientes/monthly-payment-table";
 import { hasOperationCompanyScope } from "@/app/clientes/operation-templates";
-import { documentFieldAliases, getDocumentType, isInsuranceSaleCalculatedField } from "@/app/contratos/document-catalog";
+import { conditionalSaleHandwrittenFields, documentFieldAliases, getDocumentType, insuranceScheduleFields, isInsuranceSaleCalculatedField } from "@/app/contratos/document-catalog";
 import { matchDocumentTemplate } from "@/app/clientes/document-template-match";
+import { buildCompanySnapshot, buildContractTemplateFields, fileBase, getContractCompanyFields } from "@/app/contratos/contract-template-fields";
 import { expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesSignatureAsContractDate } from "@/app/contratos/expediente-fields";
 import { applicationAmountLabel, applicationDateLabel, clientContractFields } from "@/components/case-application/case-application";
 import { usePortalPreferences } from "@/app/configuracion/preferences-store";
-import { companyFieldLimit, companyNotaryNameKey, companyProfileLimit, companyValueLimit, companyValuesSize, companyWitnessField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
+import { companyContractClauseField, companyFieldLimit, companyNotaryField, companyProfileLimit, companyProfileValue, companyValueLimit, companyValuesSize, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
 import { useCompanies } from "@/app/configuracion/empresas/use-companies";
 import { syncLegacyGeneratedDocuments } from "@/app/contratos/contracts-store";
 import { checkGenerationAccess, type NativeVariable } from "@/app/contratos/contracts-api";
-import { formatTemplateValue, getTemplateFields, parseTemplate, validateTemplateField, type TemplateField } from "@/app/contratos/template-fields";
+import { formatTemplateValue, validateTemplateField } from "@/app/contratos/template-fields";
 import { useContract } from "@/app/contratos/use-contract";
 import { saveGeneratedArtifact, type DocumentFormat, type GeneratedFormat, type GeneratedOutput } from "@/app/contratos/generated-documents-api";
 import { createEmailDraftBlob, downloadBlob, isEmailAddress } from "@/app/contratos/document-export";
 import { DocumentPreviewDialog } from "@/app/contratos/document-preview-dialog";
-import { formatWordTemplateValue, NativeDocumentError, normalizeWordTemplateLine, prepareNativeDocument } from "@/app/contratos/native-document";
-import { nativeFieldLabel } from "@/app/contratos/native-field-label";
+import { NativeDocumentError, normalizeWordTemplateLine, prepareNativeDocument } from "@/app/contratos/native-document";
 import { recordPortalActivity } from "@/lib/activity";
 import { ApiError, isActiveAccount } from "@/lib/api";
 import { canManageCompanyBilling, usePortalAccess } from "@/lib/portal-access";
@@ -30,7 +30,7 @@ import { Input } from "@/components/arc/input/input";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { Accordion } from "@/components/arc/accordion/accordion";
-import { nativeFieldKind, sortFieldsBySection, wordsFor, wordsSource } from "@/app/contratos/native-field-kinds";
+import { sortFieldsBySection, wordsFor, wordsSource } from "@/app/contratos/native-field-kinds";
 import { PaymentScheduleField } from "./payment-schedule-field";
 import { TemplateFieldControl } from "./template-field-control";
 
@@ -39,9 +39,10 @@ const scheduleGroups = [
   { title: "Cuotas del seguro", keys: { numbers: "cuotas_seguro_numeros", dates: "cuotas_seguro_fechas", amounts: "cuotas_seguro_montos" } },
 ];
 const caseDates = new Set(["fecha_firma", percentageDateKey]);
-const notaryMarker = "nombre_del_notario";
 const caseDatesWithContractDate = new Set([...caseDates, "fecha_contrato"]);
 const clientContractKeys = new Set<string>(clientContractFields.map(([, , , key]) => key));
+const conditionalSaleHandwrittenKeys = new Set<string>(conditionalSaleHandwrittenFields);
+const insuranceScheduleKeys = new Set<string>(insuranceScheduleFields);
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { LoadingContent } from "@/components/loading/loading-ui";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
@@ -57,13 +58,6 @@ const formats = [
   { value: "docx", label: "Word" },
 ];
 const formatNames = { pdf: "PDF", docx: "Word", email: "correo" };
-
-function fileBase(title: string) {
-  const slug = title.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-").slice(0, 80).replace(/^-+|-+$/g, "");
-
-  return slug || "contrato";
-}
 
 export function GenerateDocument({ contractId, selection, invalidSelection }: {
   contractId: string;
@@ -167,22 +161,11 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const { toast } = useToastStack();
   const conditionalSalePlan = expediente?.type === "venta_condicional" ? expediente.operation.financing : undefined;
   const isInsuranceSale = expediente?.type === "venta_condicional_seguro";
-  const { markdown, fields } = useMemo<{ markdown: string; fields: TemplateField[] }>(() => {
-    if (nativeVariables) return {
-      markdown: "",
-      fields: nativeVariables.map(({ key }): TemplateField => {
-        const field = { key, label: nativeFieldLabel(key), required: true };
-        const kind = nativeFieldKind(key);
-        if (kind !== "date") return { ...field, kind, ...(kind === "phone" && { placeholder: "XXX-XXX-XXXX" }), ...(kind === "identity" && { placeholder: "000-0000000-0" }) };
-
-        const shortDate = key.startsWith("fecha_de_vencimiento_de_la_cuota_") ||
-          key === "fecha_de_la_operacion" || key === "fecha_del_financiamiento";
-        return { ...field, kind: "date", dateStyle: shortDate ? "numeric" : "long" };
-      }),
-    };
-    const { markdown, definitions } = parseTemplate(content);
-    return { markdown, fields: getTemplateFields(markdown, definitions) };
-  }, [content, nativeVariables]);
+  const blankHandwrittenIdentity = expediente?.type === "venta_condicional" || expediente?.type === "venta_condicional_seguro";
+  const { markdown, fields } = useMemo(
+    () => buildContractTemplateFields(content, nativeVariables, expediente?.type),
+    [content, expediente?.type, nativeVariables],
+  );
   const { list: companyList, reload: reloadCompanies } = useCompanies(accountId);
   const effectiveCompanyScope = expediente?.operation.company_id ?? companyScope ?? activeCompany?.id;
   const allowedCompanyIds = effectiveCompanyScope
@@ -198,10 +181,13 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const companies = allowedCompanyIds && companyList.kind === "ready"
     ? { ...companyList, items: companyList.items.filter(company => allowedCompanyIds.includes(company.id)) }
     : companyList;
-  const companyFields = useMemo(() => fields.filter(field => isCompanyField(field.key) &&
-    !isInsuranceSale && !(isInsuranceDocument && isInsuranceIssuerField(field.key))), [fields, isInsuranceDocument, isInsuranceSale]);
+  const companyFields = useMemo(
+    () => getContractCompanyFields(fields, expediente?.type),
+    [expediente?.type, fields],
+  );
+  const clauseFields = fields.filter(field => companyContractClauseField(field.key));
   const witnessFields = fields.filter(field => companyWitnessField(field.key));
-  const companyRequired = Boolean(allowedCompanyIds) || companyFields.length > 0 || witnessFields.length > 0;
+  const companyRequired = Boolean(allowedCompanyIds) || companyFields.length > 0 || clauseFields.length > 0 || witnessFields.length > 0;
   const [companyId, setCompanyId] = useState<string | null>(null);
   const available = companies.kind === "ready" ? companies.items : [];
   const selectedCompany = effectiveCompanyScope
@@ -211,8 +197,12 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
       : available.find(company => company.id === companyId);
   const companySettingsHref = selectedCompany && accessState.kind === "ready" && canManageCompanyBilling(accessState.identity, selectedCompany.id)
     ? `/configuracion/empresas?id=${encodeURIComponent(selectedCompany.id)}` : undefined;
-  const notaryField = isInsuranceSale ? fields.find(field => field.key === notaryMarker) : undefined;
-  const missingNotary = selectedCompany && notaryField && validateTemplateField(notaryField, selectedCompany.values[companyNotaryNameKey] ?? "");
+  const notaryFields = fields.filter(field => companyNotaryField(field.key));
+  const missingNotaryFields = selectedCompany ? notaryFields.filter(field => {
+    const notary = companyNotaryField(field.key)!;
+    return validateTemplateField(field, selectedCompany.values[notary.key] ?? "");
+  }) : [];
+  const missingNotary = missingNotaryFields.length > 0;
   const missingWitnesses = selectedCompany ? witnessFields.filter(field => {
     const witness = companyWitnessField(field.key)!;
     return validateTemplateField(field, selectedCompany.values[witness.key] ?? "");
@@ -229,20 +219,26 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     fields.some(field => field.key === key) && !context.values[key]?.trim()) : [];
   function contextField(key: string) {
     return Boolean(expediente && (isExpedienteField(key, expediente.type) || isInsuranceDocument && isInsuranceIssuerField(key) ||
-      isInsuranceSale && isCompanyField(key)));
+      isInsuranceSale && isCompanyField(key) && !isCompanyContractClauseField(key)));
   }
 
   const reviewFields = fields.filter(field => {
     const { key } = field;
-    if (field === notaryField) return Boolean(selectedCompany && !missingNotary);
+    const notary = companyNotaryField(key);
+    if (notary) return Boolean(selectedCompany?.values[notary.key]?.trim() && !missingNotaryFields.includes(field));
     const witness = companyWitnessField(key);
     if (witness) return Boolean(selectedCompany?.values[witness.key]?.trim() && !missingWitnesses.includes(field));
+    const clause = companyContractClauseField(key);
+    if (clause) {
+      const value = companyProfileValue(selectedCompany?.values, key);
+      return Boolean(value.trim() && !validateTemplateField(field, value) && companies.kind !== "loading");
+    }
     if (!expediente) return false;
     if (usesSignatureForContractDate && key === "fecha_contrato" && hasSignatureField) return false;
     if (usesCaseExtraordinary && isExtraordinaryPaymentField(key)) return false;
     if (context.documentInputs.has(key) && key !== "parrafo_compromiso_pago") return false;
     const prefilled = contextField(key) ? context.values[key]
-      : isCompanyField(key) ? selectedCompany?.values[key.toLowerCase()] : undefined;
+      : isCompanyField(key) ? companyProfileValue(selectedCompany?.values, key) : undefined;
     return Boolean(prefilled?.trim() && !validateTemplateField(field, prefilled));
   });
   const reviewKeys = new Set(reviewFields.map(field => field.key));
@@ -251,35 +247,41 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     return source ? [[field.key, source] as const] : [];
   })), [fields]);
   const missingFields = fields.filter(field => !context.documentInputs.has(field.key) && !reviewKeys.has(field.key) &&
-    field !== notaryField &&
+    !companyNotaryField(field.key) &&
     !companyWitnessField(field.key) &&
+    !companyContractClauseField(field.key) &&
     !(expediente && fixedDates.has(field.key)) &&
     !(isInsuranceSale && (field.key === "fecha_de_firma" || isInsuranceSaleCalculatedField(field.key))) &&
+    !(expediente?.type === "acto_seguro" && (insuranceScheduleKeys.has(field.key) || field.key === "cantidad_cuotas_seguro")) &&
     !(expediente && clientContractKeys.has(field.key)) &&
+    !(blankHandwrittenIdentity && conditionalSaleHandwrittenKeys.has(field.key)) &&
     !(usesCaseExtraordinary && isExtraordinaryPaymentField(field.key)) &&
     !(isInsuranceDocument && isInsuranceIssuerField(field.key)) && !(isCompanyField(field.key) && companies.kind === "loading") &&
     !derivedWords.has(field.key));
   const missingKeySet = new Set(missingFields.map(field => field.key));
   const schedules = scheduleGroups.filter(group => Object.values(group.keys).every(key => missingKeySet.has(key)));
   const baseValues = useMemo(() => Object.fromEntries(fields.map(({ key }) => {
-    if (key === notaryField?.key) return [key, normalizeWordTemplateLine(selectedCompany?.values[companyNotaryNameKey]?.trim() ?? "")];
+    const notary = companyNotaryField(key);
+    if (notary) return [key, normalizeWordTemplateLine(selectedCompany?.values[notary.key]?.trim() ?? "")];
     const witness = companyWitnessField(key);
     if (witness) return [key, normalizeWordTemplateLine(selectedCompany?.values[witness.key]?.trim() ?? "")];
+    if (companyContractClauseField(key)) {
+      return [key, normalizeWordTemplateLine(companyProfileValue(selectedCompany?.values, key))];
+    }
     if (usesCaseExtraordinary && isExtraordinaryPaymentField(key)) return [key, context.values[key] ?? ""];
     if (isInsuranceSale && (key === "fecha_de_firma" || isInsuranceSaleCalculatedField(key))) return [key, context.values[key] ?? ""];
+    if (expediente?.type === "acto_seguro" && (insuranceScheduleKeys.has(key) || key === "cantidad_cuotas_seguro")) return [key, context.values[key] ?? ""];
     if (expediente && (isExpedienteField(key, expediente.type) || isInsuranceDocument && isInsuranceIssuerField(key) ||
-      isInsuranceSale && isCompanyField(key))) {
+      isInsuranceSale && isCompanyField(key) && !isCompanyContractClauseField(key))) {
       return [key, fixedDates.has(key) || clientContractKeys.has(key) || context.documentInputs.has(key) ? context.values[key] ?? "" : editedValues[key] ?? context.values[key] ?? ""];
     }
     if (!isCompanyField(key)) return [key, Object.hasOwn(editedValues, key) ? editedValues[key] : ""];
-    if (!selectedCompany) return [key, ""];
+    if (!selectedCompany) return [key, isCompanyContractClauseField(key) ? companyProfileValue(undefined, key) : ""];
     if (companyEdits?.id === selectedCompany.id && Object.hasOwn(companyEdits.values, key)) {
       return [key, companyEdits.values[key]];
     }
-    const marker = key.toLowerCase();
-    const value = Object.hasOwn(selectedCompany.values, marker) ? selectedCompany.values[marker] : "";
-    return [key, normalizeWordTemplateLine(value)];
-  })), [usesCaseExtraordinary, companyEdits, context.documentInputs, context.values, editedValues, expediente, fields, fixedDates, isInsuranceDocument, isInsuranceSale, notaryField, selectedCompany]);
+    return [key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, key))];
+  })), [usesCaseExtraordinary, companyEdits, context.documentInputs, context.values, editedValues, expediente, fields, fixedDates, isInsuranceDocument, isInsuranceSale, selectedCompany]);
   const values = useMemo(() => {
     const next: Record<string, string> = { ...baseValues };
     for (const [key, source] of derivedWords) if (!next[key]?.trim()) next[key] = wordsFor(source, baseValues[source.key]);
@@ -376,7 +378,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
       nextErrors.company = companies.kind === "loading" ? "Espera a que se carguen las empresas." : "Selecciona una empresa para continuar.";
     }
     if (missingWitnesses.length) nextErrors.witnesses = "Completa los datos de los testigos en la configuración de la empresa.";
-    if (missingNotary) nextErrors.notary = "Guarda el nombre del notario en la configuración de la empresa.";
+    if (missingNotary) nextErrors.notary = "Guarda los datos del notario en la configuración de la empresa.";
     for (const [, label, , key] of missingClientData) nextErrors[`contract-${key}`] = `Completa ${label.toLowerCase()} en los datos del cliente.`;
     if (usesCaseExtraordinary) {
       if (!extraordinary) nextErrors.extraordinary = "Guarda la fecha de firma y el plan de pagos del expediente para calcular los abonos.";
@@ -407,7 +409,6 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     const invalidContext = [...context.documentInputs].map(key => `expediente-${key}`).find(key => nextErrors[key]);
     const firstInvalid = invalidContext ?? Object.keys(nextErrors)[0];
     if (!firstInvalid) return true;
-    if (context.focusInsuranceField(firstInvalid)) return false;
     const control = firstInvalid === "notary" ? document.getElementById("company-notary")
       : firstInvalid === "witnesses" ? document.getElementById("company-witnesses")
       : firstInvalid === "extraordinary" ? document.getElementById("extraordinary-plan-link")
@@ -438,11 +439,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     let recording = false;
     try {
       const nativeFormat = output === "email" ? attachmentFormat : output === "preview" ? "pdf" : output;
-      const company: GeneratedOutput["company"] = selectedCompany && {
-        id: selectedCompany.id,
-        name: selectedCompany.name,
-        values: Object.fromEntries(companyFields.map(field => [field.key.toLowerCase(), formatWordTemplateValue(field, values[field.key])])),
-      };
+      const company: GeneratedOutput["company"] = buildCompanySnapshot(selectedCompany, companyFields, values);
       if (company && (Object.keys(company.values).length > companyFieldLimit || companyValuesSize(company.values) > companyProfileLimit)) {
         throw new NativeDocumentError("Los valores de empresa de este documento superan el tamaño permitido. Reduce los campos más largos.");
       }
@@ -567,7 +564,8 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
             </div>}
             {missingNotary && <div id="company-notary" tabIndex={-1} className={styles.hint}>
               {companySettingsHref ? <Link href={`${companySettingsHref}#notario`} className={styles.returnLink}>Configurar notario de la empresa</Link>
-                : <p>Pide al responsable de la empresa que registre el nombre del notario en Configuración.</p>}
+                : <p>Pide al responsable de la empresa que registre el notario en Configuración.</p>}
+              <p>{missingNotaryFields.map(field => field.label).join(", ")}</p>
               {errors.notary && <p className={styles.failure} role="alert">{errors.notary}</p>}
             </div>}
             {expediente && missingClientData.length > 0 && <p className={styles.hint}>

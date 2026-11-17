@@ -3,14 +3,14 @@
 .horizontal { width: 100%; container: stepper / inline-size; }
 .list { display: grid; margin: 0; padding: 0; list-style: none; }
 .item { position: relative; min-width: 0; }
-.horizontal .item:not(:last-child) { padding-inline-end: var(--space-4); }
+.horizontal .item { padding-inline: var(--space-2); }
 .vertical .item:not(:last-child) { padding-bottom: var(--space-5); }
 .compact.vertical .item:not(:last-child) { padding-bottom: var(--space-6); }
 
 /* Buttons and spans share one head, so a chosen step keeps focus as it becomes the current one. */
 .head { display: grid; margin: 0; padding: 0; border: 0; border-radius: var(--space-2); background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: start; cursor: default; -webkit-tap-highlight-color: transparent; }
 .head[data-clickable] { cursor: pointer; }
-.horizontal .head { width: fit-content; max-width: 100%; justify-items: start; row-gap: var(--space-3); }
+.horizontal .head { width: fit-content; max-width: 100%; margin-inline: auto; justify-items: center; text-align: center; row-gap: var(--space-3); }
 .vertical .head { width: 100%; grid-template-columns: var(--marker) minmax(0, 1fr); column-gap: var(--space-3); align-items: start; }
 .compact.vertical .head { grid-template-columns: var(--marker); column-gap: 0; }
 .head:focus-visible { --focus-outline-offset: 4px; }
@@ -29,7 +29,7 @@
 
 /* The track stays put; only the fill scales along it on a spring, from the step that was just finished. */
 .connector { position: absolute; overflow: hidden; border-radius: var(--radius-pill); background: var(--border); pointer-events: none; }
-.horizontal .connector { top: calc(var(--marker) / 2 - 1px); inset-inline: calc(var(--marker) + var(--halo) + var(--space-1)) calc(var(--halo) + var(--space-1)); height: 2px; }
+.horizontal .connector { top: calc(var(--marker) / 2 - 1px); inset-inline: calc(50% + var(--marker) / 2 + var(--halo) + var(--space-1)) calc(-50% + var(--marker) / 2 + var(--halo) + var(--space-1)); height: 2px; }
 /* Both ends keep a clear gap from the markers, and from the current step's ring. */
 .vertical .connector { top: calc(var(--marker) + var(--halo) + 2px); bottom: calc(var(--halo) + 2px); inset-inline-start: calc(var(--marker) / 2 - 1px); width: 2px; }
 .fill { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); }
@@ -50,7 +50,7 @@
 .description { color: var(--text-muted); }
 .error { color: var(--danger); }
 
-.caption { display: none; margin-top: var(--space-3); }
+.caption { display: none; margin-top: var(--space-3); justify-items: center; text-align: center; }
 .captionLabel { display: block; color: var(--foreground); font-size: var(--text-sm); font-weight: 500; line-height: 1.25rem; }
 
 @media (hover: hover) and (pointer: fine) {

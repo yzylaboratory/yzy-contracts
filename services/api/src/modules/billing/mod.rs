@@ -1,5 +1,5 @@
 pub mod dto;
-pub(super) mod repository;
+pub mod repository;
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use serde::Deserialize;
@@ -17,8 +17,8 @@ use crate::{
 };
 use dto::{
     AccountInput, BankAccount, BankAccountInput, BankAccountSettings, BillingAccount,
-    BillingAccountList, BillingInvoice, BillingInvoiceList, BillingOverview, CreateAccount,
-    TransferInput, VerificationDecision, VerificationInput,
+    BillingAccountList, BillingInvoice, BillingInvoiceList, BillingOverview, BillingPricing,
+    BillingPricingInput, CreateAccount, TransferInput, VerificationDecision, VerificationInput,
 };
 
 pub fn router() -> OpenApiRouter<AppState> {
@@ -44,6 +44,7 @@ pub fn admin_router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(admin_accounts, create_account))
         .routes(routes!(admin_bank_account, save_admin_bank_account))
+        .routes(routes!(admin_pricing, save_admin_pricing))
         .routes(routes!(update_account))
         .routes(routes!(admin_invoices))
         .routes(routes!(verify_transfer))
@@ -83,11 +84,13 @@ async fn overview(
     let bank_account = bank_account_settings(&mut *tx, state.config.billing_bank_account.as_ref())
         .await?
         .bank_account;
+    let pricing = repository::pricing(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(BillingOverview {
         accounts,
         invoices,
         bank_account,
+        pricing,
     }))
 }
 
@@ -145,6 +148,51 @@ async fn save_admin_bank_account(
     Ok(Json(
         repository::save_bank_destination(&state.db, user.id, account, input.expected_revision)
             .await?,
+    ))
+}
+
+#[utoipa::path(
+    get, path = "/api/v1/admin/billing/pricing", tag = "Billing", security(("bearer_auth" = [])),
+    responses(
+        (status = 200, description = "Membership price in USD and DOP exchange rate", body = BillingPricing),
+        (status = 401, description = "Missing or invalid token", body = ErrorEnvelope),
+        (status = 403, description = "Administrator access required", body = ErrorEnvelope)
+    )
+)]
+async fn admin_pricing(State(state): State<AppState>) -> Result<Json<BillingPricing>, ApiError> {
+    Ok(Json(repository::pricing(&state.db).await?))
+}
+
+#[utoipa::path(
+    put, path = "/api/v1/admin/billing/pricing", tag = "Billing", security(("bearer_auth" = [])),
+    request_body = BillingPricingInput,
+    responses(
+        (status = 200, description = "Membership pricing saved", body = BillingPricing),
+        (status = 401, description = "Missing or invalid token", body = ErrorEnvelope),
+        (status = 403, description = "Administrator access required", body = ErrorEnvelope),
+        (status = 409, description = "The pricing revision has changed", body = ErrorEnvelope),
+        (status = 422, description = "Invalid pricing", body = ErrorEnvelope)
+    )
+)]
+async fn save_admin_pricing(
+    State(state): State<AppState>,
+    Extension(user): Extension<AuthUser>,
+    ApiJson(input): ApiJson<BillingPricingInput>,
+) -> Result<Json<BillingPricing>, ApiError> {
+    if input.price_usd_minor <= 0 || input.exchange_rate_milli <= 0 {
+        return Err(ApiError::Validation(
+            "Indica un precio en USD y una tasa de cambio mayores que cero.".to_owned(),
+        ));
+    }
+    Ok(Json(
+        repository::save_pricing(
+            &state.db,
+            user.id,
+            input.price_usd_minor,
+            input.exchange_rate_milli,
+            input.expected_revision,
+        )
+        .await?,
     ))
 }
 

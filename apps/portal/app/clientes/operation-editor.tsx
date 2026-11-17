@@ -1,27 +1,48 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { extraordinaryPaymentDate } from "@/app/contratos/expediente-fields";
+import { MoneyField, typeMoney } from "@/app/contratos/money-field";
+import { moneyMinor } from "@/app/contratos/native-field-kinds";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
-import { amountInputValue, parseAmountMinor } from "./amount-input";
-import { saveOperation, type Operation, type OperationPatch, type Payment, type Vehicle } from "./clients-api";
+import { Select } from "@/components/arc/select/select";
+import { amountInputValue, formatMoneyInput, parseAmountMinor } from "./amount-input";
+import { saveOperation, type Operation, type OperationPatch, type OperationStatus, type Payment, type Vehicle } from "./clients-api";
 import { clientScope, useClientDraft, useClientSave } from "./client-navigation";
+import { isOperationStatus, operationStatusOptions } from "./expediente-status";
 import { vehicleFields } from "./loan-application-fields";
 import { VehicleFormFields } from "./vehicle-form-fields";
 import styles from "./clients.module.css";
 
 type PaymentDraft = { id: number; date: string; amount: string };
 type OperationDraft = {
+  status: OperationStatus;
   contractDate: string;
+  insuranceAmount: string;
   vehicle: Vehicle;
   interest: PaymentDraft[];
   principal: Omit<PaymentDraft, "id">;
   extraordinary: PaymentDraft[];
 };
 const emptyPayment = { date: "", amount: "" };
-const readPayment = (payment?: Payment) => payment ? { date: payment.date, amount: amountInputValue(payment.amount_minor) } : emptyPayment;
+const readPayment = (payment?: Payment) => payment ? { date: payment.date, amount: formatMoneyInput(payment.amount_minor) } : emptyPayment;
 const interestDateError = "Las fechas de las cuotas de intereses deben estar en orden ascendente, sin repetirse y antes de la última cuota de capital.";
+
+function amountFieldValue(minor: number | null | undefined) {
+  if (minor == null) return "";
+  return typeMoney(amountInputValue(minor));
+}
+
+function typedMoneyMinor(value: string) {
+  const settled = moneyMinor(value);
+  if (settled !== null) return settled;
+  const digits = value.trim().replace(/^RD\$/, "").replace(/,/g, "");
+  if (!/^\d+(?:\.\d{0,2})?$/.test(digits)) return undefined;
+  const [whole, fraction = ""] = digits.split(".");
+  const minor = Number(whole) * 100 + Number(fraction.padEnd(2, "0").slice(0, 2));
+  return Number.isSafeInteger(minor) ? minor : undefined;
+}
 
 function samePayment(draft: Omit<PaymentDraft, "id">, payment: Payment) {
   return draft.date === payment.date && parseAmountMinor(draft.amount) === payment.amount_minor;
@@ -48,7 +69,7 @@ function PaymentFields({ name, date, amount, onChange, errors, required = true, 
 }) {
   return <div className={styles.paymentFields}>
     <Input name={`${name}-date`} label="Fecha" type="date" value={date} required={required && !dateReadOnly} readOnly={dateReadOnly} error={errors[`${name}-date`]} onChange={event => onChange({ date: event.target.value })} />
-    <Input name={`${name}-amount`} label="Monto (RD$)" autoComplete="off" inputMode="decimal" value={amount} required={required} error={errors[`${name}-amount`]} onChange={event => onChange({ amount: event.target.value })} />
+    <MoneyField name={`${name}-amount`} label="Monto" value={amount} required={required} error={errors[`${name}-amount`]} onValueChange={nextAmount => onChange({ amount: nextAmount })} />
   </div>;
 }
 
@@ -62,10 +83,13 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
   onCancel: () => boolean;
   onDirty: (dirty: boolean) => void;
 }) {
+  const formId = useId();
   const key = `${clientScope(accountId, clientId)}:operation:${operation?.id ?? `new:${companyId}`}`;
   const { save, saving, failure } = useClientSave(key, onDirty, onSaved, clientScope(accountId));
   const { draft, updateDraft, discardDraft } = useClientDraft<OperationDraft>(key, () => ({
+    status: operation?.status ?? "solicitud",
     contractDate: operation?.contract_date ?? "",
+    insuranceAmount: amountFieldValue(operation?.insurance_installment_minor),
     vehicle: operation?.vehicle ?? {},
     interest: operation?.financing?.interest_installments.map((payment, index) => ({ id: index, ...readPayment(payment) })) ?? [],
     principal: readPayment(operation?.financing?.final_principal),
@@ -83,6 +107,13 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
   const nextPaymentId = useRef(1 + Math.max(-1, ...interest.map(payment => payment.id), ...extraordinary.map(payment => payment.id)));
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#monto-cuota-seguro") {
+      const target = document.getElementById("monto-cuota-seguro");
+      if (target) {
+        target.focus();
+        return;
+      }
+    }
     heading.current?.focus();
   }, []);
 
@@ -143,13 +174,20 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
     const nextErrors: Record<string, string> = {};
     const vehicle: OperationDraft["vehicle"] = {};
     if (draft.contractDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.contractDate)) nextErrors.contract_date = "Indica una fecha válida.";
+    const hasInsuranceInput = draft.insuranceAmount.trim() !== "";
+    const insuranceInstallment = hasInsuranceInput ? typedMoneyMinor(draft.insuranceAmount) : undefined;
+    if (hasInsuranceInput && (insuranceInstallment === undefined || insuranceInstallment <= 0)) {
+      nextErrors.insurance_installment_amount = "Indica un monto mayor que cero con hasta dos decimales.";
+    }
     for (const [key] of vehicleFields) {
       const value = draft.vehicle[key]?.trim();
       if (value && [...value].length > 200) nextErrors[key] = "Usa un máximo de 200 caracteres.";
       if (value) vehicle[key] = value;
     }
     const body: OperationPatch = {
+      ...(operation ? { status: draft.status } : {}),
       contract_date: draft.contractDate || null,
+      insurance_installment_minor: hasInsuranceInput ? insuranceInstallment : null,
       vehicle,
     };
     const samePlan = savedPlan &&
@@ -198,11 +236,28 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
   }
 
   return <section className={styles.panel} aria-labelledby="operation-editor-title" data-tour={!operation ? "operation-form" : undefined}>
-    <h2 id="operation-editor-title" ref={heading} tabIndex={-1}>{operation ? "Editar expediente" : "Datos del expediente"}</h2>
-    {clientName && <p className={styles.muted}>{clientName}</p>}
-    <form className={styles.stack} ref={form} noValidate onSubmit={submit}>
-      <fieldset className={styles.formFields} aria-label="Datos del expediente" disabled={saving}>
+    <div className={styles.header}>
+      <div>
+        <h2 id="operation-editor-title" ref={heading} tabIndex={-1}>{operation ? "Editar expediente" : "Datos del expediente"}</h2>
+        {clientName && <p className={styles.muted}>{clientName}</p>}
+      </div>
+      <div className={styles.actions}>
+        <Button type="button" variant="secondary" disabled={saving} onClick={() => { if (onCancel()) discardDraft(); }}>Cancelar</Button>
+        <Button type="submit" form={formId} loading={saving}>{saving ? "Guardando…" : "Guardar expediente"}</Button>
+      </div>
+    </div>
+    {errors.company_id && <p className={styles.failure} role="alert">{errors.company_id}</p>}
+    {failure && <p className={styles.failure} role="alert">{failure}</p>}
+    <form id={formId} className={styles.stack} ref={form} noValidate onSubmit={submit}>
+      <fieldset className={`${styles.formFields} ${styles.alignTop}`} aria-label="Datos del expediente" disabled={saving}>
+        {operation && <Select id="expediente-status" label="Estado" options={operationStatusOptions}
+          value={draft.status} disabled={saving}
+          onValueChange={value => { if (isOperationStatus(value)) changeDraft({ status: value }); }} />}
         <Input name="contract_date" label="Fecha del contrato" type="date" value={draft.contractDate} error={errors.contract_date} onChange={event => changeDraft({ contractDate: event.target.value })} />
+        <MoneyField id="monto-cuota-seguro" name="insurance_installment_amount" label="Monto de cada cuota del seguro"
+          description="Opcional. Se usa en la venta condicional de seguro."
+          value={draft.insuranceAmount} error={errors.insurance_installment_amount}
+          onValueChange={insuranceAmount => changeDraft({ insuranceAmount })} />
       </fieldset>
       <VehicleFormFields value={draft.vehicle} errors={errors} disabled={saving} onChange={vehicle => changeDraft({ vehicle })} />
       <fieldset className={styles.sectionFields} disabled={saving}>
@@ -235,12 +290,6 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
           </div>}
         </div>
       </fieldset>
-      {errors.company_id && <p className={styles.failure} role="alert">{errors.company_id}</p>}
-      {failure && <p className={styles.failure} role="alert">{failure}</p>}
-      <div className={styles.actions}>
-        <Button type="button" variant="secondary" disabled={saving} onClick={() => { if (onCancel()) discardDraft(); }}>Cancelar</Button>
-        <Button type="submit" loading={saving}>{saving ? "Guardando…" : "Guardar expediente"}</Button>
-      </div>
     </form>
   </section>;
 }

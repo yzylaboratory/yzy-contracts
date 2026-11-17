@@ -37,6 +37,6 @@ Al generar el pagaré, selecciona el Word de venta condicional de la empresa del
 
 ## Emisor del seguro
 
-Los documentos de seguro pueden incluir la razón social autorizada en el Word o usar los marcadores dedicados `empresa_seguro_nombre` y `emisor_seguro_nombre`. Para otros datos de un perfil autorizado, puedes usar claves como `empresa_seguro_rnc` o `emisor_seguro_direccion`. El valor inicial de cuotas es 10 cuando el expediente no tiene otro registrado. Puedes ajustarlo al generar.
+Los documentos de seguro pueden incluir la razón social autorizada en el Word o usar los marcadores dedicados `empresa_seguro_nombre` y `emisor_seguro_nombre`. Para otros datos de un perfil autorizado, puedes usar claves como `empresa_seguro_rnc` o `emisor_seguro_direccion`. Para **Acto de seguro** y **Venta condicional de seguro**, el monto de cada cuota del seguro se registra en el expediente.
 
-Para el Acto de seguro, coloca `cuotas_seguro_numeros`, `cuotas_seguro_fechas` y `cuotas_seguro_montos` en tres celdas de la misma fila. Aplica la cantidad de cuotas si la cambias y escribe la fecha y el monto de cada una. El portal agrega una línea por cuota en cada columna y completa el total en números y letras.
+Para el **Acto de seguro**, coloca `cuotas_seguro_numeros`, `cuotas_seguro_fechas` y `cuotas_seguro_montos` en tres celdas de la misma fila. El portal toma automáticamente las 10 cuotas mensuales a partir de la fecha de firma y del monto de cada cuota registrado en el expediente, agrega una línea por cuota en cada columna y completa el total en números y letras. En **Pagaré de seguro**, puedes ajustar la cantidad de cuotas al generar (10 por defecto).

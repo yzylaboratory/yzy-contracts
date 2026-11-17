@@ -1,3 +1,4 @@
+mod dashboard;
 mod dto;
 mod history;
 mod loan_pdf;
@@ -9,8 +10,8 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
 use self::dto::{
-    CasePage, Client, ClientPage, ClientPatch, ClientTimelinePage, ClientWrite, ListClients,
-    ListTimeline, Operation, OperationPatch, OperationWrite,
+    CasePage, Client, ClientPage, ClientPatch, ClientTimelinePage, ClientWrite, ListCases,
+    ListClients, ListTimeline, Operation, OperationPatch, OperationWrite,
 };
 use crate::{
     app_state::AppState,
@@ -21,6 +22,7 @@ use crate::{
 
 pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
+        .routes(routes!(dashboard::summary))
         .routes(routes!(list_cases))
         .routes(routes!(get_case))
         .routes(routes!(loan_pdf::download))
@@ -33,19 +35,29 @@ pub fn router() -> OpenApiRouter<AppState> {
 
 #[utoipa::path(
     get, path = "/api/v1/expedientes", tag = "Clients", security(("bearer_auth" = [])),
-    params(ListClients),
+    params(ListCases),
     responses(
-        (status = 200, description = "Case files with their client and vehicle, newest first", body = CasePage),
+        (status = 200, description = "Case files for one company, with their client and vehicle, newest first", body = CasePage),
         (status = 401, body = ErrorEnvelope), (status = 403, body = ErrorEnvelope),
+        (status = 404, description = "Company not found or not accessible", body = ErrorEnvelope),
         (status = 422, body = ErrorEnvelope)
     )
 )]
 async fn list_cases(
     State(state): State<AppState>,
-    ApiQuery(query): ApiQuery<ListClients>,
+    Extension(user): Extension<AuthUser>,
+    ApiQuery(query): ApiQuery<ListCases>,
 ) -> Result<Json<CasePage>, ApiError> {
     if query.q.as_ref().is_some_and(|q| q.contains('\0')) {
         return Err(ApiError::Validation("Valor inválido para q.".to_owned()));
+    }
+    let allowed: bool = sqlx::query_scalar("SELECT yzy_contracts.has_company_membership($1, $2)")
+        .bind(user.id)
+        .bind(query.company_id)
+        .fetch_one(&state.db)
+        .await?;
+    if !allowed {
+        return Err(ApiError::CompanyNotFound);
     }
     Ok(Json(repository::list_cases(&state.db, &query).await?))
 }

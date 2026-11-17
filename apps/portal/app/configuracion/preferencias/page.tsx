@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 import { DocumentPreferences } from "./document-preferences";
 
 export const metadata: Metadata = {
@@ -14,7 +14,7 @@ export default function PreferencesPage() {
       currentPage="/configuracion"
       title="Preferencias"
       description="Elige el formato de salida y tus preferencias de correo."
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
     >
       <DocumentPreferences />
     </PortalShell>

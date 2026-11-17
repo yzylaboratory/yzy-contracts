@@ -33,10 +33,14 @@ async function listOperationContracts(accountId: string, companyId: string, sign
   return contracts;
 }
 
-export async function listDocumentTemplates(accountId: string, companyId: string, type: DocumentType, signal: AbortSignal) {
+export type LoadedDocumentTemplate = {
+  contract: Contract;
+  template: Awaited<ReturnType<typeof getTemplate>>;
+};
+
+export async function loadOperationDocxTemplates(accountId: string, companyId: string, signal: AbortSignal): Promise<LoadedDocumentTemplate[]> {
   const contracts = (await listOperationContracts(accountId, companyId, signal)).filter(contract => contract.original_file_name.toLowerCase().endsWith(".docx"));
-  const matching: Contract[] = [];
-  const compatible: Contract[] = [];
+  const loaded: LoadedDocumentTemplate[] = [];
   for (let index = 0; index < contracts.length && !signal.aborted; index += 8) {
     const templates = await Promise.all(contracts.slice(index, index + 8).map(async contract => {
       if (!contract.template_id) return;
@@ -48,14 +52,22 @@ export async function listDocumentTemplates(accountId: string, companyId: string
       }
     }));
     for (const entry of templates) {
-      if (!entry) continue;
-      const { contract, template } = entry;
-      const keys = template.native_variables?.map(field => field.key);
-      if (!keys) continue;
-      const match = matchDocumentTemplate(type, contract.name, keys);
-      if (match === "matching") matching.push(contract);
-      if (match === "compatible") compatible.push(contract);
+      if (entry) loaded.push(entry);
     }
+  }
+  return loaded;
+}
+
+export async function listDocumentTemplates(accountId: string, companyId: string, type: DocumentType, signal: AbortSignal) {
+  const entries = await loadOperationDocxTemplates(accountId, companyId, signal);
+  const matching: Contract[] = [];
+  const compatible: Contract[] = [];
+  for (const { contract, template } of entries) {
+    const keys = template.native_variables?.map(field => field.key);
+    if (!keys) continue;
+    const match = matchDocumentTemplate(type, contract.name, keys);
+    if (match === "matching") matching.push(contract);
+    if (match === "compatible") compatible.push(contract);
   }
   return { matching, compatible };
 }

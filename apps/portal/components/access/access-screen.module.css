@@ -17,13 +17,10 @@
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; }
 .mark {
-  display: grid;
+  display: block;
+  flex: none;
   width: 34px;
   aspect-ratio: 1;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--accent);
-  color: var(--accent-foreground, #161714);
 }
 .icon { color: var(--text-secondary); }
 .content { display: grid; gap: 18px; }
@@ -53,7 +50,7 @@
   font-size: var(--text-sm);
 }
 
-.page[data-status] .mark { width: 28px; border-radius: 8px; }
+.page[data-status] .mark { width: 28px; }
 
 .page[data-status] .content {
   justify-items: center;

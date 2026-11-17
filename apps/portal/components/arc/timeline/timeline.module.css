@@ -1,13 +1,34 @@
-.timeline { display: grid; gap: 24px; }
-.timeline .day > h3 {
-  margin: 0 0 10px;
-  padding-block-end: 8px;
+.timeline { display: grid; gap: 12px; }
+.daySummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 36px;
+  padding-block: 6px;
   border-block-end: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
 }
-.day > h3::first-letter { text-transform: uppercase; }
+.daySummary::-webkit-details-marker { display: none; }
+.daySummary::before {
+  flex: none;
+  inline-size: 7px;
+  block-size: 7px;
+  border-block-end: 1.5px solid currentColor;
+  border-inline-end: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms ease-out;
+  content: "";
+}
+.day[open] > .daySummary { margin-block-end: 10px; }
+.day[open] > .daySummary::before { transform: rotate(45deg); }
+.daySummary:hover h3 { color: var(--foreground); }
+.daySummary:focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+.daySummary h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.daySummary h3::first-letter { text-transform: uppercase; }
+.dayCount { margin-inline-start: auto; font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .daySummary::before { transition: none; } }
 .events { padding: 0; margin: 0; list-style: none; }
 .event {
   --marker: var(--text-secondary);

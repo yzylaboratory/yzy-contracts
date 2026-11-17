@@ -35,21 +35,30 @@ export type Financing = {
   monthly_plan?: MonthlyPlan;
 };
 
+export type OperationStatus = "solicitud" | "en_proceso" | "firma" | "desembolso" | "cerrado";
+
 export type OperationWrite = {
   contract_id?: string | null;
   reference?: string | null;
   contract_date?: string | null;
   signature_date?: string | null;
+  status?: OperationStatus;
   vehicle: Vehicle;
   financing?: Financing | null;
   application?: CaseApplication | null;
+  insurance_installment_minor?: number | null;
 };
 
 export type OperationPatch = Partial<OperationWrite> & { extraordinary_payment_amounts_minor?: number[] };
 
 type AuditFields = { id: string; created_at: string; updated_at: string };
 export type Client = ClientWrite & AuditFields;
-export type Operation = OperationWrite & AuditFields & { contract_id: string | null; client_id: string; company_id: string };
+export type Operation = Omit<OperationWrite, "status"> & AuditFields & {
+  contract_id: string | null;
+  client_id: string;
+  company_id: string;
+  status: OperationStatus;
+};
 type DirectoryPage<T> = { items: T[]; page: number; per_page: number; total: number };
 export type ClientPage = DirectoryPage<Client>;
 export type ExpedienteListItem = {
@@ -61,6 +70,7 @@ export type ExpedienteListItem = {
   company_name: string;
   reference: string | null;
   contract_date: string | null;
+  status: OperationStatus;
   vehicle: Vehicle;
   created_at: string;
 };
@@ -87,6 +97,7 @@ function operationPath(companyId: string, clientId: string, operationId: string)
 }
 
 type DirectoryQuery = { page: number; perPage: number; search: string };
+type ExpedienteQuery = DirectoryQuery & { companyId: string };
 
 function directoryParams(query: DirectoryQuery) {
   const params = new URLSearchParams({ page: String(query.page), per_page: String(query.perPage) });
@@ -98,8 +109,10 @@ export function listClients(accountId: string, query: DirectoryQuery, signal: Ab
   return api<ClientPage>(`/clients?${directoryParams(query)}`, { expectedAccountId: accountId, signal });
 }
 
-export function listExpedientes(accountId: string, query: DirectoryQuery, signal: AbortSignal) {
-  return api<ExpedientePage>(`/expedientes?${directoryParams(query)}`, { expectedAccountId: accountId, signal });
+export function listExpedientes(accountId: string, query: ExpedienteQuery, signal: AbortSignal) {
+  const params = directoryParams(query);
+  params.set("company_id", query.companyId);
+  return api<ExpedientePage>(`/expedientes?${params}`, { expectedAccountId: accountId, signal });
 }
 
 export function getExpediente(accountId: string, expedienteId: string, signal?: AbortSignal) {

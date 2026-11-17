@@ -11,6 +11,10 @@ use crate::{
     app_state::AppState,
     error::{ApiError, ErrorEnvelope},
     modules::access::{self, CompanyAccess, Notice},
+    modules::billing::{
+        dto::{BillingAlert, BillingAlertKind},
+        repository::{self as billing_repo, REMINDER_DAY_OFFSET, SUSPEND_DAY_OFFSET},
+    },
 };
 
 pub use middleware::AuthUser;
@@ -37,12 +41,14 @@ pub struct MeResponse {
     pub access: AccessStatus,
     pub companies: Vec<CompanyAccess>,
     pub notice: Option<Notice>,
+    /// Pending membership payment alert for billing managers (from day 7).
+    pub billing_alert: Option<BillingAlert>,
     pub can_manage_billing: bool,
     /// Active companies assigned to this billing manager.
     pub billing_company_ids: Vec<Uuid>,
-    /// Companies whose workspace is blocked by an overdue invoice.
+    /// Companies whose workspace is suspended (unpaid past day 15).
     pub overdue_company_ids: Vec<Uuid>,
-    /// Blocked companies with an overdue invoice in a billing account the caller can manage.
+    /// Suspended companies in a billing account the caller can manage.
     pub manageable_overdue_company_ids: Vec<Uuid>,
     /// Maximum accepted size, in bytes, for an original contract upload.
     pub upload_max_bytes: i64,
@@ -101,14 +107,42 @@ pub async fn me(
         (true, companies.iter().map(|company| company.id).collect())
     } else if user.enabled {
         sqlx::query_as(
-            "SELECT EXISTS (SELECT 1 FROM yzy_contracts.billing_accounts WHERE manager_user_id = $1),
-                    ARRAY(SELECT yzy_contracts.billing_companies_for($1))",
+            "SELECT EXISTS (
+               SELECT 1 FROM yzy_contracts.billing_account_managers WHERE user_id = $1
+             ),
+             ARRAY(SELECT yzy_contracts.billing_companies_for($1))",
         )
         .bind(user.id)
         .fetch_one(&state.db)
         .await?
     } else {
         (false, Vec::new())
+    };
+    let suspended = if user.enabled && !user.superadmin {
+        billing_repo::suspended_company_ids(&state.db).await?
+    } else {
+        Vec::new()
+    };
+    let company_set: std::collections::HashSet<_> =
+        companies.iter().map(|company| company.id).collect();
+    let overdue_company_ids: Vec<Uuid> = suspended
+        .iter()
+        .copied()
+        .filter(|id| company_set.contains(id))
+        .collect();
+    let manageable_overdue_company_ids: Vec<Uuid> = if can_manage_billing {
+        overdue_company_ids
+            .iter()
+            .copied()
+            .filter(|id| billing_company_ids.contains(id))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let billing_alert = if can_manage_billing && !user.superadmin {
+        billing_alert_for(&state.db, user.id).await?
+    } else {
+        None
     };
     Ok(Json(MeResponse {
         id: user.id,
@@ -125,12 +159,48 @@ pub async fn me(
         },
         companies,
         notice: None,
+        billing_alert,
         can_manage_billing,
         billing_company_ids,
-        overdue_company_ids: Vec::new(),
-        manageable_overdue_company_ids: Vec::new(),
+        overdue_company_ids,
+        manageable_overdue_company_ids,
         upload_max_bytes: state.config.upload_max_bytes,
         onboarding_pending: false,
+    }))
+}
+
+async fn billing_alert_for(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+) -> Result<Option<BillingAlert>, ApiError> {
+    let Some(row) = billing_repo::pending_alert_for_manager(db, user_id).await? else {
+        return Ok(None);
+    };
+    let reminder_on = row
+        .period
+        .checked_add_days(chrono::Days::new(REMINDER_DAY_OFFSET as u64))
+        .unwrap_or(row.period);
+    let suspend_on = row
+        .period
+        .checked_add_days(chrono::Days::new(SUSPEND_DAY_OFFSET as u64))
+        .unwrap_or(row.period);
+    let kind = if row.today >= suspend_on {
+        BillingAlertKind::Suspended
+    } else if row.today > row.due_on {
+        BillingAlertKind::Overdue
+    } else if row.today == row.due_on {
+        BillingAlertKind::DueToday
+    } else if row.today >= reminder_on {
+        BillingAlertKind::PaymentReminder
+    } else {
+        return Ok(None);
+    };
+    Ok(Some(BillingAlert {
+        kind,
+        invoice_id: row.invoice_id,
+        account_name: row.account_name,
+        due_on: row.due_on,
+        total_minor: row.total_minor,
     }))
 }
 

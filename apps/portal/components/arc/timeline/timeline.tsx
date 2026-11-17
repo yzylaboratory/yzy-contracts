@@ -22,19 +22,27 @@ export type TimelineItem = {
 
 /** Display entries in the order supplied by the caller, grouped by local date. */
 export function Timeline({ items }: { items: TimelineItem[] }) {
-  const groups: { day: string; items: TimelineItem[] }[] = [];
+  const groups: { day: string; latest: number; items: TimelineItem[] }[] = [];
   for (const item of items) {
     const day = date.format(new Date(item.dateTime));
+    const time = new Date(item.dateTime).getTime();
     const previous = groups.at(-1);
-    if (previous?.day === day) previous.items.push(item);
-    else groups.push({ day, items: [item] });
+    if (previous?.day === day) {
+      previous.items.push(item);
+      previous.latest = Math.max(previous.latest, time);
+    } else groups.push({ day, latest: time, items: [item] });
   }
+  // Only the day closest to today starts expanded; the rest start collapsed.
+  const openDay = groups.reduce<(typeof groups)[number] | undefined>((best, group) => !best || group.latest > best.latest ? group : best, undefined)?.day;
 
   return (
     <div className={styles.timeline}>
       {groups.map(group => (
-        <div className={styles.day} key={group.day}>
-          <h3>{group.day}</h3>
+        <details className={styles.day} key={group.day} open={group.day === openDay}>
+          <summary className={styles.daySummary}>
+            <h3>{group.day}</h3>
+            <span className={styles.dayCount}>{group.items.length === 1 ? "1 evento" : `${group.items.length} eventos`}</span>
+          </summary>
           <ol className={styles.events} role="list">
             {group.items.map(item => (
               <li key={item.id} className={styles.event} data-tone={item.status?.tone}>
@@ -48,7 +56,7 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
               </li>
             ))}
           </ol>
-        </div>
+        </details>
       ))}
     </div>
   );

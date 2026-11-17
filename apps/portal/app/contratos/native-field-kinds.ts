@@ -1,5 +1,5 @@
-import { integerWords, moneyWords } from "./expediente-fields";
-import { moneyPattern, type TemplateField, type TemplateFieldType } from "./template-fields";
+import { cedulaWords, integerWords, notarialMoneyWords } from "./expediente-fields";
+import { type TemplateField, type TemplateFieldType } from "./template-fields";
 
 /** Infers the data type of a Word variable from its name, so each one gets its own mask. */
 export function nativeFieldKind(key: string): TemplateFieldType {
@@ -14,14 +14,12 @@ export function nativeFieldKind(key: string): TemplateFieldType {
   return "text";
 }
 
-/** Minor units from a stored money value such as "RD$25,000.00 (veinticinco mil…)". */
+/** Minor units from a stored money value such as "RD$25,000.00" or notarial "… (RD$25,000.00)". */
 export function moneyMinor(value: string | undefined) {
-  const amount = value?.trim().replace(/\s*\(.*\)$/, "");
-  if (!amount || !moneyPattern.test(amount)) return null;
-  return Math.round(Number(amount.replace(/[^\d.]/g, "")) * 100);
+  const match = value?.trim().match(/RD\$\d{1,3}(?:,\d{3})*\.\d{2}/);
+  if (!match) return null;
+  return Math.round(Number(match[0].replace(/[^\d.]/g, "")) * 100);
 }
-
-const identityWords = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"];
 
 /** Variables ending in _letras are written out from their numeric pair instead of being typed. */
 export function wordsSource(key: string, fields: readonly TemplateField[]) {
@@ -34,14 +32,16 @@ export function wordsFor(source: TemplateField, value: string | undefined) {
   const text = value?.trim() ?? "";
   if (source.kind === "money") {
     const minor = moneyMinor(text);
-    return minor === null ? "" : moneyWords(minor);
+    return minor === null ? "" : notarialMoneyWords(minor);
   }
-  if (source.kind === "integer") return /^\d+$/.test(text) ? integerWords(Number(text)) : "";
+  if (source.kind === "integer") {
+    return /^\d+$/.test(text)
+      ? integerWords(Number(text)).normalize("NFD").replace(/\p{M}/gu, "").toUpperCase()
+      : "";
+  }
   if (source.kind === "identity") {
-    const digits = text.replace(/\D/g, "");
-    if (digits.length !== 11) return "";
-    return [digits.slice(0, 3), digits.slice(3, 10), digits.slice(10)]
-      .map(group => Array.from(group, digit => identityWords[Number(digit)]).join(" ")).join(" guion ");
+    const words = cedulaWords(text);
+    return words ? words.toUpperCase() : "";
   }
   return "";
 }
@@ -62,7 +62,8 @@ const sectionOrder: FieldSection[] = ["dates", "client", "vehicle", "financing",
 /** Groups contract variables by what they describe, so the form reads in the order a sale is negotiated. */
 export function fieldSection(key: string): FieldSection {
   if (/abono/.test(key)) return "extraordinary";
-  if (/cuota|financiamiento|capital|saldo|interes/.test(key)) return "financing";
+  if (key === "empresa_mora_diaria_porcentaje" || key === "porcentaje_de_mora_diaria_sobre_la_cuota"
+    || /cuota|financiamiento|capital|saldo|interes/.test(key)) return "financing";
   if (key.startsWith("cliente_")) return "client";
   if (key.startsWith("vehiculo_")) return "vehicle";
   if (key.startsWith("fecha_")) return "dates";

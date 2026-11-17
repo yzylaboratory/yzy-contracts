@@ -3,17 +3,17 @@ import { applicationAmountLabel, applicationDateLabel } from "@/components/case-
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { defaultExtraordinaryPayments, expedienteExtraordinaryPayments, extraordinaryPaymentDates, paymentDateAfterMonths } from "@/app/contratos/expediente-fields";
-import { amountInputValue, parseAmountMinor } from "./amount-input";
+import { MoneyField } from "@/app/contratos/money-field";
+import { formatMoneyInput, parseAmountMinor } from "./amount-input";
 import { clientScope, useClientDraft, useClientSave } from "./client-navigation";
 import { saveOperation, type Operation } from "./clients-api";
-import { calculateMonthlyPayments, installmentDraft, maxMonthlyInstallments, validateMonthlyPayments, type InstallmentDraft } from "./monthly-payment-plan";
+import { installmentDraft, maxMonthlyInstallments, planCalculationOutOfRange, planFromInputs, validateMonthlyPayments, type InstallmentDraft } from "./monthly-payment-plan";
 import styles from "./clients.module.css";
 
 type PaymentDraft = {
   amount: string;
   count: string;
   rows: InstallmentDraft[];
-  needsCalculation?: boolean;
   extraordinary?: Record<string, string>;
   extraordinaryCount?: number;
 };
@@ -34,7 +34,7 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
     if (!existing) return { amount: "", count: "", rows: [] };
     const payments = [...existing.interest_installments, existing.final_principal];
     const amount = existing.interest_installments[0]?.amount_minor ?? Math.max(0, existing.final_principal.amount_minor - capital);
-    return { amount: amount > 0 ? amountInputValue(amount) : "", count: String(payments.length), rows: payments.map(installmentDraft) };
+    return { amount: amount > 0 ? formatMoneyInput(amount) : "", count: String(payments.length), rows: payments.map(installmentDraft) };
   }, onDirty);
   const { save, saving, failure } = useClientSave(key, onDirty, onSaved);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -45,8 +45,7 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
   const count = /^\d+$/.test(draft.count) ? Number(draft.count) : 0;
   const validCount = Number.isInteger(count) && count >= 1 && count <= maxMonthlyInstallments;
   const signature = operation.signature_date;
-  const canCalculate = Boolean(signature) && capital > 0 && amount > 0 && validCount;
-  const calculationOutOfRange = canCalculate && (!Number.isSafeInteger(capital + count * amount) || !paymentDateAfterMonths(signature, count));
+  const calculationOutOfRange = planCalculationOutOfRange(signature, capital, draft.amount, draft.count);
   const { errors, plan, total, totalError } = validateMonthlyPayments(draft.rows, paymentDateAfterMonths(signature, maxMonthlyInstallments));
   const finalDate = amountsOnly ? operation.financing?.final_principal.date
     : errors.at(-1)?.date ? undefined : draft.rows.at(-1)?.date;
@@ -54,7 +53,7 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
   const saved = finalDate ? expedienteExtraordinaryPayments(operation, finalDate) ?? [] : [];
   const initialCount = Math.min(defaultExtraordinaryPayments, dates.length);
   const extras = dates.slice(0, draft.extraordinaryCount ?? saved.length).map((date, index) => {
-    const value = draft.extraordinary?.[date] ?? amountInputValue(saved[index]?.amount_minor ?? 0);
+    const value = draft.extraordinary?.[date] ?? formatMoneyInput(saved[index]?.amount_minor ?? 0);
     return { date, value, amount: parseAmountMinor(value) };
   });
   useEffect(() => {
@@ -64,7 +63,7 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
   }, [extras.length]);
   const validExtras = extras.every(payment => payment.amount !== undefined);
   const canSave = validExtras && Boolean(signature) &&
-    (amountsOnly ? extras.length > 0 : Boolean(plan) && !draft.needsCalculation);
+    (amountsOnly ? extras.length > 0 : Boolean(plan));
 
   function editInstallment(index: number, update: Partial<InstallmentDraft>) {
     const rows = draft.rows.map((row, position) => position === index ? { ...row, ...update } : row);
@@ -97,23 +96,30 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
     </div>)}
     <form className={styles.stack} onSubmit={submit} noValidate>
       {!amountsOnly && <fieldset className={`${styles.formFields} ${styles.alignTop}`} aria-label="Datos para calcular las cuotas" disabled={saving}>
-        <Input name="installment_amount" label="Monto de la cuota (RD$)" required inputMode="decimal" autoComplete="off"
+        <MoneyField name="installment_amount" label="Monto de la cuota" required
           value={draft.amount} error={draft.amount && amount <= 0 ? "Indica un monto mayor que cero con hasta dos decimales." : undefined}
-          onChange={event => updateDraft({ ...draft, amount: event.target.value, needsCalculation: true })} />
+          onValueChange={nextAmount => {
+            if (draft.rows.length > 0 && parseAmountMinor(nextAmount) === parseAmountMinor(draft.amount)) {
+              updateDraft({ ...draft, amount: nextAmount });
+              return;
+            }
+            updateDraft({
+              ...planFromInputs(signature, capital, nextAmount, draft.count),
+              extraordinary: draft.extraordinary, extraordinaryCount: draft.extraordinaryCount,
+            });
+          }} />
         <Input name="installment_count" label="Cantidad de cuotas" required type="number" min={1} max={maxMonthlyInstallments} step={1}
           description="Incluye la última cuota, a la que se suma el capital financiado."
           value={draft.count} error={draft.count && !validCount ? `Indica entre 1 y ${maxMonthlyInstallments} cuotas.` : undefined}
-          onChange={event => updateDraft({ ...draft, count: event.target.value, needsCalculation: true })} />
+          onChange={event => updateDraft({
+            ...planFromInputs(signature, capital, draft.amount, event.target.value),
+            extraordinary: draft.extraordinary, extraordinaryCount: draft.extraordinaryCount,
+          })} />
       </fieldset>}
       {!amountsOnly && <>
-        <Button className={styles.alignStart} type="button" variant="secondary" disabled={!canCalculate || calculationOutOfRange || saving}
-          aria-describedby={draft.rows.length ? "recalculate-installments-hint" : undefined}
-          onClick={() => updateDraft({ ...draft, rows: calculateMonthlyPayments(signature, amount, count, capital).map(installmentDraft), needsCalculation: false })}>
-          {draft.rows.length ? "Recalcular cuotas" : "Generar cuotas"}
-        </Button>
         {calculationOutOfRange && <p className={styles.failure} role="alert">El calendario o el total supera el rango permitido. Revisa el monto y la cantidad de cuotas.</p>}
         {draft.rows.length > 0 && <>
-          <p id="recalculate-installments-hint" className={styles.muted}>Puedes editar cada fecha y monto en la tabla. Si recalculas, se reemplazarán las cuotas de la tabla.</p>
+          <p className={styles.muted}>Puedes editar cada fecha y monto en la tabla. Si cambias el monto o la cantidad, se regeneran las cuotas.</p>
           <fieldset className={styles.paymentTableFieldset} disabled={saving}>
             <div className={styles.paymentTableFrame} role="region" aria-label="Calendario de cuotas" tabIndex={0}>
               <table className={`${styles.paymentTable} ${styles.editablePaymentTable}`}>
@@ -123,8 +129,8 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
                   <th scope="row">{index + 1}{index === draft.rows.length - 1 && " · Cuota final"}</th>
                   <td><Input name={`installment-date-${index}`} label={`Vencimiento de la cuota ${index + 1}`} type="date" required
                     value={row.date} error={errors[index].date} onChange={event => editInstallment(index, { date: event.target.value })} /></td>
-                  <td><Input name={`installment-amount-${index}`} label={`Monto de la cuota ${index + 1} (RD$)`} inputMode="decimal" autoComplete="off" required
-                    value={row.amount} error={errors[index].amount} onChange={event => editInstallment(index, { amount: event.target.value })} /></td>
+                  <td><MoneyField name={`installment-amount-${index}`} label={`Monto de la cuota ${index + 1}`} required
+                    value={row.amount} error={errors[index].amount} onValueChange={nextAmount => editInstallment(index, { amount: nextAmount })} /></td>
                 </tr>)}</tbody>
                 {plan && <tfoot><tr><th scope="row" colSpan={2}>Total de cuotas</th><td>{applicationAmountLabel(total)}</td></tr></tfoot>}
               </table>
@@ -136,12 +142,12 @@ export function MonthlyPaymentEditor({ accountId, operation, amountsOnly = false
       {extras.length > 0 && <fieldset className={styles.sectionFields} disabled={saving}>
         <legend>Abonos extraordinarios</legend>
         <div className={styles.formFields}>
-          {extras.map(({ date, value, amount }, index) => <Input key={date} name={`extraordinary-${date}`}
+          {extras.map(({ date, value, amount }, index) => <MoneyField key={date} name={`extraordinary-${date}`}
             ref={index === extras.length - 1 ? newExtraordinary : undefined}
-            label={`Monto del abono ${index + 1} (RD$)`} description={applicationDateLabel(date)}
-            inputMode="decimal" autoComplete="off" value={value}
+            label={`Monto del abono ${index + 1}`} description={applicationDateLabel(date)}
+            value={value}
             error={amount === undefined ? "Escribe un monto válido con hasta dos decimales." : undefined}
-            onChange={event => updateDraft({ ...draft, extraordinary: { ...draft.extraordinary, [date]: event.target.value } })} />)}
+            onValueChange={nextValue => updateDraft({ ...draft, extraordinary: { ...draft.extraordinary, [date]: nextValue } })} />)}
         </div>
         {(extras.length > initialCount || extras.length < dates.length) && <div className={styles.actions}>
           {extras.length > initialCount && <Button type="button" variant="secondary" onClick={() => {

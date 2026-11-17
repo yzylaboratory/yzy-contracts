@@ -22,6 +22,7 @@ pub(super) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(requests))
         .routes(routes!(users))
         .routes(routes!(set_user_access))
+        .routes(routes!(set_user_billing))
         .routes(routes!(activity::list))
         .merge(activity::timeline_router())
         .routes(routes!(companies::admin_companies))
@@ -84,6 +85,8 @@ struct UserItem {
     status: UserStatus,
     company_ids: Vec<Uuid>,
     created_at: DateTime<Utc>,
+    /// Whether this person manages at least one billing account.
+    manages_billing: bool,
     notice: Option<Notice>,
 }
 
@@ -95,6 +98,7 @@ struct UserRow {
     status: String,
     company_ids: Vec<Uuid>,
     created_at: DateTime<Utc>,
+    manages_billing: bool,
     attempts: Option<i32>,
     sent: bool,
 }
@@ -115,6 +119,7 @@ impl UserRow {
             status,
             company_ids: self.company_ids,
             created_at: self.created_at,
+            manages_billing: self.manages_billing,
             notice: self
                 .attempts
                 .map(|attempts| notice_for(attempts, self.sent)),
@@ -127,7 +132,12 @@ pub(super) const USER_SOURCE: &str = "
       SELECT i.user_id AS id, i.name, i.email,
         CASE WHEN p.account_status = 'deleted' OR i.suspended THEN 'suspended'
              WHEN i.enabled_at IS NOT NULL THEN 'active' ELSE 'pending' END AS status,
-        a.ids AS company_ids, i.created_at, m.attempts, (m.sent_at IS NOT NULL) AS sent
+        a.ids AS company_ids, i.created_at,
+        EXISTS (
+          SELECT 1 FROM yzy_contracts.billing_account_managers bam
+          WHERE bam.user_id = i.user_id
+        ) AS manages_billing,
+        m.attempts, (m.sent_at IS NOT NULL) AS sent
       FROM yzy_contracts.access_identities i
       JOIN yzy_contracts.profiles p ON p.user_id = i.user_id
       CROSS JOIN LATERAL (
@@ -137,7 +147,7 @@ pub(super) const USER_SOURCE: &str = "
       ) a
       LEFT JOIN yzy_contracts.access_mail m ON m.kind = 'request' AND m.reference = i.user_id::text
       UNION ALL
-      SELECT NULL, v.name, v.email, 'invited', v.company_ids, v.created_at,
+      SELECT NULL, v.name, v.email, 'invited', v.company_ids, v.created_at, false,
         m.attempts, (m.sent_at IS NOT NULL)
       FROM yzy_contracts.access_invitations v
       LEFT JOIN yzy_contracts.access_mail m ON m.kind = 'invitation' AND m.reference = v.email
@@ -145,7 +155,7 @@ pub(super) const USER_SOURCE: &str = "
     )";
 
 const USER_ROWS: &str = "
-    SELECT id, name, email, status, company_ids, created_at, attempts, sent
+    SELECT id, name, email, status, company_ids, created_at, manages_billing, attempts, sent
     FROM people
 ";
 
@@ -281,5 +291,101 @@ async fn set_user_access(
         .bind(id)
         .fetch_one(&state.db)
         .await?;
+    Ok(Json(row.wire()?))
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct UserBilling {
+    /// `true` assigns the person as billing manager of every account; `false` removes that role.
+    manages_billing: bool,
+}
+
+/// Assigns or removes a person as billing manager of every billing account.
+#[utoipa::path(
+    put, path = "/api/v1/admin/users/{id}/billing", tag = "Administration", security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "User ID")), request_body = UserBilling,
+    responses(
+        (status = 200, body = UserItem),
+        (status = 403, body = ErrorEnvelope),
+        (status = 404, description = "The person has not signed in to YZY Contracts", body = ErrorEnvelope),
+        (status = 422, description = "Only enabled users can manage billing, and each account needs a manager", body = ErrorEnvelope),
+    )
+)]
+async fn set_user_billing(
+    State(state): State<AppState>,
+    ApiPath(id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<UserBilling>,
+) -> Result<Json<UserItem>, ApiError> {
+    if state.config.superadmin_id == Some(id) {
+        return Err(ApiError::Validation(
+            "El superadministrador ya administra la facturación.".to_owned(),
+        ));
+    }
+    let mut tx = state.db.begin().await?;
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM yzy_contracts.access_identities WHERE user_id = $1)",
+    )
+    .bind(id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if !exists {
+        return Err(ApiError::AccessUserNotFound);
+    }
+    if body.manages_billing {
+        let enabled: bool = sqlx::query_scalar("SELECT yzy_contracts.has_enabled_access($1)")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+        if !enabled {
+            return Err(ApiError::Validation(
+                "Habilita el acceso de la persona antes de asignarla como responsable de facturación."
+                    .to_owned(),
+            ));
+        }
+        sqlx::query(
+            "INSERT INTO yzy_contracts.billing_account_managers (account_id, user_id)
+             SELECT a.id, $1 FROM yzy_contracts.billing_accounts a
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    } else {
+        let Some(fallback) = state.config.superadmin_id else {
+            return Err(ApiError::Validation(
+                "No hay superadministrador configurado para conservar las cuentas sin responsable."
+                    .to_owned(),
+            ));
+        };
+        sqlx::query(
+            "UPDATE yzy_contracts.billing_accounts
+             SET manager_user_id = $2
+             WHERE manager_user_id = $1",
+        )
+        .bind(id)
+        .bind(fallback)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO yzy_contracts.billing_account_managers (account_id, user_id)
+             SELECT a.id, a.manager_user_id FROM yzy_contracts.billing_accounts a
+             WHERE a.manager_user_id = $1
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(fallback)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM yzy_contracts.billing_account_managers WHERE user_id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    let sql = format!("{USER_SOURCE}{USER_ROWS} WHERE id = $1");
+    let row: UserRow = sqlx::query_as(sqlx::AssertSqlSafe(sql))
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
+    tx.commit().await?;
     Ok(Json(row.wire()?))
 }

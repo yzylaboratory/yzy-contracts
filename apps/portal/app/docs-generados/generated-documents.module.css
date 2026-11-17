@@ -69,13 +69,13 @@
 }
 
 .format[data-format="pdf"] {
-  background: #fdecea;
-  color: #9d2016;
+  background: var(--format-pdf-surface);
+  color: var(--format-pdf-ink);
 }
 
 .format[data-format="docx"] {
-  background: #e6eefb;
-  color: #184e9f;
+  background: var(--format-word-surface);
+  color: var(--format-word-ink);
 }
 
 .ellipsis {

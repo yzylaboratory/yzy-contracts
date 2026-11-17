@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 const ACCOUNTS: &str = "/api/v1/admin/billing/accounts";
 const BANK_ACCOUNT: &str = "/api/v1/admin/billing/bank-account";
+const PRICING: &str = "/api/v1/admin/billing/pricing";
 const BILLING: &str = "/api/v1/billing";
 const INVOICES: &str = "/api/v1/admin/billing/invoices";
 const DASHBOARD: &str = "/api/v1/admin/dashboard";
@@ -283,6 +284,91 @@ async fn billing_creation_requires_a_configured_transfer_destination() {
 }
 
 #[tokio::test]
+async fn admin_can_change_membership_price_and_exchange_rate() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let manager = app.pending_user().await;
+    let company = app
+        .legacy_company(admin, "Empresa con precio personalizado")
+        .await;
+    assert_eq!(app.get(manager, ME).await.0, StatusCode::OK);
+    assert_eq!(
+        app.put(
+            admin,
+            &format!("/api/v1/admin/users/{}/access", manager.id),
+            json!({"enabled": true}),
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    let (status, pricing) = app.get(admin, PRICING).await;
+    assert_eq!(status, StatusCode::OK, "{pricing}");
+    assert_eq!(pricing["price_usd_minor"], 15_000);
+    assert_eq!(pricing["exchange_rate_milli"], 60_000);
+    assert_eq!(pricing["unit_price_minor"], 900_000);
+    assert_eq!(app.get(manager, PRICING).await.0, StatusCode::FORBIDDEN);
+
+    let (status, updated) = app
+        .put(
+            admin,
+            PRICING,
+            json!({
+                "price_usd_minor": 15_000,
+                "exchange_rate_milli": 63_000,
+                "expected_revision": pricing["revision"],
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{updated}");
+    assert_eq!(updated["unit_price_minor"], 945_000);
+    assert_eq!(
+        app.put(
+            admin,
+            PRICING,
+            json!({
+                "price_usd_minor": 20_000,
+                "exchange_rate_milli": 63_000,
+                "expected_revision": pricing["revision"],
+            }),
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
+
+    let this_month: String = sqlx::query_scalar(
+        "SELECT date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo')::date::text",
+    )
+    .fetch_one(&app.admin)
+    .await
+    .unwrap();
+    let mut input = account("Cuenta con override", manager, &[company]);
+    input["starts_on"] = json!(this_month);
+    let (status, created) = app.post(admin, ACCOUNTS, input).await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let (status, saved) = app
+        .put(
+            admin,
+            &format!("{ACCOUNTS}/{}", created["id"].as_str().unwrap()),
+            json!({
+                "name": created["name"],
+                "manager_user_id": manager.id,
+                "company_ids": [company],
+                "company_prices": [{"company_id": company, "price_usd_minor": 10000}],
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["companies"][0]["price_usd_minor"], 10_000);
+    assert_eq!(saved["companies"][0]["unit_price_minor"], 630_000);
+    assert_eq!(saved["monthly_total_minor"], 630_000);
+    let overview = app.get(manager, BILLING).await.1;
+    assert_eq!(overview["pricing"]["unit_price_minor"], 945_000);
+    assert_eq!(overview["invoices"][0]["total_minor"], 630_000);
+}
+
+#[tokio::test]
 async fn only_admin_can_replace_the_transfer_destination_without_disturbing_reports() {
     let app = TestApp::start().await;
     let admin = app.superadmin().await;
@@ -543,32 +629,33 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
     assert_eq!(status, StatusCode::CREATED, "{created}");
     let overview = app.get(manager, BILLING).await.1;
     let invoice = &overview["invoices"][0];
-    assert_eq!(invoice["total_minor"], 400000);
+    // Default pricing: USD 150 × 60.000 DOP = RD$9,000 (900_000 minor) per company.
+    assert_eq!(invoice["total_minor"], 1_800_000);
     assert_eq!(invoice["renewal_month_limit"], 12);
     let id = invoice["id"].as_str().unwrap();
     let report_url = format!("{BILLING}/invoices/{id}/transfer");
     let verification = format!("{INVOICES}/{id}/verification");
 
     let invalid =
-        json!({"reference": "DEMO-RENOVACION", "months": 13, "expected_total_minor": 720000});
+        json!({"reference": "DEMO-RENOVACION", "months": 13, "expected_total_minor": 3_240_000});
     assert_eq!(
         app.put(manager, &report_url, invalid).await.0,
         StatusCode::UNPROCESSABLE_ENTITY
     );
     let wrong =
-        json!({"reference": "DEMO-RENOVACION", "months": 2, "expected_total_minor": 800000});
+        json!({"reference": "DEMO-RENOVACION", "months": 2, "expected_total_minor": 3_600_000});
     assert_eq!(
         app.put(manager, &report_url, wrong).await.0,
         StatusCode::CONFLICT
     );
     let two_months =
-        json!({"reference": "DEMO-RENOVACION", "months": 2, "expected_total_minor": 720000});
+        json!({"reference": "DEMO-RENOVACION", "months": 2, "expected_total_minor": 3_240_000});
     let (status, reported) = app.put(manager, &report_url, two_months.clone()).await;
     assert_eq!(status, StatusCode::OK, "{reported}");
     assert_eq!(reported["state"], "in_review");
     assert_eq!(reported["months"], 2);
-    assert_eq!(reported["discount_minor"], 80000);
-    assert_eq!(reported["total_minor"], 720000);
+    assert_eq!(reported["discount_minor"], 360_000);
+    assert_eq!(reported["total_minor"], 3_240_000);
     assert!(reported["transfer_reported_at"].is_string());
     let first_report = &reported["transfer_report_id"];
     let (status, review_page) = app
@@ -624,7 +711,7 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
     assert_eq!(status, StatusCode::OK, "{dashboard}");
     let collections = &dashboard["collections"];
     assert_eq!(collections["transfers_to_review"], 1);
-    assert_eq!(collections["transfers_to_review_minor"], 720000);
+    assert_eq!(collections["transfers_to_review_minor"], 3_240_000);
     assert_eq!(collections["overdue_invoices"], 0);
     assert_eq!(collections["confirmed_this_month_minor"], 0);
     assert_eq!(
@@ -664,13 +751,13 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
         .await;
     assert_eq!(rejected.0, StatusCode::OK, "{}", rejected.1);
     assert_eq!(rejected.1["months"], 1);
-    assert_eq!(rejected.1["total_minor"], 400000);
+    assert_eq!(rejected.1["total_minor"], 1_800_000);
 
-    let year = json!({"reference":"DEMO-DOCE-MESES","months":12,"expected_total_minor":4320000});
+    let year = json!({"reference":"DEMO-DOCE-MESES","months":12,"expected_total_minor":19_440_000});
     let (status, reported) = app.put(manager, &report_url, year).await;
     assert_eq!(status, StatusCode::OK, "{reported}");
-    assert_eq!(reported["discount_minor"], 480000);
-    assert_eq!(reported["total_minor"], 4320000);
+    assert_eq!(reported["discount_minor"], 2_160_000);
+    assert_eq!(reported["total_minor"], 19_440_000);
     let confirmed = app
         .put(
             admin,
@@ -685,7 +772,7 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
     assert_eq!(dashboard["collections"]["transfers_to_review"], 0);
     assert_eq!(
         dashboard["collections"]["confirmed_this_month_minor"],
-        4320000
+        19_440_000
     );
     let account_id = Uuid::parse_str(created["id"].as_str().unwrap()).unwrap();
     let (count, paid): (i64, i64) = sqlx::query_as(
@@ -703,7 +790,7 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
     let next_url = format!("{BILLING}/accounts/{account_id}/renewal-invoice");
     let (status, next) = app.post(manager, &next_url, json!({})).await;
     assert_eq!(status, StatusCode::OK, "{next}");
-    assert_eq!(next["total_minor"], 400000);
+    assert_eq!(next["total_minor"], 1_800_000);
     assert_eq!(next["renewal_month_limit"], 12);
     assert_eq!(next["state"], "pending");
     let expected_period: String =
@@ -717,4 +804,59 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
         app.post(manager, &next_url, json!({})).await.1["id"],
         next["id"]
     );
+}
+
+#[tokio::test]
+async fn admin_can_assign_additional_billing_managers_from_users() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let primary = app.pending_user().await;
+    let extra = app.pending_user().await;
+    let company = app
+        .legacy_company(admin, "Empresa con varios responsables")
+        .await;
+    for user in [primary, extra] {
+        assert_eq!(app.get(user, ME).await.0, StatusCode::OK);
+        assert_eq!(
+            app.put(
+                admin,
+                &format!("/api/v1/admin/users/{}/access", user.id),
+                json!({"enabled": true}),
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
+    }
+    let (status, created) = app
+        .post(
+            admin,
+            ACCOUNTS,
+            account("Cuenta compartida", primary, &[company]),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(app.get(extra, BILLING).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(app.get(extra, ME).await.1["can_manage_billing"], false);
+
+    let billing = format!("/api/v1/admin/users/{}/billing", extra.id);
+    let (status, user) = app
+        .put(admin, &billing, json!({"manages_billing": true}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{user}");
+    assert_eq!(user["manages_billing"], true);
+    assert_eq!(app.get(extra, ME).await.1["can_manage_billing"], true);
+    assert_eq!(app.get(extra, BILLING).await.0, StatusCode::OK);
+    assert_eq!(
+        app.get(extra, BILLING).await.1["accounts"][0]["id"],
+        created["id"]
+    );
+
+    let (status, user) = app
+        .put(admin, &billing, json!({"manages_billing": false}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{user}");
+    assert_eq!(user["manages_billing"], false);
+    assert_eq!(app.get(extra, BILLING).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(app.get(primary, BILLING).await.0, StatusCode::OK);
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 
 export const metadata: Metadata = {
   title: "Solicitudes de cambio | YZY Contracts",
@@ -12,7 +12,7 @@ export default function ChangeRequestsPage() {
     <PortalShell
       currentPage="/configuracion"
       title="Solicitudes de cambio"
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
       requiresBillingAccess
     >
       {null}

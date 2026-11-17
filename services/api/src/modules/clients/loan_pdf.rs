@@ -107,12 +107,11 @@ fn template_values(
         "model",
         "year",
         "color",
-        "registration_number",
         "plate",
         "chassis_number",
         "engine_number",
     ] {
-        values[key] = json!(required(&vehicle[key], key)?);
+        values[key] = json!(required(&vehicle[key], key)?.to_uppercase());
     }
     let date = required(&application["application_date"], "application_date")?;
     let date = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")

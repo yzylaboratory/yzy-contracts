@@ -92,7 +92,6 @@ function ProfileForm({ user }: { user: User }) {
             className={styles.control}
             label="Nombre"
             name="nombre"
-            description="Los cambios de nombre se guardan en esta pestaña del navegador."
             autoComplete="name"
             placeholder="Nombre completo…"
             maxLength={100}
@@ -114,6 +113,7 @@ function ProfileForm({ user }: { user: User }) {
             readOnly
           />
         </div>
+        <p className={styles.hint}>Los cambios de nombre se guardan en esta pestaña del navegador.</p>
         {hasCustomName && <Button type="button" variant="secondary" onClick={restoreAccountName}>
           {accountName ? "Restaurar nombre de la cuenta" : "Quitar nombre personalizado"}
         </Button>}

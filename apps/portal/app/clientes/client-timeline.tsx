@@ -6,6 +6,7 @@ import { Timeline, type TimelineItem } from "@/components/arc/timeline/timeline"
 import { LoadingContent } from "@/components/loading/loading-ui";
 import { clientErrorMessage, listClientTimeline, type ClientTimelineChange, type ClientTimelineEvent, type ClientTimelinePage, type ClientTimelineValue } from "./clients-api";
 import { TimelineSkeleton } from "./clients-skeleton";
+import { operationStatusLabel } from "./expediente-status";
 import styles from "./clients.module.css";
 
 const eventLabels: Record<ClientTimelineEvent["kind"], string> = {
@@ -29,6 +30,8 @@ const fieldLabels = new Map<string, string>([
   ["reference", "Referencia del expediente"],
   ["contract_date", "Fecha del contrato"],
   ["signature_date", "Fecha de firma"],
+  ["status", "Estado"],
+  ["insurance_installment_minor", "Monto de cada cuota del seguro"],
   ["vehicle.registration_number", "Matrícula"],
   ["vehicle.chassis_number", "Chasis"],
   ["vehicle.plate", "Placa"],
@@ -66,9 +69,13 @@ function paymentAmount(minor: number) {
 
 function formatChangeValue(field: string, value: ClientTimelineValue) {
   if (value === null) return "Sin valor";
-  if (typeof value === "string") return field === "contract_date" || field === "signature_date" ? calendarDate(value) : value;
+  if (typeof value === "string") {
+    if (field === "contract_date" || field === "signature_date") return calendarDate(value);
+    if (field === "status") return operationStatusLabel(value);
+    return value;
+  }
   if (typeof value === "number") {
-    if (field === "financing.monthly_plan.capital_minor") return paymentAmount(value);
+    if (field === "financing.monthly_plan.capital_minor" || field === "insurance_installment_minor") return paymentAmount(value);
     if (field === "financing.monthly_plan.monthly_rate_basis_points") return `${numbers.format(value / 100)} %`;
     return numbers.format(value);
   }

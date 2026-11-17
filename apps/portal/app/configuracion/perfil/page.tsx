@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 import { ProfileSettings } from "./profile-settings";
 
 export const metadata: Metadata = {
@@ -14,7 +14,7 @@ export default function ProfilePage() {
       currentPage="/configuracion"
       title="Perfil"
       description="Consulta los datos de tu cuenta y edita tu nombre."
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
     >
       <ProfileSettings />
     </PortalShell>

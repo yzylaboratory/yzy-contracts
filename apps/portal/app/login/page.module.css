@@ -1,26 +1,26 @@
 .page {
-  --background: #f5f5f2;
-  --foreground: #0c0e12;
-  --surface: #fff;
-  --surface-muted: #eeeee8;
-  --text-secondary: #5e6168;
-  --text-muted: #6b6e74;
-  --border: #e4e4de;
-  --border-strong: #8b8b82;
-  --accent: #c8f031;
-  --accent-hover: #b9e41f;
-  --accent-foreground: var(--foreground);
-  --accent-strong: var(--foreground);
-  --accent-subtle: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  --background: var(--brand-stone);
+  --foreground: var(--brand-ink);
+  --surface: #fbf9f6;
+  --surface-muted: #ddd8cf;
+  --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
+  --text-muted: color-mix(in oklab, var(--brand-ink) 52%, var(--brand-stone));
+  --border: color-mix(in oklab, var(--brand-ink) 12%, var(--brand-stone));
+  --border-strong: color-mix(in oklab, var(--brand-ink) 36%, var(--brand-stone));
+  --accent: var(--brand-burgundy);
+  --accent-hover: #621823;
+  --accent-foreground: #ffffff;
+  --accent-strong: #5e1821;
+  --accent-subtle: color-mix(in oklab, var(--brand-burgundy) 12%, var(--surface));
   --focus-outline: var(--foreground);
-  --hero-text: #b8bbc4;
-  --hero-muted: #9a9da6;
-  --art-shadow-surface: #1e222b;
-  --art-shadow-border: #2c313c;
-  --art-pdf-surface: #fdecea;
-  --art-pdf-ink: #b42318;
-  --art-word-surface: #e6eefb;
-  --art-word-ink: #1f5fbf;
+  --hero-text: color-mix(in oklab, var(--brand-stone) 72%, white);
+  --hero-muted: color-mix(in oklab, var(--brand-stone) 55%, white);
+  --art-shadow-surface: color-mix(in oklab, var(--brand-ink) 88%, white);
+  --art-shadow-border: color-mix(in oklab, var(--brand-ink) 78%, white);
+  --art-pdf-surface: var(--format-pdf-surface);
+  --art-pdf-ink: var(--format-pdf-ink);
+  --art-word-surface: var(--format-word-surface);
+  --art-word-ink: var(--format-word-ink);
 
   display: grid;
   grid-template-columns: minmax(0, calc(50% + 40px)) minmax(0, 1fr);
@@ -61,29 +61,29 @@
   color: var(--surface);
 }
 
-.hero::before,
-.hero::after {
+.orbitOuter,
+.orbitInner {
   position: absolute;
   z-index: -1;
   border: 2px solid color-mix(in oklab, var(--accent) 35%, transparent);
   border-radius: 50%;
-  content: "";
   pointer-events: none;
+  will-change: transform;
 }
 
-.hero::before {
+.orbitOuter {
   inset-block-start: -140px;
   inset-inline-end: -140px;
   inline-size: 440px;
   block-size: 440px;
 }
 
-.hero::after {
+.orbitInner {
   inset-block-start: -60px;
   inset-inline-end: -60px;
   inline-size: 280px;
   block-size: 280px;
-  border-color: color-mix(in oklab, var(--accent) 20%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 22%, transparent);
 }
 
 .brand {
@@ -98,15 +98,10 @@
 }
 
 .mark {
-  display: grid;
+  display: block;
   flex: none;
-  inline-size: 36px;
-  block-size: 36px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--accent);
-  color: var(--accent-foreground);
-  font-size: 18px;
+  inline-size: 40px;
+  block-size: 40px;
 }
 
 .intro {
@@ -125,6 +120,7 @@
 }
 
 .slogan em {
+  display: inline-block;
   color: var(--accent);
   font-style: normal;
 }
@@ -166,6 +162,24 @@
   stroke-linejoin: round;
 }
 
+.stampGroup {
+  pointer-events: none;
+}
+
+.stampCircle {
+  fill: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  stroke: var(--accent);
+  stroke-width: 1.75px;
+}
+
+.stampCheck {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.25px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .art text {
   font-family: var(--font-body);
   font-size: 13px;
@@ -187,6 +201,20 @@
   color: var(--hero-muted);
   font-size: 13px;
   line-height: 16px;
+}
+
+.creditLink {
+  color: var(--hero-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, var(--hero-text) 45%, transparent);
+  transition: color 160ms ease, text-decoration-color 160ms ease;
+}
+
+.creditLink:hover {
+  color: var(--surface);
+  text-decoration-color: var(--surface);
 }
 
 .access {

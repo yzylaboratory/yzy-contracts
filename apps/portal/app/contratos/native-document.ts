@@ -185,7 +185,9 @@ export function normalizeWordTemplateLine(value: string) {
 
 export function formatWordTemplateValue(field: TemplateField, input: string) {
   const formatted = formatTemplateValue(
-    field.key === "fecha_cuota_final_capital" && field.kind === "date" ? { ...field, dateStyle: "numeric" } : field,
+    field.key === "fecha_cuota_final_capital" && field.kind === "date" && field.dateStyle !== "notarial" && field.dateStyle !== "notarialAct"
+      ? { ...field, dateStyle: "numeric" }
+      : field,
     input,
   );
   const value = multilinePaymentFields.has(field.key)
@@ -210,7 +212,7 @@ function resolveNativeTargets(segments: Segment[], variables: NativeVariable[], 
     total += occurrences;
     if (total > occurrenceLimit) throw new NativeDocumentError(invalidVariables);
     const value = formatWordTemplateValue(field, Object.hasOwn(values, key) ? values[key] : "");
-    if (!value && !allowIncomplete) throw new NativeDocumentError(`Completa el campo «${field.label}».`);
+    if (!value && field.required && !allowIncomplete) throw new NativeDocumentError(`Completa el campo «${field.label}».`);
     expected.set(key, { remaining: occurrences, value });
   }
 

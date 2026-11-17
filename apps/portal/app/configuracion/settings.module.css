@@ -1,7 +1,7 @@
 .settings {
-  --settings-control-border: #cbd0d9;
-  --settings-button-border: #cfcfc7;
-  --settings-accent-hover: #b9e41f;
+  --settings-control-border: var(--border-strong);
+  --settings-button-border: var(--border-strong);
+  --settings-accent-hover: var(--accent-hover);
   --focus-outline: var(--foreground);
 
   display: grid;
@@ -55,10 +55,12 @@
 .fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  align-items: start;
   gap: 16px;
 }
 
 .fields > div {
+  align-self: start;
   row-gap: 6px;
 }
 
@@ -164,7 +166,7 @@
 .settings .primary {
   border-color: color-mix(in oklab, var(--accent) 86%, var(--foreground));
   background: var(--accent);
-  color: var(--brand-ink);
+  color: var(--accent-foreground);
 }
 
 .settings .primary:disabled {

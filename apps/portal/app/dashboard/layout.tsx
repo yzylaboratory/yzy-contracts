@@ -6,7 +6,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <PortalShell
       currentPage="/dashboard"
       title="Dashboard"
-      description="Resumen de los contratos y documentos de toda tu cuenta."
+      description="Tiempo ahorrado, contratos pendientes de firma o desembolso y actividad por usuario."
     >
       {children}
     </PortalShell>

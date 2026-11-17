@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
@@ -33,6 +33,7 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
   onDirty: (dirty: boolean) => void;
   forLoan?: boolean;
 }) {
+  const formId = useId();
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const originalIdentity = client?.identity ?? "";
   const originalPhone = client?.phone ?? "";
@@ -51,10 +52,9 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
     profile: client?.profile ?? {},
   } satisfies ClientDraft), onDirty);
   const heading = useRef<HTMLHeadingElement>(null);
-  const requiresContractData = forLoan && !client;
   const missing = forLoan ? missingLoanClientFields(draft) : [];
-  if (requiresContractData) missing.push(...clientContractFields.filter(([key]) => !draft.profile?.[key]?.trim()).map(([, label]) => label));
   const hasRequiredFields = draft.name.trim().length > 0 && missing.length === 0;
+  const topActions = !onBack && Boolean(onCancel);
 
   useEffect(() => {
     const title = pageTitleId ? document.getElementById(pageTitleId) : heading.current;
@@ -110,8 +110,18 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
 
   return (
     <section className={styles.panel} aria-labelledby={pageTitleId ?? "client-editor-title"} data-tour={!client ? "client-form" : undefined}>
-      {!pageTitleId && <h2 id="client-editor-title" ref={heading} tabIndex={-1}>{client ? "Editar cliente" : "Nuevo cliente"}</h2>}
-      <form className={styles.stack} noValidate onSubmit={submit}>
+      {(!pageTitleId || topActions) && (
+        <div className={styles.header}>
+          {!pageTitleId && <h2 id="client-editor-title" ref={heading} tabIndex={-1}>{client ? "Editar cliente" : "Nuevo cliente"}</h2>}
+          {topActions && <div className={styles.actions}>
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => { if (onCancel?.()) discardDraft(); }}>Cancelar</Button>
+            <Button type="submit" form={formId} disabled={!hasRequiredFields} loading={saving}>{saving ? "Guardando…" : "Guardar cliente"}</Button>
+          </div>}
+        </div>
+      )}
+      {topActions && failure && <p className={styles.failure} role="alert">{failure}</p>}
+      {topActions && missing.length > 0 && <p className={styles.muted} role="status">Faltan {missing.length} datos. Siguiente pendiente: {missing[0]}.</p>}
+      <form id={formId} className={styles.stack} noValidate onSubmit={submit}>
         <fieldset className={styles.clientFormFields} aria-label="Datos del cliente" disabled={saving}>
           <Input
             label="Nombre completo"
@@ -128,7 +138,7 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
           />
 
           {clientContractFields.map(([key, label, maxLength]) => <Input key={key} name={key} label={label}
-            autoComplete="off" maxLength={maxLength} required={requiresContractData} value={draft.profile?.[key] ?? ""}
+            autoComplete="off" maxLength={maxLength} required={forLoan} value={draft.profile?.[key] ?? ""}
             onChange={event => updateDraft({ ...draft, profile: { ...draft.profile, [key]: event.target.value } })} />)}
 
           <Input
@@ -211,6 +221,7 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
           <div className={styles.clientFieldFull}>
             <Input
               label="Origen de los ingresos"
+              required={forLoan}
               name="income_source"
               description="Tipo de empleo y ocupación. Ej.: Empleado privado, contador; Trabajador independiente, electricista."
               autoComplete="off"
@@ -226,14 +237,16 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
         </fieldset>
         <ClientProfileFields data={draft.profile ?? {}} disabled={saving} forLoan={forLoan}
           onChange={profile => updateDraft({ ...draft, profile })} />
-        {failure && <p className={styles.failure} role="alert">{failure}</p>}
-        {missing.length > 0 && <p className={styles.muted} role="status">Faltan {missing.length} datos. Siguiente pendiente: {missing[0]}.</p>}
-        <div className={styles.actions}>
-          {onBack ? <Button type="button" variant="secondary" disabled={saving} onClick={onBack}>
-            <ArrowLeft size={16} aria-hidden="true" /> Atrás
-          </Button> : <Button type="button" variant="secondary" disabled={saving} onClick={() => { if (onCancel?.()) discardDraft(); }}>Cancelar</Button>}
-          <Button type="submit" disabled={!hasRequiredFields} loading={saving}>{saving ? "Guardando…" : "Guardar cliente"}</Button>
-        </div>
+        {!topActions && <>
+          {failure && <p className={styles.failure} role="alert">{failure}</p>}
+          {missing.length > 0 && <p className={styles.muted} role="status">Faltan {missing.length} datos. Siguiente pendiente: {missing[0]}.</p>}
+          <div className={styles.actions}>
+            {onBack ? <Button type="button" variant="secondary" disabled={saving} onClick={onBack}>
+              <ArrowLeft size={16} aria-hidden="true" /> Atrás
+            </Button> : <Button type="button" variant="secondary" disabled={saving} onClick={() => { if (onCancel?.()) discardDraft(); }}>Cancelar</Button>}
+            <Button type="submit" disabled={!hasRequiredFields} loading={saving}>{saving ? "Guardando…" : "Guardar cliente"}</Button>
+          </div>
+        </>}
       </form>
     </section>
   );

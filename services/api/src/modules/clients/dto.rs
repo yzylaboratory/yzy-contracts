@@ -24,6 +24,24 @@ pub(super) struct ListClients {
     pub q: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Validate, IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub(super) struct ListCases {
+    /// Company that owns the case files. Clients are global; expedientes are not.
+    pub company_id: Uuid,
+    #[serde(default = "default_page")]
+    #[validate(range(min = 1))]
+    #[param(minimum = 1, default = 1)]
+    pub page: i64,
+    #[serde(default = "default_per_page")]
+    #[validate(range(min = 1, max = 100))]
+    #[param(minimum = 1, maximum = 100, default = 20)]
+    pub per_page: i64,
+    #[validate(length(max = 200))]
+    pub q: Option<String>,
+}
+
 fn default_page() -> i64 {
     1
 }
@@ -56,6 +74,19 @@ pub(super) struct ClientPage {
     pub per_page: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
+#[derive(Default)]
+pub enum OperationStatus {
+    #[default]
+    Solicitud,
+    EnProceso,
+    Firma,
+    Desembolso,
+    Cerrado,
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub(super) struct CaseListItem {
     pub id: Uuid,
@@ -69,6 +100,7 @@ pub(super) struct CaseListItem {
     pub reference: Option<String>,
     #[schema(required = true)]
     pub contract_date: Option<NaiveDate>,
+    pub status: OperationStatus,
     pub vehicle: Vehicle,
     pub created_at: DateTime<Utc>,
 }
@@ -229,6 +261,7 @@ pub(super) struct Operation {
     pub reference: Option<String>,
     pub contract_date: Option<NaiveDate>,
     pub signature_date: Option<NaiveDate>,
+    pub status: OperationStatus,
     #[sqlx(json)]
     pub vehicle: Vehicle,
     #[sqlx(json(nullable))]
@@ -236,6 +269,8 @@ pub(super) struct Operation {
     #[sqlx(json(nullable))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub application: Option<CaseApplication>,
+    #[schema(minimum = 1, maximum = 9_007_199_254_740_991_i64)]
+    pub insurance_installment_minor: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -251,9 +286,14 @@ pub(super) struct OperationWrite {
     pub contract_date: Option<CalendarDate>,
     #[schema(value_type = Option<NaiveDate>)]
     pub signature_date: Option<CalendarDate>,
+    /// Defaults to `solicitud` when omitted.
+    #[serde(default)]
+    pub status: Option<OperationStatus>,
     pub vehicle: Vehicle,
     pub financing: Option<Financing>,
     pub application: Option<CaseApplication>,
+    #[schema(minimum = 1, maximum = 9_007_199_254_740_991_i64)]
+    pub insurance_installment_minor: Option<i64>,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
@@ -274,6 +314,9 @@ pub(super) struct OperationPatch {
     pub signature_date: Option<Option<CalendarDate>>,
     #[serde(default, deserialize_with = "non_null_patch")]
     #[schema(nullable = false)]
+    pub status: Option<OperationStatus>,
+    #[serde(default, deserialize_with = "non_null_patch")]
+    #[schema(nullable = false)]
     pub vehicle: Option<Vehicle>,
     #[serde(default, deserialize_with = "nullable_patch")]
     #[schema(value_type = Option<Financing>)]
@@ -286,6 +329,9 @@ pub(super) struct OperationPatch {
     #[serde(default, deserialize_with = "nullable_patch")]
     #[schema(value_type = Option<CaseApplication>)]
     pub application: Option<Option<CaseApplication>>,
+    #[serde(default, deserialize_with = "nullable_patch")]
+    #[schema(value_type = Option<i64>, minimum = 1, maximum = 9_007_199_254_740_991_i64)]
+    pub insurance_installment_minor: Option<Option<i64>>,
 }
 
 impl From<OperationWrite> for OperationPatch {
@@ -295,10 +341,12 @@ impl From<OperationWrite> for OperationPatch {
             reference: Some(body.reference),
             contract_date: Some(body.contract_date),
             signature_date: Some(body.signature_date),
+            status: Some(body.status.unwrap_or_default()),
             vehicle: Some(body.vehicle),
             financing: Some(body.financing),
             extraordinary_payment_amounts_minor: None,
             application: Some(body.application),
+            insurance_installment_minor: Some(body.insurance_installment_minor),
         }
     }
 }
@@ -316,6 +364,11 @@ impl OperationPatch {
         }
         if let Some(Some(application)) = &mut self.application {
             application.normalize()?;
+        }
+        if let Some(Some(amount)) = self.insurance_installment_minor
+            && !(1..=MAX_AMOUNT_MINOR).contains(&amount)
+        {
+            return Err(invalid("insurance_installment_minor"));
         }
         Ok(())
     }

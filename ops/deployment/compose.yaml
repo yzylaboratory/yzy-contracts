@@ -1,7 +1,7 @@
 name: yzy-contracts
 
 x-api-service: &api-service
-  image: yzylabs/yzy-contracts-api:case-document-data-20261113-r70
+  image: ${CONTRACTS_API_IMAGE:?set by deploy-contracts.sh}
   init: true
   restart: unless-stopped
   read_only: true
@@ -81,7 +81,7 @@ services:
       start_period: 10s
 
   portal:
-    image: yzy-contracts-portal:case-document-data-20261113-r70
+    image: ${CONTRACTS_PORTAL_IMAGE:?set by deploy-contracts.sh}
     container_name: yzy-contracts-portal
     restart: unless-stopped
     ports:

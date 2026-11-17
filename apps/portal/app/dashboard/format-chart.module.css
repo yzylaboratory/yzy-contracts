@@ -3,9 +3,9 @@
 }
 
 .chart {
-  --series-1: var(--foreground);
-  --series-2: var(--tone-violet);
-  --series-3: color-mix(in oklab, var(--text-secondary) 82%, var(--surface));
+  --series-1: var(--brand-burgundy);
+  --series-2: var(--brand-ink);
+  --series-3: color-mix(in oklab, var(--brand-ink) 45%, var(--brand-stone));
   --space-6: var(--space-3);
   --space-8: var(--space-4);
   --text-muted: var(--text-secondary);

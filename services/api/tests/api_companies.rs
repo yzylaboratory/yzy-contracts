@@ -123,8 +123,8 @@ async fn company_lifecycle_is_admin_managed_and_defaults_serialize() {
             .count(),
         1
     );
-    let active_default = path(&items[0]);
-    let remaining = path(&items[1]);
+    let active_default = path(items[0]);
+    let remaining = path(items[1]);
     let (status, list) = app.get(other, COMPANIES).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(error_code(&list), "ACCESS_PENDING");

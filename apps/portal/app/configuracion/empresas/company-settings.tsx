@@ -9,10 +9,10 @@ import { PortalShell } from "@/components/portal-shell/portal-shell";
 import { isActiveAccount } from "@/lib/api";
 import { canManageCompanyBilling, companyPickerPath, usePortalAccess } from "@/lib/portal-access";
 import { useNavigationDraft } from "@/lib/use-navigation-draft";
-import { SettingsBackLink } from "../settings";
+import { settingsBackLink } from "../settings";
 import shared from "../settings.module.css";
 import { changeCompany, companyErrorMessage, saveCompany, type Company } from "./companies-api";
-import { CompanyEditor, companyDraft, type CompanyDraft } from "./company-editor";
+import { CompanyEditor, companyDraft, withCompanyClauseDefaults, type CompanyDraft } from "./company-editor";
 import { companyFieldGroups, companyNameKey } from "./company-fields";
 import { refreshCompanyLists, useCompanies } from "./use-companies";
 import styles from "./company-settings.module.css";
@@ -32,7 +32,7 @@ export function CompanySettings({ initialCompanyId }: { initialCompanyId?: strin
       description="Consulta y edita los datos de las empresas que puedes usar para generar documentos."
       companyId={canOpenCompany ? initialCompanyId : undefined}
       requiresBillingAccess
-      breadcrumb={<SettingsBackLink />}
+      backLink={settingsBackLink}
     >
       {identity && (canOpenCompany ? <CompanyManagement key={initialCompanyId} accountId={identity.id}
         initialCompanyId={initialCompanyId} billingCompanyIds={identity.billing_company_ids} /> : (
@@ -59,7 +59,12 @@ export function CompanyManagement({ accountId, administration = false, initialCo
   const { toast } = useToastStack();
   const scope = administration ? "admin-company" : `company-settings:${initialCompanyId ?? "list"}`;
   const [draftEditor, setEditor] = useNavigationDraft<Editor | null>(accountId, scope, null);
-  const editor = administration || (draftEditor?.id && billingCompanyIds?.includes(draftEditor.id)) ? draftEditor : null;
+  const rawEditor = administration || (draftEditor?.id && billingCompanyIds?.includes(draftEditor.id)) ? draftEditor : null;
+  const editor = rawEditor ? {
+    ...rawEditor,
+    initial: withCompanyClauseDefaults(rawEditor.initial),
+    draft: withCompanyClauseDefaults(rawEditor.draft),
+  } : null;
   const [busy, setBusy] = useNavigationDraft<string | null>(accountId, `${scope}:pending`, null);
   const [failure, setFailure] = useNavigationDraft(accountId, `${scope}:failure`, "");
   const inProgress = useRef(false);
@@ -168,7 +173,7 @@ export function CompanyManagement({ accountId, administration = false, initialCo
       {editor ? (
         <CompanyEditor
           draft={editor.draft} editing={Boolean(editor.id)} busy={busy === "save"} error={failure}
-          onChange={draft => { setEditor({ ...editor, draft }); setFailure(""); }}
+          onChange={draft => { setEditor({ ...rawEditor!, draft: withCompanyClauseDefaults(draft) }); setFailure(""); }}
           onCancel={() => { if (confirmLeave()) closeEditor(); }}
           onSave={body => void mutate("save", () => saveCompany(accountId, editor.id, body), "Empresa guardada", "No se pudo guardar la empresa. Vuelve a intentarlo.")}
         />

@@ -1,4 +1,16 @@
 .workspace, .panel, .form { display: grid; gap: 16px; min-width: 0; }
+.priceFields {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.priceFields legend {
+  padding: 0;
+  font-weight: 600;
+}
 .workspace { gap: 20px; }
 .panel, .dialog {
   padding: clamp(16px, 3vw, 24px);
@@ -13,6 +25,167 @@
 .panelHeader, .actions, .retry, .statusGroup { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
 .panelHeader { justify-content: space-between; }
 .reviewQueue { scroll-margin-top: 16px; }
+.summaryHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.summaryHeader > div { display: grid; gap: 4px; }
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding-block-start: 4px;
+}
+.summaryLabel { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.summaryValue {
+  margin: 2px 0 0;
+  font: 650 1.15rem/1.25 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-display);
+}
+.membershipList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.membershipRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.membershipRow:last-child { border-bottom: 0; }
+.membershipIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--foreground);
+  background: var(--surface-muted);
+}
+.membershipBody { display: grid; gap: 4px; min-width: 0; }
+.membershipTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.membershipTitleRow strong { overflow-wrap: anywhere; }
+.membershipMeta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+.membershipPrice {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.membershipPrice span { color: var(--text-secondary); font-weight: 500; }
+.offerNote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-wrap: pretty;
+}
+.historyTools {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.pendingList {
+  display: grid;
+  gap: 10px;
+}
+.pendingRow, .accountInvoiceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.pendingMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 12px;
+}
+.accountInvoiceList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.emptyState {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 18px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  text-align: center;
+}
+.emptyIcon { color: var(--text-secondary); margin-bottom: 4px; }
+.paymentFlow { display: grid; gap: 16px; }
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.stepLabel {
+  padding-block-end: 8px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+}
+.stepLabel[data-active="true"] {
+  color: var(--foreground);
+  border-bottom-color: var(--success);
+}
+.stepLabel[data-done="true"] { color: var(--foreground); }
+.payTotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0 4px;
+  font-size: var(--text-sm);
+}
+.payTotal strong {
+  font: 700 clamp(22px, 3vw, 30px)/1.1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-display);
+}
+.copyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.copyRow p { margin: 0; overflow-wrap: anywhere; }
+.monoValue {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
 .membershipGrid {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
@@ -54,7 +227,7 @@
 .notice { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-muted); line-height: 1.5; }
 .warning { border-inline-start: 3px solid var(--danger); }
 .companyList { display: grid; gap: 6px; margin: 0; padding-inline-start: 20px; overflow-wrap: anywhere; }
-.tableScroll { min-width: 0; overflow-x: auto; }
+.tableScroll { min-width: 0; overflow-x: auto; container-type: inline-size; }
 .table { width: 100%; min-width: 560px; border-collapse: collapse; text-align: start; font-size: var(--text-sm); }
 .table th, .table td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: start; vertical-align: middle; }
 .table thead th { color: var(--text-secondary); font-weight: 600; }
@@ -89,6 +262,22 @@
   .customerTable .fullDetail { display: none; }
   .customerTable .compactDetail { display: block; }
   .customerTable .rowAction button { padding-inline: 8px; }
+}
+@media (max-width: 720px) {
+  .summaryGrid { grid-template-columns: 1fr; }
+  .membershipRow {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .membershipMeta {
+    grid-column: 1 / -1;
+    justify-items: stretch;
+  }
+  .membershipMeta .membershipPrice { justify-self: start; }
+  .pendingRow, .accountInvoiceRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pendingMeta { justify-content: flex-start; }
 }
 @media (max-width: 460px) { .managerSearch { grid-template-columns: 1fr; } }
 @media (max-width: 1020px) {
