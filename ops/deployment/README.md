@@ -24,3 +24,15 @@ From the deployment directory, set `SUPABASE_DOCKER_NETWORK` to the external dat
 ```bash
 docker compose -p yzy-contracts up -d
 ```
+
+## Deploying (agents and people)
+
+Production deploys only through GitHub Actions (`.github/workflows/deploy.yml`):
+
+1. Commit and push to `main` (changes under `services/api`, `apps/portal` or `supabase/migrations`), or run the workflow by hand.
+2. Actions builds the api and portal images from that commit and pushes `ghcr.io/yzylaboratory/yzy-contracts-{api,portal}:sha-<commit>`.
+3. Actions connects over SSH with a key that can only run `/opt/yzy/bin/deploy-contracts.sh` (source: `deploy-contracts.sh` here). The script takes `.deploy.lock`, pulls, backs up `yzy_contracts`, runs `migrate`, switches `CONTRACTS_API_IMAGE` / `CONTRACTS_PORTAL_IMAGE` in `.env`, and rolls back if the health checks fail.
+
+The `production-deploy` concurrency group and the lock keep deploys one at a time. History: `/opt/yzy/stacks/yzy-contracts/deploy.log`.
+
+Do not build images on the server, edit `compose.yaml` or `.env` by hand, rsync working trees, or apply SQL directly. Schema changes go in `supabase/migrations/` and reach production through `migrate`.
