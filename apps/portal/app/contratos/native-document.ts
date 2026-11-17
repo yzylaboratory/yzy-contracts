@@ -2,7 +2,7 @@ import { reviewedWordLayout } from "./reviewed-word-layout";
 import { companyReferenceRanges } from "./company-reference-ranges";
 import { companyFieldLabel } from "../configuracion/empresas/company-fields";
 import type { Vehicle } from "../clientes/clients-api";
-import { identifyReferenceWord, referenceWordValue, reviewedVehicleDescription } from "./reference-word";
+import { identifyReferenceWord, identifyReviewedWordBody, referenceWordValue, reviewedVehicleDescription } from "./reference-word";
 import { ApiError } from "@/lib/api";
 import { getContractDownload, renderContractPdf, type NativeVariable } from "./contracts-api";
 import { hasInsuranceCompanyNameInText } from "./document-catalog";
@@ -265,6 +265,7 @@ function resolveNativeTargets(
   uppercase = false,
   boldPagareDate = false,
   reference?: Awaited<ReturnType<typeof identifyReferenceWord>>,
+  boldFields?: readonly string[],
 ) {
   if (!variables.length || variables.length > variableLimit) throw new NativeDocumentError(invalidVariables);
   const byKey = new Map(fields.map(field => [field.key, field]));
@@ -295,7 +296,8 @@ function resolveNativeTargets(
         ? referenceWordValue(reference, match[1], occurrence, values[match[1]] ?? "", field.value)
         : field.value;
       const value = prefix.endsWith("RD$") && formatted.startsWith("RD$") ? formatted.slice(3) : formatted;
-      const runs = pagareDateRuns(match[1], value, boldPagareDate);
+      const bold = boldFields?.includes(match[1]);
+      const runs = bold ? undefined : pagareDateRuns(match[1], value, boldPagareDate);
       const range = value
         ? { start: match.index, end: match.index + match[0].length }
         : emptyLabelRange(match[1], segment.text, match.index, match.index + match[0].length);
@@ -303,9 +305,7 @@ function resolveNativeTargets(
         segment,
         ...range,
         value,
-        bold: reference
-          ? reviewedWordLayout[reference]?.boldFields.includes(match[1])
-          : isBoldAddressField(match[1]),
+        bold: bold || (!reference && isBoldAddressField(match[1])),
         ...(runs && { runs }),
       });
     }
@@ -654,13 +654,15 @@ export async function fillOriginalWord(
     parts.set(name, part);
     segments.push(...wordSegments(part, name, nativeVariables !== null));
   }
-  const reference = nativeVariables || companyProfile ? await identifyReferenceWord(files["word/document.xml"]) : undefined;
+  const bodyKey = nativeVariables || companyProfile ? await identifyReviewedWordBody(files["word/document.xml"]) : undefined;
+  const reference = bodyKey === "venta_condicional_seguro" ? undefined : bodyKey;
+  const layout = bodyKey ? reviewedWordLayout[bodyKey] : undefined;
   if (companyProfile && !reference) throw new NativeDocumentError("El modelo compartido no coincide con la versión revisada.");
   const referenceValues = reference && vehicle && values.vehiculo_garantia
     ? { ...values, vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia) }
     : values;
   const replacements = nativeVariables
-    ? resolveNativeTargets(segments, nativeVariables, fields, referenceValues, allowIncomplete, reference ? false : uppercase, !reference && boldPagareDate, reference)
+    ? resolveNativeTargets(segments, nativeVariables, fields, referenceValues, allowIncomplete, reference ? false : uppercase, !reference && boldPagareDate, reference, layout?.boldFields)
     : resolveTargets(segments, markdown, fields, values, uppercase, boldPagareDate);
   if (companyProfile && reference) addCompanyEdits(parts.get("word/document.xml")!, reference, companyProfile, allowIncomplete, segments, replacements);
   const changed = new Set<string>();
@@ -682,8 +684,7 @@ export async function fillOriginalWord(
     changed.add(segment.part);
   }
 
-  const layout = reference && reviewedWordLayout[reference];
-  if (layout) {
+  if (layout?.format) {
     layout.format(parts.get("word/document.xml")!);
     changed.add("word/document.xml");
   }

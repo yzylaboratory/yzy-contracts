@@ -24,11 +24,20 @@ const referenceBodies = {
 
 type Reference = typeof referenceBodies[keyof typeof referenceBodies];
 
-export async function identifyReferenceWord(body: Uint8Array<ArrayBufferLike>): Promise<Reference | undefined> {
+const insuranceSaleBody = "328a97c6e921ddcae84915672fb964aae645af1c4621a7ba736009963bd091d0";
+
+export async function identifyReviewedWordBody(body: Uint8Array<ArrayBufferLike>): Promise<Reference | "venta_condicional_seguro" | undefined> {
+
   if (!globalThis.crypto?.subtle) return undefined;
   const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(body));
   const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  if (hash === insuranceSaleBody) return "venta_condicional_seguro";
   return Object.hasOwn(referenceBodies, hash) ? referenceBodies[hash as keyof typeof referenceBodies] : undefined;
+}
+
+export async function identifyReferenceWord(body: Uint8Array<ArrayBufferLike>): Promise<Reference | undefined> {
+  const key = await identifyReviewedWordBody(body);
+  return key === "venta_condicional_seguro" ? undefined : key;
 }
 
 const month = new Intl.DateTimeFormat("es-DO", { month: "long", timeZone: "UTC" });
