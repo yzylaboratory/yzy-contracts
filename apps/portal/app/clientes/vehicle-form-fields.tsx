@@ -1,7 +1,7 @@
 import { Combobox } from "@/components/arc/combobox/combobox";
 import { Input } from "@/components/arc/input/input";
 import type { Vehicle } from "./clients-api";
-import { vehicleFields } from "./loan-application-fields";
+import { isVehicleFieldRequired, vehicleFields } from "./vehicle-fields";
 import { vehicleSuggestions } from "./vehicle-suggestions";
 import styles from "./clients.module.css";
 
@@ -16,9 +16,13 @@ export function VehicleFormFields({ value, onChange, errors, disabled, required 
 
   return <fieldset className={styles.sectionFields} disabled={disabled}>
     <legend>Datos del vehículo</legend>
+    {required && <p className={styles.muted}>
+      El tipo, la placa y el motor son opcionales para un vehículo importado que aún no está matriculado.
+    </p>}
     <div className={styles.formFields}>{vehicleFields.map(([field, label]) => {
       const values = suggestions[field];
-      const props = { name: field, label, value: value[field] ?? "", autoComplete: "off", maxLength: 200, required, error: errors?.[field] };
+      const props = { name: field, label, value: value[field] ?? "", autoComplete: "off", maxLength: 200,
+        required: required && isVehicleFieldRequired(field), error: errors?.[field] };
       const update = (next: string) => onChange({ ...value, [field]: next.toLocaleUpperCase("es") });
 
       return values ? <Combobox key={field} {...props} disabled={disabled} allowCustomValue

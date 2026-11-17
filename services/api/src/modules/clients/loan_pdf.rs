@@ -145,6 +145,8 @@ fn template_values(
     ] {
         values[key] = json!(required(&profile[key], key)?);
     }
+    // An imported vehicle (bill of lading) has no plate, type or engine number
+    // until it is registered; those stay blank in the application.
     for key in [
         "vehicle_type",
         "make",
@@ -155,7 +157,13 @@ fn template_values(
         "chassis_number",
         "engine_number",
     ] {
-        values[key] = json!(required(&vehicle[key], key)?.to_uppercase());
+        let optional = matches!(key, "vehicle_type" | "plate" | "engine_number");
+        let value = if optional && blank(&vehicle[key]) {
+            String::new()
+        } else {
+            required(&vehicle[key], key)?.to_uppercase()
+        };
+        values[key] = json!(value);
     }
     let date = required(&application["application_date"], "application_date")?;
     let date = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
@@ -231,6 +239,10 @@ fn template_values(
         }
     }
     Ok(values)
+}
+
+fn blank(value: &Value) -> bool {
+    value.as_str().is_none_or(|value| value.trim().is_empty())
 }
 
 fn required<'a>(value: &'a Value, key: &str) -> Result<&'a str, ApiError> {

@@ -11,7 +11,7 @@ import { amountInputValue, formatMoneyInput, parseAmountMinor } from "./amount-i
 import { saveOperation, type Operation, type OperationPatch, type OperationStatus, type Payment, type Vehicle } from "./clients-api";
 import { clientScope, useClientDraft, useClientSave } from "./client-navigation";
 import { isOperationStatus, operationStatusOptions } from "./expediente-status";
-import { vehicleFields } from "./loan-application-fields";
+import { vehicleFields } from "./vehicle-fields";
 import { VehicleFormFields } from "./vehicle-form-fields";
 import styles from "./clients.module.css";
 

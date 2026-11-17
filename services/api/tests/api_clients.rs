@@ -1265,9 +1265,24 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
         .respond_with(
             ResponseTemplate::new(200).set_body_raw(b"%PDF-1.4\n%%EOF".to_vec(), "application/pdf"),
         )
-        .expect(1)
+        .expect(2)
         .mount(&app.extractor)
         .await;
+    let (status, result) = app.get(owner, &pdf).await;
+    assert_eq!(status, StatusCode::OK, "{result}");
+
+    // An imported vehicle (bill of lading) has no plate, type or engine number yet.
+    let (status, edited) = app
+        .patch(
+            owner,
+            &operation_detail(company, client_id, id),
+            json!({ "vehicle": {
+                "make":"Honda", "model":"Civic", "year":"2025", "color":"Blanco",
+                "chassis_number":"SINT-0003", "engine_number":"SINT-0004"
+            } }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{edited}");
     let (status, result) = app.get(owner, &pdf).await;
     assert_eq!(status, StatusCode::OK, "{result}");
     sqlx::query("UPDATE yzy_contracts.companies SET archived_at = now() WHERE id = $1")

@@ -1,11 +1,7 @@
 import { applicationAmountLabel, applicationDateLabel, clientContractFields, loanApplicationSections, missingLoanProfileFields, type CaseApplication } from "@/components/case-application/case-application";
 import type { ClientWrite, Vehicle } from "./clients-api";
+import { vehicleFields } from "./vehicle-fields";
 import { displayClientIdentity, displayClientPhone } from "./client-masks";
-
-export const vehicleFields = [
-  ["vehicle_type", "Tipo de vehículo"], ["make", "Marca"], ["model", "Modelo"], ["year", "Año"], ["color", "Color"],
-  ["plate", "Placa"], ["chassis_number", "Chasis"], ["engine_number", "Motor o número de serie"],
-] as const satisfies readonly (readonly [keyof Vehicle, string])[];
 
 export const loanClientFields = {
   name: "Nombre completo",
@@ -23,10 +19,6 @@ export function missingLoanClientFields(client: ClientWrite) {
     .filter(([key]) => !client.profile?.[key]?.trim())
     .map(([, label]): string => label);
   return [...missing, ...missingContract, ...missingLoanProfileFields(client.profile ?? undefined)];
-}
-
-export function missingLoanVehicleFields(vehicle: Vehicle) {
-  return vehicleFields.filter(([key]) => !vehicle[key]?.trim()).map(([, label]) => label);
 }
 
 export function loanApplicationDetails(client: ClientWrite, application: CaseApplication, vehicle: Vehicle) {

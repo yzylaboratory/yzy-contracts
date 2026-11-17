@@ -26,6 +26,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-key";
 const { buildCompanySnapshot, buildContractTemplateFields, isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
 const { extractSalesCommitment, formatWordTemplateValue, pagareDateRuns } = await import("../app/contratos/native-document.ts");
+const { missingLoanVehicleFields, vehicleWrite } = await import("../app/clientes/vehicle-fields.ts");
 const { getClient, listClients, listClientTimeline, listOperations, saveClient, saveOperation } =
   await import("../app/clientes/clients-api.ts");
 const { listGeneratedDocuments } = await import("../app/contratos/generated-documents-api.ts");
@@ -174,6 +175,23 @@ test("sale totals use interest plus final principal and keep extraordinary payme
   assert.equal(values.cuotas_intereses_fechas, "30/09/2024\n31/10/2024");
   assert.equal(values.cuotas_intereses_montos, "RD$0.01\nRD$2,345.67");
   assert.equal(values.fecha_abono_extraordinario_3, "2025-09-01");
+});
+
+test("an imported vehicle without plate or registration can still be sold", () => {
+  const unregistered = { ...operation.vehicle };
+  delete unregistered.plate;
+  delete unregistered.registration_number;
+  const imported = { ...operation, vehicle: unregistered };
+  assert.deepEqual(resolveExpedienteFields("venta_condicional", client, imported, {}).issues, []);
+  const insurance = resolveExpedienteFields("venta_condicional_seguro", client, imported, { insuranceSaleInstallmentMinor: 100 });
+  assert.ok(!insurance.issues.some(issue => issue.key === "placa_del_vehiculo"), JSON.stringify(insurance.issues));
+});
+
+test("the vehicle type, plate and engine are optional in a loan application", () => {
+  const vehicle = { make: "HONDA", model: "CR-V", year: "2021", color: "GRAY", chassis_number: "7FARW1H57ME023296" };
+  assert.deepEqual(missingLoanVehicleFields(vehicle), []);
+  assert.deepEqual(missingLoanVehicleFields({ make: "HONDA" }), ["Modelo", "Año", "Color", "Chasis"]);
+  assert.deepEqual(vehicleWrite({ ...vehicle, plate: " " }), vehicle);
 });
 
 test("invalid calendars and an unsafe sum block generation", () => {

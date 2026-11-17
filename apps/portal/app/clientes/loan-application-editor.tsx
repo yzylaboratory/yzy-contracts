@@ -24,7 +24,8 @@ import { clientScope, markClientDirectoryUpdated, useClientDraft, useClientSave 
 import { ExpedienteGenerationStage } from "./expediente-generation-stage";
 import { isOperationStatus, operationStatusOptions } from "./expediente-status";
 import { IntakePaymentPlanStep } from "./intake-payment-plan-step";
-import { loanApplicationDetails, missingLoanClientFields, missingLoanVehicleFields, vehicleFields } from "./loan-application-fields";
+import { loanApplicationDetails, missingLoanClientFields } from "./loan-application-fields";
+import { missingLoanVehicleFields, vehicleFields, vehicleWrite } from "./vehicle-fields";
 import {
   installmentDraft,
   maxMonthlyInstallments,
@@ -223,15 +224,6 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
     return { ...next, installmentAmount: generated.amount, installmentCount: generated.count, installmentRows: generated.rows };
   }
 
-  function vehicleBody(): Vehicle {
-    const vehicle: Vehicle = {};
-    for (const [field] of vehicleFields) {
-      const value = draft.vehicle[field]?.trim();
-      if (value) vehicle[field] = value;
-    }
-    return vehicle;
-  }
-
   function applicationBody(): OperationPatch {
     const financing = draftPlan ? {
       ...draftPlan,
@@ -243,7 +235,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
     return {
       ...(operation ? { status: draft.status } : {}),
       application: { ...operation?.application, application_date: draft.date, requested_amount_minor: requestedAmount },
-      vehicle: vehicleBody(),
+      vehicle: vehicleWrite(draft.vehicle),
       signature_date: draft.signatureDate || null,
       insurance_paid: insurancePaid,
       insurance_installment_minor: insurancePaid ? null : (insuranceInstallment ?? null),
@@ -521,7 +513,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
         {`Indica ${insuranceMissing.join(" y ")} para continuar.`}
       </Alert>
       <Alert open={vehicleMissing.length > 0} tone="warning" title="Completa los datos del vehículo">
-        {vehicleMissing.length > 0 ? vehicleMissingHint(vehicleMissing) : "Todos los campos del vehículo son obligatorios para continuar."}
+        {vehicleMissing.length > 0 ? vehicleMissingHint(vehicleMissing) : "Completa los datos obligatorios del vehículo para continuar."}
       </Alert>
       {!operation && <div className={styles.actions}>
         <Button type="button" variant="secondary" disabled={saving} onClick={onSelectClient}>
@@ -661,7 +653,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
 function vehicleMissingHint(missing: string[]) {
   if (missing.length === 1) return `Falta ${missing[0]}.`;
   if (missing.length <= 3) return `Faltan: ${missing.join(", ")}.`;
-  return "Todos los campos del vehículo son obligatorios para continuar.";
+  return "Completa los datos obligatorios del vehículo para continuar.";
 }
 
 function LoanReview({ client, application, vehicle, signatureDate, insurancePaid, insuranceInstallmentMinor, insuranceInstallmentCount, financing }: {

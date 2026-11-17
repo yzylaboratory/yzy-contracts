@@ -9,7 +9,8 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { isActiveAccount } from "@/lib/api";
 import { recordPortalActivity } from "@/lib/activity";
 import { getLoanApplicationDocument, type Client, type Operation } from "./clients-api";
-import { missingLoanClientFields, missingLoanVehicleFields } from "./loan-application-fields";
+import { missingLoanClientFields } from "./loan-application-fields";
+import { missingLoanVehicleFields } from "./vehicle-fields";
 import table from "@/app/contratos/contracts.module.css";
 import styles from "./clients.module.css";
 
