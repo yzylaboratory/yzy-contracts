@@ -187,6 +187,15 @@ test("an imported vehicle without plate or registration can still be sold", () =
   assert.ok(!insurance.issues.some(issue => issue.key === "placa_del_vehiculo"), JSON.stringify(insurance.issues));
 });
 
+test("the vehicle type, plate, registration and engine are optional in every template", () => {
+  const variables = ["vehiculo_marca", "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
+    "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor"].map(key => ({ key, occurrences: 1 }));
+  for (const type of ["venta_condicional", "venta_condicional_seguro", "gps"]) {
+    const { fields } = buildContractTemplateFields("", variables, type);
+    assert.deepEqual(fields.filter(field => field.required).map(field => field.key), ["vehiculo_marca"]);
+  }
+});
+
 test("the vehicle type, plate and engine are optional in a loan application", () => {
   const vehicle = { make: "HONDA", model: "CR-V", year: "2021", color: "GRAY", chassis_number: "7FARW1H57ME023296" };
   assert.deepEqual(missingLoanVehicleFields(vehicle), []);

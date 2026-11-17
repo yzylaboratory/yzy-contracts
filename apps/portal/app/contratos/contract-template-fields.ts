@@ -9,6 +9,11 @@ import { nativeFieldLabel } from "./native-field-label";
 import { getTemplateFields, parseTemplate, type TemplateField } from "./template-fields";
 
 const conditionalSaleHandwrittenKeys = new Set<string>(conditionalSaleHandwrittenFields);
+/** An imported vehicle (bill of lading) has no type, plate, registration or engine number until it is registered. */
+const optionalVehicleKeys = new Set([
+  "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
+  "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor",
+]);
 
 export function isInsuranceIssuerField(key: string) {
   return key.startsWith("empresa_seguro_") || key.startsWith("emisor_seguro_") || key === "representante_seguro_nombre";
@@ -34,7 +39,7 @@ export function buildContractTemplateFields(
         const field = {
           key,
           label: nativeFieldLabel(key),
-          required: !(blankHandwrittenIdentity && conditionalSaleHandwrittenKeys.has(key)),
+          required: !(blankHandwrittenIdentity && conditionalSaleHandwrittenKeys.has(key)) && !optionalVehicleKeys.has(key),
         };
         const kind = nativeFieldKind(key);
         if (kind !== "date") {
@@ -66,7 +71,7 @@ export function buildContractTemplateFields(
   return {
     markdown,
     fields: getTemplateFields(markdown, definitions).map(field =>
-      blankHandwrittenIdentity && conditionalSaleHandwrittenKeys.has(field.key)
+      (blankHandwrittenIdentity && conditionalSaleHandwrittenKeys.has(field.key)) || optionalVehicleKeys.has(field.key)
         ? { ...field, required: false }
         : field),
   };
