@@ -32,6 +32,7 @@ const OPERATION_FIELDS: &[&str] = &[
     "vehicle.color",
     "vehicle.engine_number",
     "vehicle.vehicle_type",
+    "vehicle.source_document",
     "financing.interest_installments",
     "financing.final_principal",
     "financing.extraordinary_payments",

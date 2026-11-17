@@ -42,6 +42,7 @@ const fieldLabels = new Map<string, string>([
   ["vehicle.color", "Color"],
   ["vehicle.engine_number", "Número de motor"],
   ["vehicle.vehicle_type", "Tipo de vehículo"],
+  ["vehicle.source_document", "Documento del vehículo"],
   ["financing.interest_installments", "Cuotas de intereses"],
   ["financing.final_principal", "Última cuota de capital"],
   ["financing.extraordinary_payments", "Abonos extraordinarios"],
@@ -73,6 +74,7 @@ function formatChangeValue(field: string, value: ClientTimelineValue) {
   if (typeof value === "string") {
     if (field === "contract_date" || field === "signature_date") return calendarDate(value);
     if (field === "status") return operationStatusLabel(value);
+    if (field === "vehicle.source_document") return value === "bill_of_lading" ? "Bill of lading (importado)" : "Matrícula";
     return value;
   }
   if (typeof value === "number") {

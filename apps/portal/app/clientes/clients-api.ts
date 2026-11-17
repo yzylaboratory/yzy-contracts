@@ -21,7 +21,11 @@ export type Vehicle = {
   color?: string;
   engine_number?: string;
   vehicle_type?: string;
+  /** Document the data comes from. A vehicle imported with a bill of lading has no type, plate or engine number yet. */
+  source_document?: VehicleDocument;
 };
+
+export type VehicleDocument = "vehicle_registration" | "bill_of_lading";
 
 export type Payment = { date: string; amount_minor: number };
 export type MonthlyPlan = { capital_minor: number; monthly_rate_basis_points: number; installment_count: number };

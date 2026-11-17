@@ -1,5 +1,6 @@
 import type { CompanySnapshot } from "@/app/configuracion/empresas/companies-api";
 import { companyContractClauseField, companyNotaryField, companyProfileValue, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
+import type { Vehicle } from "@/app/clientes/clients-api";
 import type { NativeVariable } from "./contracts-api";
 import { conditionalSaleHandwrittenFields, getDocumentType, type DocumentType } from "./document-catalog";
 import { documentClauseCase, usesNotarialDocumentStyle } from "./expediente-fields";
@@ -9,8 +10,8 @@ import { nativeFieldLabel } from "./native-field-label";
 import { getTemplateFields, parseTemplate, type TemplateField } from "./template-fields";
 
 const conditionalSaleHandwrittenKeys = new Set<string>(conditionalSaleHandwrittenFields);
-/** An imported vehicle (bill of lading) has no type, plate, registration or engine number until it is registered. */
-const optionalVehicleKeys = new Set([
+/** A vehicle imported with a bill of lading has no type, plate, registration or engine number until it is registered. */
+const importedVehicleOptionalKeys = new Set([
   "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
   "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor",
 ]);
@@ -30,8 +31,10 @@ export function buildContractTemplateFields(
   content: string,
   nativeVariables: NativeVariable[] | null,
   type?: DocumentType,
+  vehicle?: Vehicle,
 ): { markdown: string; fields: TemplateField[] } {
   const blankHandwrittenIdentity = type === "venta_condicional";
+  const optionalVehicleKeys = vehicle?.source_document === "bill_of_lading" ? importedVehicleOptionalKeys : new Set<string>();
   if (nativeVariables) {
     return {
       markdown: "",

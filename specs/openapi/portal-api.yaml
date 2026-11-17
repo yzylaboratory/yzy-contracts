@@ -6453,8 +6453,8 @@ components:
           oneOf:
           - $ref: '#/components/schemas/VehicleDocument'
             description: |-
-              Document the vehicle data was taken from. An imported vehicle described
-              by a bill of lading has no plate, type or engine number yet.
+              Document the vehicle data comes from. A vehicle imported with a bill of
+              lading has no type, plate or engine number until it is registered.
           - type: 'null'
         vehicle_type:
           type:

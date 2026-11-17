@@ -558,8 +558,8 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     !(type === "acto_seguro" && insuranceScheduleMarkers.has(key)) &&
     // La distribución del desembolso se escribe a mano al generar.
     !(usesDisbursementData(type) && key === "distribucion_desembolso") &&
-    // Un vehículo importado (bill of lading) aún no tiene placa ni matrícula.
-    key !== "vehiculo_matricula" && key !== "placa_del_vehiculo");
+    // Un vehículo importado con bill of lading aún no tiene placa ni matrícula.
+    !(operation.vehicle.source_document === "bill_of_lading" && (key === "vehiculo_matricula" || key === "placa_del_vehiculo")));
   let insuranceIssues: { key: string; message: string }[] = [];
   if (definition.requiresInsuranceCompany) {
     const count = context.insuranceInstallmentCount ?? operation.financing?.insurance_installment_count ?? 10;

@@ -245,6 +245,7 @@ export async function generateInitialExpedienteDocuments(input: {
         template.content_markdown,
         template.native_variables ?? null,
         target.type,
+        operation.vehicle,
       );
       const companyFields = getContractCompanyFields(fields, target.type);
       const clauseFields = fields.filter(field => companyNotaryField(field.key) || companyWitnessField(field.key));

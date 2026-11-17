@@ -111,7 +111,7 @@ export function vehicleFromRegistration(data: VehicleRegistrationData): Vehicle 
     chassis_number: upper(data.chassis_number),
     engine_number: upper(data.engine_number),
   };
-  return withoutEmpty(vehicle);
+  return { ...withoutEmpty(vehicle), source_document: "vehicle_registration" };
 }
 
 /** First vehicle in the cargo. A bill of lading has no plate, type or engine number. */
@@ -125,6 +125,7 @@ export function vehicleFromBillOfLading(data: BillOfLadingData): Vehicle | null 
     year: upper(vehicle.year),
     color: upper(vehicle.color),
     chassis_number: upper(vehicle.vin),
+    source_document: "bill_of_lading",
   });
 }
 

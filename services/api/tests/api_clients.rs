@@ -1271,20 +1271,44 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
     let (status, result) = app.get(owner, &pdf).await;
     assert_eq!(status, StatusCode::OK, "{result}");
 
-    // An imported vehicle (bill of lading) has no plate, type or engine number yet.
+    // A registered vehicle needs its plate and type; one imported with a bill
+    // of lading does not have them yet.
+    let mut imported = json!({
+        "make":"Honda", "model":"Civic", "year":"2025", "color":"Blanco",
+        "chassis_number":"SINT-0003", "engine_number":"SINT-0004"
+    });
     let (status, edited) = app
         .patch(
             owner,
             &operation_detail(company, client_id, id),
-            json!({ "vehicle": {
-                "make":"Honda", "model":"Civic", "year":"2025", "color":"Blanco",
-                "chassis_number":"SINT-0003", "engine_number":"SINT-0004"
-            } }),
+            json!({ "vehicle": imported }),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{edited}");
+    assert_eq!(
+        app.get(owner, &pdf).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    imported["source_document"] = json!("bill_of_lading");
+    let (status, edited) = app
+        .patch(
+            owner,
+            &operation_detail(company, client_id, id),
+            json!({ "vehicle": imported }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{edited}");
+    assert_eq!(edited["vehicle"]["source_document"], "bill_of_lading");
     let (status, result) = app.get(owner, &pdf).await;
     assert_eq!(status, StatusCode::OK, "{result}");
+    let (status, timeline) = app
+        .get(owner, &format!("{CLIENTS}/{client_id}/timeline"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{timeline}");
+    assert!(
+        timeline.to_string().contains("vehicle.source_document"),
+        "{timeline}"
+    );
     sqlx::query("UPDATE yzy_contracts.companies SET archived_at = now() WHERE id = $1")
         .bind(company)
         .execute(&app.admin)

@@ -145,8 +145,9 @@ fn template_values(
     ] {
         values[key] = json!(required(&profile[key], key)?);
     }
-    // An imported vehicle (bill of lading) has no plate, type or engine number
-    // until it is registered; those stay blank in the application.
+    // A vehicle imported with a bill of lading has no plate, type or engine
+    // number until it is registered; those stay blank in the application.
+    let imported = vehicle["source_document"] == "bill_of_lading";
     for key in [
         "vehicle_type",
         "make",
@@ -157,7 +158,7 @@ fn template_values(
         "chassis_number",
         "engine_number",
     ] {
-        let optional = matches!(key, "vehicle_type" | "plate" | "engine_number");
+        let optional = imported && matches!(key, "vehicle_type" | "plate" | "engine_number");
         let value = if optional && blank(&vehicle[key]) {
             String::new()
         } else {

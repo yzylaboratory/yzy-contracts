@@ -187,6 +187,7 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
       if (value && [...value].length > 200) nextErrors[key] = "Usa un máximo de 200 caracteres.";
       if (value) vehicle[key] = value;
     }
+    if (draft.vehicle.source_document) vehicle.source_document = draft.vehicle.source_document;
     const body: OperationPatch = {
       ...(operation ? { status: draft.status } : {}),
       contract_date: draft.contractDate || null,

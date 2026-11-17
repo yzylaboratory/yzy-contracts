@@ -164,8 +164,8 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const uppercaseValues = usesUppercaseDocumentData(expediente?.type ?? documentTypeFromName(title)?.id);
   const blankHandwrittenIdentity = expediente?.type === "venta_condicional";
   const { markdown, fields } = useMemo(
-    () => buildContractTemplateFields(content, nativeVariables, expediente?.type),
-    [content, expediente?.type, nativeVariables],
+    () => buildContractTemplateFields(content, nativeVariables, expediente?.type, expediente?.operation.vehicle),
+    [content, expediente?.type, expediente?.operation.vehicle, nativeVariables],
   );
   const { list: companyList, reload: reloadCompanies } = useCompanies(accountId);
   const effectiveCompanyScope = expediente?.operation.company_id ?? companyScope ?? activeCompany?.id;

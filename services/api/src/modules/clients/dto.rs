@@ -636,6 +636,17 @@ pub(super) struct Vehicle {
     engine_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vehicle_type: Option<String>,
+    /// Document the vehicle data comes from. A vehicle imported with a bill of
+    /// lading has no type, plate or engine number until it is registered.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_document: Option<VehicleDocument>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum VehicleDocument {
+    VehicleRegistration,
+    BillOfLading,
 }
 
 impl Vehicle {

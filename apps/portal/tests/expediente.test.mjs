@@ -177,30 +177,36 @@ test("sale totals use interest plus final principal and keep extraordinary payme
   assert.equal(values.fecha_abono_extraordinario_3, "2025-09-01");
 });
 
-test("an imported vehicle without plate or registration can still be sold", () => {
+test("only a vehicle imported with a bill of lading can be sold without plate or registration", () => {
   const unregistered = { ...operation.vehicle };
   delete unregistered.plate;
   delete unregistered.registration_number;
-  const imported = { ...operation, vehicle: unregistered };
+  const missing = resolveExpedienteFields("venta_condicional", client, { ...operation, vehicle: unregistered }, {});
+  assert.deepEqual(missing.issues.map(issue => issue.key), ["vehiculo_matricula"]);
+  const imported = { ...operation, vehicle: { ...unregistered, source_document: "bill_of_lading" } };
   assert.deepEqual(resolveExpedienteFields("venta_condicional", client, imported, {}).issues, []);
   const insurance = resolveExpedienteFields("venta_condicional_seguro", client, imported, { insuranceSaleInstallmentMinor: 100 });
   assert.ok(!insurance.issues.some(issue => issue.key === "placa_del_vehiculo"), JSON.stringify(insurance.issues));
 });
 
-test("the vehicle type, plate, registration and engine are optional in every template", () => {
-  const variables = ["vehiculo_marca", "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
-    "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor"].map(key => ({ key, occurrences: 1 }));
+test("templates make the vehicle type, plate, registration and engine optional only for a bill of lading", () => {
+  const keys = ["vehiculo_marca", "vehiculo_tipo", "vehiculo_placa", "vehiculo_matricula", "vehiculo_motor",
+    "tipo_del_vehiculo", "placa_del_vehiculo", "numero_de_serie_del_motor"];
+  const variables = keys.map(key => ({ key, occurrences: 1 }));
   for (const type of ["venta_condicional", "venta_condicional_seguro", "gps"]) {
-    const { fields } = buildContractTemplateFields("", variables, type);
-    assert.deepEqual(fields.filter(field => field.required).map(field => field.key), ["vehiculo_marca"]);
+    const imported = buildContractTemplateFields("", variables, type, { source_document: "bill_of_lading" });
+    assert.deepEqual(imported.fields.filter(field => field.required).map(field => field.key), ["vehiculo_marca"]);
+    const registered = buildContractTemplateFields("", variables, type, { source_document: "vehicle_registration" });
+    assert.deepEqual(registered.fields.filter(field => field.required).map(field => field.key), keys);
   }
 });
 
-test("the vehicle type, plate and engine are optional in a loan application", () => {
+test("a bill of lading leaves only the vehicle type, plate and engine optional", () => {
   const vehicle = { make: "HONDA", model: "CR-V", year: "2021", color: "GRAY", chassis_number: "7FARW1H57ME023296" };
-  assert.deepEqual(missingLoanVehicleFields(vehicle), []);
-  assert.deepEqual(missingLoanVehicleFields({ make: "HONDA" }), ["Modelo", "Año", "Color", "Chasis"]);
-  assert.deepEqual(vehicleWrite({ ...vehicle, plate: " " }), vehicle);
+  assert.deepEqual(missingLoanVehicleFields(vehicle), ["Tipo de vehículo", "Placa", "Motor o número de serie"]);
+  assert.deepEqual(missingLoanVehicleFields({ ...vehicle, source_document: "bill_of_lading" }), []);
+  assert.deepEqual(missingLoanVehicleFields({ source_document: "bill_of_lading", make: "HONDA" }), ["Modelo", "Año", "Color", "Chasis"]);
+  assert.deepEqual(vehicleWrite({ ...vehicle, plate: " ", source_document: "bill_of_lading" }), { ...vehicle, source_document: "bill_of_lading" });
 });
 
 test("invalid calendars and an unsafe sum block generation", () => {
