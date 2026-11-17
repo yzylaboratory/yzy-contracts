@@ -1,6 +1,6 @@
 pub mod dto;
 pub mod handlers;
-mod native_word;
+pub(crate) mod native_word;
 pub(crate) mod render;
 pub mod repository;
 

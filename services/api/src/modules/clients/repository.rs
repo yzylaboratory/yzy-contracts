@@ -1,4 +1,4 @@
-use sqlx::{PgPool, types::Json};
+use sqlx::{PgPool, Postgres, Transaction, types::Json};
 use uuid::Uuid;
 
 use crate::error::ApiError;
@@ -430,9 +430,24 @@ pub(super) async fn update_operation(
     company: Uuid,
     client: Uuid,
     operation: Uuid,
-    mut body: OperationPatch,
+    body: OperationPatch,
 ) -> Result<Option<Operation>, ApiError> {
     let mut tx = db.begin().await?;
+    let saved =
+        update_operation_in_transaction(&mut tx, actor, company, client, operation, body).await?;
+    tx.commit().await?;
+    Ok(saved)
+}
+
+pub(super) async fn update_operation_in_transaction(
+    tx: &mut Transaction<'_, Postgres>,
+    actor: Uuid,
+    company: Uuid,
+    client: Uuid,
+    operation: Uuid,
+    mut body: OperationPatch,
+) -> Result<Option<Operation>, ApiError> {
+    let mut tx = sqlx::Acquire::begin(tx).await?;
     let previous: Option<Operation> = sqlx::query_as(
         "SELECT * FROM yzy_contracts.client_operations
          WHERE company_id = $2 AND client_id = yzy_contracts.resolve_client_id($3) AND id = $4

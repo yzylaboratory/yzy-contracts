@@ -15,7 +15,7 @@ use yzy_contracts_api::{
     workers::{billing::BillingWorker, conversion::ConversionWorker},
 };
 
-const USAGE: &str = "usage: yzy-contracts-api <serve|worker|migrate|openapi>";
+const USAGE: &str = "usage: yzy-contracts-api <serve|worker|migrate|openapi|replace-case-word>";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -24,6 +24,20 @@ async fn main() -> anyhow::Result<()> {
         "serve" => serve().await,
         "worker" => worker().await,
         "migrate" => migrate().await,
+        "replace-case-word" => {
+            let apply = match std::env::args().nth(2).as_deref() {
+                Some("--apply") => true,
+                Some("--check") => false,
+                _ => bail!(
+                    "usage: yzy-contracts-api replace-case-word --check|--apply < bundle.json"
+                ),
+            };
+            let config = Config::from_env()?;
+            yzy_contracts_api::modules::generated_documents::maintenance::replace_words(
+                &config, apply,
+            )
+            .await
+        }
         "openapi" => {
             print!("{}", app::openapi().to_yaml()?);
             Ok(())

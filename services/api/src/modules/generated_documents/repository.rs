@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{PgPool, types::Json};
+use sqlx::{PgConnection, PgPool, types::Json};
 use uuid::Uuid;
 
 use super::dto::{
@@ -16,9 +16,21 @@ pub async fn insert(
     legacy: Option<(&str, DateTime<Utc>)>,
     artifact: Option<(FileKind, &[u8])>,
 ) -> sqlx::Result<Option<DocumentMetadata>> {
-    // Fresh documents inherit access to their source and, if shared, its company.
-    // Authorized historical imports retain their own display name and date.
     let mut tx = db.begin().await?;
+    let saved = insert_in_transaction(&mut tx, owner, id, body, legacy, artifact).await?;
+    tx.commit().await?;
+    Ok(saved)
+}
+
+pub(super) async fn insert_in_transaction(
+    connection: &mut PgConnection,
+    owner: Uuid,
+    id: Uuid,
+    body: &SaveDocument,
+    legacy: Option<(&str, DateTime<Utc>)>,
+    artifact: Option<(FileKind, &[u8])>,
+) -> sqlx::Result<Option<DocumentMetadata>> {
+    // Fresh documents inherit access to their source and company.
     let saved: Option<DocumentMetadata> = sqlx::query_as(
         "INSERT INTO yzy_contracts.generated_documents
             (owner_id, id, contract_id, contract_name, format, filename, markdown,
@@ -65,7 +77,7 @@ pub async fn insert(
     .bind(body.company.as_ref().map(|company| company.id))
     .bind(body.operation_id)
     .bind(&body.document_type)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut *connection)
     .await?;
     // A regenerated case document replaces the earlier copy of the same
     // template and format in that case.
@@ -82,10 +94,9 @@ pub async fn insert(
         .bind(body.contract_id)
         .bind(body.format.as_str())
         .bind(saved.id)
-        .execute(&mut *tx)
+        .execute(&mut *connection)
         .await?;
     }
-    tx.commit().await?;
     Ok(saved)
 }
 

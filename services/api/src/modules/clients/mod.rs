@@ -350,3 +350,41 @@ async fn delete_operation(
     }
     Ok(StatusCode::NO_CONTENT)
 }
+
+/// Applies the verified vehicle document correction and validates the loan application
+/// in the same transaction as the replacement documents.
+pub(crate) async fn correct_case_vehicle(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    actor: Uuid,
+    company: Uuid,
+    operation: Uuid,
+    vehicle: serde_json::Value,
+) -> anyhow::Result<()> {
+    use anyhow::Context;
+    let (client_id, company_name): (Uuid, String) = sqlx::query_as(
+        "SELECT o.client_id, c.name FROM yzy_contracts.client_operations o
+         JOIN yzy_contracts.companies c ON c.id = o.company_id
+         WHERE o.id = $1 AND c.id = $2 AND o.deleted_at IS NULL
+           AND yzy_contracts.has_company_membership($3, c.id)",
+    )
+    .bind(operation)
+    .bind(company)
+    .bind(actor)
+    .fetch_one(&mut **tx)
+    .await?;
+    let client: Client = sqlx::query_as("SELECT * FROM yzy_contracts.clients WHERE id = $1")
+        .bind(client_id)
+        .fetch_one(&mut **tx)
+        .await?;
+    let mut patch: OperationPatch = serde_json::from_value(serde_json::json!({"vehicle": vehicle}))
+        .context("invalid confirmed vehicle")?;
+    patch.normalize()?;
+    let saved = repository::update_operation_in_transaction(
+        tx, actor, company, client_id, operation, patch,
+    )
+    .await?
+    .context("case not found")?;
+    loan_pdf::render_application(&client, &saved, company_name)
+        .context("loan application could not be generated")?;
+    Ok(())
+}

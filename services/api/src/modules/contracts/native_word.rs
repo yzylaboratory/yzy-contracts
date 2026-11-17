@@ -20,7 +20,7 @@ const WORD_NAMESPACES: [&str; 2] = [
     "http://purl.oclc.org/ooxml/wordprocessingml/main",
 ];
 
-pub(super) fn read_variables(bytes: &[u8]) -> Result<Vec<NativeVariable>, ApiError> {
+pub(crate) fn read_variables(bytes: &[u8]) -> Result<Vec<NativeVariable>, ApiError> {
     let invalid = |_| ApiError::InvalidDocxTemplate;
     let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(invalid)?;
     if archive.len() > MAX_ENTRIES {

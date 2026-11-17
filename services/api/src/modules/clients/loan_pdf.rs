@@ -95,7 +95,15 @@ async fn filled_application(
     let client = repository::find_client(&state.db, operation.client_id)
         .await?
         .ok_or(ApiError::ClientNotFound)?;
-    let values = template_values(&client, &operation, company)?;
+    render_application(&client, &operation, company)
+}
+
+pub(super) fn render_application(
+    client: &Client,
+    operation: &Operation,
+    company: String,
+) -> Result<Vec<u8>, ApiError> {
+    let values = template_values(client, operation, company)?;
     let word = fill_template(&values).map_err(|error| {
         tracing::error!(%error, "loan application template could not be filled");
         ApiError::DocumentRenderFailed
