@@ -61,22 +61,41 @@ try:
                 included.append(f"  - {line[2:]}")
 except Exception:
     included.append("(no se pudo leer el historial de GitHub)")
+import html as h
+# Visual card: colored status band, short list of changes, one button.
+styles = {
+    "Desplegado": ("#15803d", "✅"), "Desplegando": ("#1d4ed8", "🚀"),
+    "Falló y se revirtió": ("#b45309", "↩️"), "Falló": ("#b91c1c", "❌"),
+    "Falló el build": ("#b91c1c", "❌"),
+}
+color, icon = styles.get(e["STATUS"], ("#475569", "ℹ️"))
+bullets = [line[4:] for line in included if line.startswith("  - ")] or \
+          [line.rsplit(" (", 1)[0] for line in included if not line.startswith("  ")]
+shown, extra = bullets[:8], len(bullets) - 8
+items = "".join(f'<li style="margin:0 0 8px">{h.escape(x)}</li>' for x in shown)
+if extra > 0:
+    items += f'<li style="margin:0;color:#64748b">y {extra} más</li>'
+run_url = f"https://github.com/{e['REPO']}/actions/workflows/deploy.yml"
+card = f"""<div style="background:#f1f5f9;padding:24px 12px;font-family:Segoe UI,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border-collapse:collapse">
+<tr><td style="background:{color};color:#fff;padding:20px 24px">
+<div style="font-size:28px;line-height:1">{icon}</div>
+<div style="font-size:22px;font-weight:700;margin-top:8px">{h.escape(e['STATUS'])}</div>
+<div style="font-size:13px;opacity:.9;margin-top:4px">YZY Contracts · {short} · {h.escape(author)}</div>
+</td></tr>
+<tr><td style="padding:20px 24px;color:#0f172a;font-size:15px;line-height:1.45">
+<ul style="padding-left:18px;margin:0">{items}</ul>
+</td></tr>
+<tr><td style="padding:0 24px 24px">
+<a href="{run_url}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-size:14px">Ver despliegue</a>
+</td></tr>
+</table></div>"""
 body = {
     "product": "yzy-contracts",
     "to": [e["TO"]],
-    "subject": f"[Contracts] {e['STATUS']} · {short} · {title}"[:200],
-    "text": "\n".join([
-        f"Estado: {e['STATUS']}",
-        f"Commit: {short} - {title}",
-        f"Autor: {author}",
-        f"Detalle: {e['DETAIL']}",
-        "",
-        "Lo que incluye:",
-        *[f"- {line}" if not line.startswith("  ") else line for line in included],
-        "",
-        f"Commit: https://github.com/{e['REPO']}/commit/{sha}",
-        f"Actions: https://github.com/{e['REPO']}/actions/workflows/deploy.yml",
-    ]),
+    "subject": f"{icon} Contracts · {e['STATUS']} · {short}",
+    "html": card,
+    "text": "\n".join([f"{e['STATUS']} · {short}", *[f"- {x}" for x in bullets], run_url]),
     "kind": "deploy",
 }
 req = urllib.request.Request(
