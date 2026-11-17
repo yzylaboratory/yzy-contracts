@@ -1080,3 +1080,16 @@ test("un vehículo con bill of lading no imprime las etiquetas de placa ni motor
   assert.equal(result, "COLOR: AZUL, CHASIS NO: 19XFC1F32LE013448");
   assert.deepEqual(emptyLabelRange("color_del_vehiculo", text, 7, 29), { start: 7, end: 29 });
 });
+
+test("la venta condicional con bill of lading no imprime las etiquetas de matrícula ni motor", () => {
+  const text = "COLOR: {{vehiculo_color}}, NO. DE REGISTRO Y PLACA: {{vehiculo_matricula}} CHASIS NO: {{vehiculo_chasis}}, MOTOR O NO. DE SERIE:{{vehiculo_motor}}";
+  const values = { vehiculo_color: "AZUL", vehiculo_matricula: "", vehiculo_chasis: "19XFC1F32LE013448", vehiculo_motor: "" };
+  const edits = [...text.matchAll(/\{\{([a-z_0-9]+)\}\}/g)].map(match => {
+    const end = match.index + match[0].length;
+    const range = values[match[1]] ? { start: match.index, end } : emptyLabelRange(match[1], text, match.index, end);
+    return { ...range, value: values[match[1]] };
+  }).reverse();
+  let result = text;
+  for (const { start, end, value } of edits) result = result.slice(0, start) + value + result.slice(end);
+  assert.equal(result, "COLOR: AZUL, CHASIS NO: 19XFC1F32LE013448");
+});

@@ -41,9 +41,13 @@ const salePaymentColumns = ["cuotas_intereses_numeros", "cuotas_intereses_fechas
 const pagareDateKeys = new Set(["fecha_firma", "fecha_de_firma"]);
 
 // Un vehículo importado con bill of lading no tiene placa ni motor: sin valor, su etiqueta tampoco se imprime.
+const plateLabel = { before: /NO\.\s*DE\s+REGISTRO\s+Y\s+PLACA:\s*$/i, after: /^\s+/ };
+const engineLabel = { before: /,\s*MOTOR\s+O\s+NO\.\s*DE\s+SERIE:\s*$/i };
 const emptyVehicleLabels: Record<string, { before: RegExp; after?: RegExp }> = {
-  placa_del_vehiculo: { before: /NO\.\s*DE\s+REGISTRO\s+Y\s+PLACA:\s*$/i, after: /^\s+/ },
-  numero_de_serie_del_motor: { before: /,\s*MOTOR\s+O\s+NO\.\s*DE\s+SERIE:\s*$/i },
+  placa_del_vehiculo: plateLabel,
+  vehiculo_matricula: plateLabel,
+  numero_de_serie_del_motor: engineLabel,
+  vehiculo_motor: engineLabel,
 };
 
 /** Amplía el rango de un marcador vacío para incluir la etiqueta que lo describe en el Word. */
