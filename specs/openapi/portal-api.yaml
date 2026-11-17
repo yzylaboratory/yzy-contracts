@@ -2336,6 +2336,62 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/document-readings:
+    post:
+      tags:
+      - Document readings
+      operationId: read_document
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReadDocumentForm'
+        required: true
+      responses:
+        '200':
+          description: Structured data read from the document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentReading'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: A file exceeds 10 MiB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '415':
+          description: Only JPEG, PNG, WebP and PDF files are supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid form, or the model could not produce a reading
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Document reading is not configured or OpenRouter is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          description: The model took too long
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
   /api/v1/expedientes:
     get:
       tags:
@@ -3683,6 +3739,104 @@ components:
           - string
           - 'null'
           format: date-time
+    BillOfLadingData:
+      type: object
+      required:
+      - shipper
+      - consignee
+      - notify_party
+      - forwarding_agent
+      - container_numbers
+      - marks_and_numbers
+      - cargo
+      properties:
+        bill_of_lading_number:
+          type:
+          - string
+          - 'null'
+        booking_number:
+          type:
+          - string
+          - 'null'
+        cargo:
+          type: array
+          items:
+            $ref: '#/components/schemas/CargoItem'
+        carrier:
+          type:
+          - string
+          - 'null'
+        consignee:
+          $ref: '#/components/schemas/Party'
+        container_numbers:
+          type: array
+          items:
+            type: string
+        country_of_origin:
+          type:
+          - string
+          - 'null'
+        flag:
+          type:
+          - string
+          - 'null'
+        forwarding_agent:
+          $ref: '#/components/schemas/Party'
+        freight_terms:
+          type:
+          - string
+          - 'null'
+          description: '`PREPAID` or `COLLECT`.'
+        issue_date:
+          type:
+          - string
+          - 'null'
+          description: YYYY-MM-DD.
+        itn_number:
+          type:
+          - string
+          - 'null'
+        marks_and_numbers:
+          type: array
+          items:
+            type: string
+        move_type:
+          type:
+          - string
+          - 'null'
+        notify_party:
+          $ref: '#/components/schemas/Party'
+        place_of_delivery:
+          type:
+          - string
+          - 'null'
+        place_of_receipt:
+          type:
+          - string
+          - 'null'
+        port_of_discharge:
+          type:
+          - string
+          - 'null'
+        port_of_loading:
+          type:
+          - string
+          - 'null'
+        scac_code:
+          type:
+          - string
+          - 'null'
+        shipper:
+          $ref: '#/components/schemas/Party'
+        vessel:
+          type:
+          - string
+          - 'null'
+        voyage:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
     BillingAccount:
       type: object
       required:
@@ -3955,6 +4109,76 @@ components:
           type: integer
           format: int32
           minimum: 1
+      additionalProperties: false
+    CargoItem:
+      type: object
+      required:
+      - vehicle
+      properties:
+        description:
+          type:
+          - string
+          - 'null'
+        gross_weight:
+          type:
+          - string
+          - 'null'
+        hazardous:
+          type:
+          - boolean
+          - 'null'
+        packages:
+          type:
+          - string
+          - 'null'
+        un_number:
+          type:
+          - string
+          - 'null'
+        vehicle:
+          $ref: '#/components/schemas/CargoVehicle'
+          description: All fields are null when the item is not a vehicle.
+        volume:
+          type:
+          - string
+          - 'null'
+        volume_unit:
+          type:
+          - string
+          - 'null'
+        weight_unit:
+          type:
+          - string
+          - 'null'
+          description: '`LB` or `KG`.'
+      additionalProperties: false
+    CargoVehicle:
+      type: object
+      properties:
+        color:
+          type:
+          - string
+          - 'null'
+        engine:
+          type:
+          - string
+          - 'null'
+        make:
+          type:
+          - string
+          - 'null'
+        model:
+          type:
+          - string
+          - 'null'
+        vin:
+          type:
+          - string
+          - 'null'
+        year:
+          type:
+          - string
+          - 'null'
       additionalProperties: false
     CaseApplication:
       type: object
@@ -5044,6 +5268,12 @@ components:
           format: uuid
         user_name:
           type: string
+    DocumentCategory:
+      type: string
+      enum:
+      - dominican_id_card
+      - vehicle_registration
+      - bill_of_lading
     DocumentDetail:
       allOf:
       - $ref: '#/components/schemas/DocumentMetadata'
@@ -5154,6 +5384,34 @@ components:
         total:
           type: integer
           format: int64
+    DocumentReading:
+      type: object
+      required:
+      - category
+      - model
+      - matches_category
+      - warnings
+      - data
+      properties:
+        category:
+          $ref: '#/components/schemas/DocumentCategory'
+        data:
+          $ref: '#/components/schemas/ReadingData'
+        matches_category:
+          type: boolean
+          description: |-
+            False when the files do not look like the requested category; `data`
+            then holds whatever could be read and should not be trusted.
+        model:
+          type: string
+          description: OpenRouter model that read the document.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: |-
+            Fields the model could not read with confidence, plus checks done here
+            (for example a cédula whose check digit does not match).
     DocumentStats:
       type: object
       required:
@@ -5274,6 +5532,72 @@ components:
         status:
           type: string
           example: ok
+    IdCardData:
+      type: object
+      properties:
+        birth_date:
+          type:
+          - string
+          - 'null'
+          description: YYYY-MM-DD.
+        birth_place:
+          type:
+          - string
+          - 'null'
+        blood_type:
+          type:
+          - string
+          - 'null'
+        card_serial:
+          type:
+          - string
+          - 'null'
+          description: Card serial printed beside the photo on the current card.
+        card_version:
+          type:
+          - string
+          - 'null'
+          description: '`current` for the biometric card (2023 onwards), `previous` for the older one.'
+        expiration_date:
+          type:
+          - string
+          - 'null'
+          description: YYYY-MM-DD ("Vigencia hasta" or "Fecha de expiración").
+        full_name:
+          type:
+          - string
+          - 'null'
+        given_names:
+          type:
+          - string
+          - 'null'
+        id_number:
+          type:
+          - string
+          - 'null'
+          description: Formatted as 000-0000000-0.
+        marital_status:
+          type:
+          - string
+          - 'null'
+        nationality:
+          type:
+          - string
+          - 'null'
+        occupation:
+          type:
+          - string
+          - 'null'
+        sex:
+          type:
+          - string
+          - 'null'
+          description: '`M` or `F`.'
+        surnames:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
     InvoiceLine:
       type: object
       required:
@@ -5602,6 +5926,30 @@ components:
         vehicle:
           $ref: '#/components/schemas/Vehicle'
       additionalProperties: false
+    Party:
+      type: object
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        name:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        tax_id:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
     Payment:
       type: object
       required:
@@ -5618,6 +5966,29 @@ components:
           type: string
           format: date
       additionalProperties: false
+    ReadDocumentForm:
+      type: object
+      description: Multipart form accepted by `POST /api/v1/document-readings`.
+      required:
+      - category
+      - file
+      properties:
+        category:
+          $ref: '#/components/schemas/DocumentCategory'
+          description: One of `dominican_id_card`, `vehicle_registration`, `bill_of_lading`.
+        file:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: |-
+            One to four JPEG, PNG, WebP or PDF files of up to 10 MiB each, for
+            example both sides of a card. Repeat the `file` part for each one.
+    ReadingData:
+      oneOf:
+      - $ref: '#/components/schemas/IdCardData'
+      - $ref: '#/components/schemas/VehicleRegistrationData'
+      - $ref: '#/components/schemas/BillOfLadingData'
     SaveCompany:
       type: object
       required:
@@ -5983,6 +6354,105 @@ components:
           - string
           - 'null'
       additionalProperties: false
+    VehicleOwner:
+      type: object
+      properties:
+        address:
+          type:
+          - string
+          - 'null'
+        identity:
+          type:
+          - string
+          - 'null'
+          description: Cédula (000-0000000-0), passport or RNC.
+        name:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    VehicleRegistrationData:
+      type: object
+      required:
+      - owner
+      properties:
+        certificate_number:
+          type:
+          - string
+          - 'null'
+        chassis_number:
+          type:
+          - string
+          - 'null'
+        color:
+          type:
+          - string
+          - 'null'
+        cylinders:
+          type:
+          - string
+          - 'null'
+        doors:
+          type:
+          - string
+          - 'null'
+        emission_type:
+          type:
+          - string
+          - 'null'
+        engine_number:
+          type:
+          - string
+          - 'null'
+        engine_power:
+          type:
+          - string
+          - 'null'
+        issue_date:
+          type:
+          - string
+          - 'null'
+          description: YYYY-MM-DD.
+        load_capacity_tons:
+          type:
+          - string
+          - 'null'
+        make:
+          type:
+          - string
+          - 'null'
+        model:
+          type:
+          - string
+          - 'null'
+        owner:
+          $ref: '#/components/schemas/VehicleOwner'
+        passengers:
+          type:
+          - string
+          - 'null'
+        previous_registration_number:
+          type:
+          - string
+          - 'null'
+        registration_number:
+          type:
+          - string
+          - 'null'
+          description: '"No. de Registro y Placa", same field as a case file''s vehicle.'
+        status:
+          type:
+          - string
+          - 'null'
+        vehicle_type:
+          type:
+          - string
+          - 'null'
+        year:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
     VerificationDecision:
       type: string
       enum:
@@ -6110,3 +6580,5 @@ tags:
   description: Saved exports and statistics for the authenticated account
 - name: Billing
   description: Monthly company billing and bank transfers
+- name: Document readings
+  description: Structured JSON read from photos or PDFs of identity cards, vehicle registrations and bills of lading

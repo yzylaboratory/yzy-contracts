@@ -29,8 +29,8 @@ use crate::{
     app_state::AppState,
     error::{ApiError, ErrorEnvelope},
     modules::{
-        access, auth, billing, clients, companies, contracts, conversions, files,
-        generated_documents, system, templates,
+        access, auth, billing, clients, companies, contracts, conversions, document_readings,
+        files, generated_documents, system, templates,
     },
 };
 
@@ -56,7 +56,8 @@ const JSON_ENVELOPE_BYTES: usize = 64 * 1024;
         (name = "Conversions", description = "Asynchronous PDF and DOCX to Markdown conversions"),
         (name = "Templates", description = "Original Word templates with variables and legacy editable templates"),
         (name = "Generated documents", description = "Saved exports and statistics for the authenticated account"),
-        (name = "Billing", description = "Monthly company billing and bank transfers")
+        (name = "Billing", description = "Monthly company billing and bank transfers"),
+        (name = "Document readings", description = "Structured JSON read from photos or PDFs of identity cards, vehicle registrations and bills of lading")
     ),
     components(schemas(ErrorEnvelope)),
     modifiers(&BearerSecurity)
@@ -92,6 +93,7 @@ fn business_routes(template_max_bytes: usize, upload_max_bytes: i64) -> OpenApiR
         .merge(files::router())
         .merge(contracts::router(upload_max_bytes))
         .merge(conversions::router())
+        .merge(document_readings::router())
         .merge(templates::router())
         .merge(generated_documents::router(
             template_max_bytes,
@@ -214,6 +216,15 @@ async fn enforce_timeout(
     request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
+    // A model reading takes longer than a regular request; its HTTP client
+    // carries its own limit (OPENROUTER_TIMEOUT_SECS).
+    let is_reading = request
+        .extensions()
+        .get::<MatchedPath>()
+        .is_some_and(|path| path.as_str() == document_readings::PATH);
+    if is_reading {
+        return Ok(next.run(request).await);
+    }
     tokio::time::timeout(state.config.request_timeout, next.run(request))
         .await
         .map_err(|_| ApiError::Timeout)

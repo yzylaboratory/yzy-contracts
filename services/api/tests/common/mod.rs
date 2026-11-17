@@ -41,6 +41,7 @@ use yzy_contracts_api::{
         database,
         document_renderer::DocumentRenderer,
         extractor::ExtractorClient,
+        openrouter::DocumentReader,
         storage::{ObjectMetadata, ObjectStorage, PresignedRequest},
     },
     modules::auth::jwt::JwtVerifier,
@@ -59,6 +60,8 @@ pub const TEMPLATE_MAX_BYTES: usize = 4096;
 pub const APP_ROLE_PASSWORD: &str = "test-only-app-password";
 pub const EXTRACT_PATH: &str = "/internal/v1/extract";
 pub const EXTRACTOR_KEY: &str = "synthetic-extractor-token";
+pub const OPENROUTER_KEY: &str = "synthetic-openrouter-key";
+pub const OPENROUTER_MODEL: &str = "synthetic/vision-model";
 
 // Synthetic keys generated for this test suite. They protect nothing.
 pub const SIGNING_KEY: &str = "-----BEGIN PRIVATE KEY-----
@@ -377,6 +380,15 @@ impl TestApp {
             document_renderer: Some(
                 DocumentRenderer::new(&extractor.uri(), EXTRACTOR_KEY, config.request_timeout)
                     .expect("renderer client"),
+            ),
+            document_reader: Some(
+                DocumentReader::new(
+                    &format!("{}/openrouter", extractor.uri()),
+                    OPENROUTER_KEY,
+                    OPENROUTER_MODEL,
+                    config.request_timeout,
+                )
+                .expect("document reader client"),
             ),
             config: Arc::new(config.clone()),
         };

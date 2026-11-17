@@ -6,6 +6,7 @@ pub mod clients;
 pub mod companies;
 pub mod contracts;
 pub mod conversions;
+pub mod document_readings;
 pub mod files;
 pub mod generated_documents;
 pub mod system;

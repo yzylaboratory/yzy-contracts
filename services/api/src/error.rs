@@ -59,6 +59,12 @@ pub enum ApiError {
     DocumentRenderFailed,
     #[error("The document renderer is temporarily unavailable")]
     DocumentRendererUnavailable,
+    #[error("Document reading is temporarily unavailable")]
+    DocumentReaderUnavailable,
+    #[error("No se pudo leer el documento. Prueba con una foto más nítida y completa.")]
+    DocumentUnreadable,
+    #[error("Solo se aceptan imágenes JPEG, PNG o WebP y archivos PDF")]
+    UnsupportedDocumentImage,
     #[error("Upload not found")]
     UploadNotFound,
     #[error("Resource not found")]
@@ -128,6 +134,9 @@ impl ApiError {
             Self::GeneratedDocumentConflict => "GENERATED_DOCUMENT_CONFLICT",
             Self::DocumentRenderFailed => "DOCUMENT_RENDER_FAILED",
             Self::DocumentRendererUnavailable => "DOCUMENT_RENDERER_UNAVAILABLE",
+            Self::DocumentReaderUnavailable => "DOCUMENT_READER_UNAVAILABLE",
+            Self::DocumentUnreadable => "DOCUMENT_UNREADABLE",
+            Self::UnsupportedDocumentImage => "UNSUPPORTED_FILE_TYPE",
             Self::UploadNotFound => "UPLOAD_NOT_FOUND",
             Self::RouteNotFound => "NOT_FOUND",
             Self::UploadAlreadyUsed => "UPLOAD_ALREADY_USED",
@@ -183,17 +192,21 @@ impl ApiError {
             Self::UploadExpired => StatusCode::GONE,
             Self::FileTooLarge | Self::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::TourRateLimited | Self::ActivityRateLimited => StatusCode::TOO_MANY_REQUESTS,
-            Self::UnsupportedFileType => StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            Self::UnsupportedFileType | Self::UnsupportedDocumentImage => {
+                StatusCode::UNSUPPORTED_MEDIA_TYPE
+            }
             Self::UploadMismatch
             | Self::DocxVariablesRequired
             | Self::InvalidDocxVariables
             | Self::InvalidDocxTemplate
             | Self::DocumentRenderFailed
+            | Self::DocumentUnreadable
             | Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Timeout => StatusCode::GATEWAY_TIMEOUT,
-            Self::AuthUnavailable | Self::DocumentRendererUnavailable | Self::Unavailable => {
-                StatusCode::SERVICE_UNAVAILABLE
-            }
+            Self::AuthUnavailable
+            | Self::DocumentRendererUnavailable
+            | Self::DocumentReaderUnavailable
+            | Self::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

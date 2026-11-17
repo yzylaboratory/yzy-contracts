@@ -9,7 +9,7 @@ use yzy_contracts_api::{
     config::Config,
     infrastructure::{
         database, document_renderer::DocumentRenderer, extractor::ExtractorClient,
-        storage::R2Storage,
+        openrouter::DocumentReader, storage::R2Storage,
     },
     modules::auth::jwt::JwtVerifier,
     workers::{billing::BillingWorker, conversion::ConversionWorker},
@@ -43,11 +43,13 @@ async fn build_state(config: Config) -> anyhow::Result<AppState> {
     let storage = R2Storage::new(&config.r2);
     let jwt = JwtVerifier::new(config.jwt.clone())?;
     let document_renderer = DocumentRenderer::from_env(config.request_timeout)?;
+    let document_reader = DocumentReader::from_env()?;
     Ok(AppState {
         db,
         storage: Arc::new(storage),
         jwt: Arc::new(jwt),
         document_renderer,
+        document_reader,
         config: Arc::new(config),
     })
 }

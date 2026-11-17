@@ -65,10 +65,13 @@ Las variables son obligatorias salvo las marcadas como opcionales. [`.env.exampl
 | Límites | `UPLOAD_MAX_BYTES`, `TEMPLATE_MAX_BYTES`, `PRESIGN_UPLOAD_TTL_SECS`, `PRESIGN_DOWNLOAD_TTL_SECS` |
 | Extractor y worker | `EXTRACTOR_URL`, `EXTRACTOR_API_TOKEN`, `EXTRACTOR_TIMEOUT_SECS`, `CONVERSION_MAX_ATTEMPTS`, `WORKER_POLL_INTERVAL_SECS` |
 | Renderizador Word a PDF (opcional) | `DOCUMENT_RENDERER_URL`, `DOCUMENT_RENDERER_API_TOKEN` |
+| Lectura de documentos con OpenRouter (opcional) | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_TIMEOUT_SECS` |
 
 Configura `CONTRACTS_SUPERADMIN_ID` con el UUID de la cuenta de administración de este entorno. La API exige que el UUID configurado y el correo firmado coincidan con la cuenta confirmada en Auth. Esa cuenta accede al maestro global de clientes y a todas las empresas. Las operaciones conservan la empresa responsable. Para el entorno local, provisiona primero la cuenta confirmada en Auth, agrega su UUID a `.env` y arranca la API.
 
 Configura ambas variables del renderizador o déjalas sin definir. La URL base apunta al servicio privado que recibe el DOCX en `POST /v1/render/pdf` con la cabecera `X-Internal-API-Key`. El proxy autenticado `POST /api/v1/contracts/{id}/render-pdf` convierte una copia DOCX del contrato de la cuenta. `POST /api/v1/generated-documents/{id}/render-pdf` vuelve a renderizar una copia DOCX del historial, incluso si se eliminó el contrato. Ambos aplican `REQUEST_TIMEOUT_SECS` y el menor límite entre 20 MiB y `UPLOAD_MAX_BYTES`.
+
+`POST /api/v1/document-readings` lee fotos o PDF y devuelve JSON tipado. Recibe un multipart con `category` (`dominican_id_card`, `vehicle_registration` o `bill_of_lading`) y de una a cuatro partes `file` (JPEG, PNG, WebP o PDF de hasta 10 MiB). El modelo responde con un JSON Schema estricto. La API valida esa salida, normaliza la cédula al formato `000-0000000-0` y comprueba su dígito verificador, las fechas y los VIN. Lo que no cuadra va en `warnings`. Los archivos no se guardan y OpenRouter solo los enruta a proveedores que no retienen datos (`data_collection: deny`). Configura las tres variables o ninguna; sin ellas la ruta responde 503. Esta ruta usa `OPENROUTER_TIMEOUT_SECS` en lugar de `REQUEST_TIMEOUT_SECS`, porque una lectura tarda entre 10 y 45 segundos.
 
 `PUT /api/v1/generated-documents/{id}/artifact` recibe un multipart con la parte JSON `metadata` y la parte binaria `artifact`. En registros de correo, el binario corresponde al adjunto. `GET` sobre la misma ruta recupera esos bytes con acceso por propietario. El historial conserva las entradas antiguas con `has_artifact: false`.
 
