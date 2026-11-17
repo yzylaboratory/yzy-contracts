@@ -25,7 +25,7 @@ process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-key";
 const { buildCompanySnapshot, buildContractTemplateFields, isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
-const { extractSalesCommitment, formatWordTemplateValue, pagareDateRuns } = await import("../app/contratos/native-document.ts");
+const { emptyLabelRange, extractSalesCommitment, formatWordTemplateValue, pagareDateRuns } = await import("../app/contratos/native-document.ts");
 const { missingLoanVehicleFields, vehicleWrite } = await import("../app/clientes/vehicle-fields.ts");
 const { getClient, listClients, listClientTimeline, listOperations, saveClient, saveOperation } =
   await import("../app/clientes/clients-api.ts");
@@ -1065,4 +1065,18 @@ test("second witness comes from company configuration and defaults to CINDY C. D
     { key: "domicilio_del_cliente", occurrences: 1 },
   ], "venta_condicional_seguro").fields;
   assert.deepEqual(insuranceSaleFields.map(field => field.required), [true, true, true]);
+});
+
+test("un vehículo con bill of lading no imprime las etiquetas de placa ni motor", () => {
+  const text = "COLOR: {{color_del_vehiculo}}, NO. DE REGISTRO Y PLACA: {{placa_del_vehiculo}} CHASIS NO: {{numero_de_chasis_del_vehiculo}}, MOTOR O NO. DE SERIE:{{numero_de_serie_del_motor}}";
+  const values = { color_del_vehiculo: "AZUL", placa_del_vehiculo: "", numero_de_chasis_del_vehiculo: "19XFC1F32LE013448", numero_de_serie_del_motor: "" };
+  const edits = [...text.matchAll(/\{\{([a-z_0-9]+)\}\}/g)].map(match => {
+    const end = match.index + match[0].length;
+    const range = values[match[1]] ? { start: match.index, end } : emptyLabelRange(match[1], text, match.index, end);
+    return { ...range, value: values[match[1]] };
+  }).reverse();
+  let result = text;
+  for (const { start, end, value } of edits) result = result.slice(0, start) + value + result.slice(end);
+  assert.equal(result, "COLOR: AZUL, CHASIS NO: 19XFC1F32LE013448");
+  assert.deepEqual(emptyLabelRange("color_del_vehiculo", text, 7, 29), { start: 7, end: 29 });
 });

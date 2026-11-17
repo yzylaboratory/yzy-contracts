@@ -40,6 +40,22 @@ type Replacement = Match & { value: string; bold?: boolean; runs?: readonly Text
 const salePaymentColumns = ["cuotas_intereses_numeros", "cuotas_intereses_fechas", "cuotas_intereses_montos"];
 const pagareDateKeys = new Set(["fecha_firma", "fecha_de_firma"]);
 
+// Un vehículo importado con bill of lading no tiene placa ni motor: sin valor, su etiqueta tampoco se imprime.
+const emptyVehicleLabels: Record<string, { before: RegExp; after?: RegExp }> = {
+  placa_del_vehiculo: { before: /NO\.\s*DE\s+REGISTRO\s+Y\s+PLACA:\s*$/i, after: /^\s+/ },
+  numero_de_serie_del_motor: { before: /,\s*MOTOR\s+O\s+NO\.\s*DE\s+SERIE:\s*$/i },
+};
+
+/** Amplía el rango de un marcador vacío para incluir la etiqueta que lo describe en el Word. */
+export function emptyLabelRange(key: string, text: string, start: number, end: number) {
+  const label = emptyVehicleLabels[key];
+  if (!label) return { start, end };
+  const before = label.before.exec(text.slice(0, start));
+  if (!before) return { start, end };
+  const after = label.after?.exec(text.slice(end));
+  return { start: before.index, end: end + (after?.[0].length ?? 0) };
+}
+
 function isBoldAddressField(key: string) {
   return isContractAddressKey(key);
 }
@@ -266,10 +282,12 @@ function resolveNativeTargets(
       const prefix = segment.text.slice(0, match.index);
       const value = prefix.endsWith("RD$") && field.value.startsWith("RD$") ? field.value.slice(3) : field.value;
       const runs = pagareDateRuns(match[1], value, boldPagareDate);
+      const range = value
+        ? { start: match.index, end: match.index + match[0].length }
+        : emptyLabelRange(match[1], segment.text, match.index, match.index + match[0].length);
       edits.push({
         segment,
-        start: match.index,
-        end: match.index + match[0].length,
+        ...range,
         value,
         bold: isBoldAddressField(match[1]),
         ...(runs && { runs }),
