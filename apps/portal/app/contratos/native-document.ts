@@ -1,3 +1,5 @@
+import type { Vehicle } from "../clientes/clients-api";
+import { identifyReferenceWord, referenceWordValue, reviewedVehicleDescription } from "./reference-word";
 import { ApiError } from "@/lib/api";
 import { getContractDownload, renderContractPdf, type NativeVariable } from "./contracts-api";
 import { hasInsuranceCompanyNameInText } from "./document-catalog";
@@ -259,10 +261,11 @@ function resolveNativeTargets(
   allowIncomplete: boolean,
   uppercase = false,
   boldPagareDate = false,
+  reference?: Awaited<ReturnType<typeof identifyReferenceWord>>,
 ) {
   if (!variables.length || variables.length > variableLimit) throw new NativeDocumentError(invalidVariables);
   const byKey = new Map(fields.map(field => [field.key, field]));
-  const expected = new Map<string, { remaining: number; value: string }>();
+  const expected = new Map<string, { remaining: number; occurrences: number; value: string }>();
   let total = 0;
   for (const { key, occurrences } of variables) {
     const field = byKey.get(key);
@@ -273,7 +276,7 @@ function resolveNativeTargets(
     if (total > occurrenceLimit) throw new NativeDocumentError(invalidVariables);
     const value = formatWordTemplateValue(field, Object.hasOwn(values, key) ? values[key] : "", uppercase);
     if (!value && field.required && !allowIncomplete) throw new NativeDocumentError(`Completa el campo «${field.label}».`);
-    expected.set(key, { remaining: occurrences, value });
+    expected.set(key, { remaining: occurrences, occurrences, value });
   }
 
   const bySegment = new Map<Segment, Replacement[]>();
@@ -282,9 +285,13 @@ function resolveNativeTargets(
     for (const match of segment.text.matchAll(variableToken)) {
       const field = expected.get(match[1]);
       if (!field || field.remaining === 0) throw new NativeDocumentError(invalidVariables);
+      const occurrence = field.occurrences - field.remaining;
       field.remaining--;
       const prefix = segment.text.slice(0, match.index);
-      const value = prefix.endsWith("RD$") && field.value.startsWith("RD$") ? field.value.slice(3) : field.value;
+      const formatted = reference
+        ? referenceWordValue(reference, match[1], occurrence, values[match[1]] ?? "", field.value)
+        : field.value;
+      const value = prefix.endsWith("RD$") && formatted.startsWith("RD$") ? formatted.slice(3) : formatted;
       const runs = pagareDateRuns(match[1], value, boldPagareDate);
       const range = value
         ? { start: match.index, end: match.index + match[0].length }
@@ -293,7 +300,7 @@ function resolveNativeTargets(
         segment,
         ...range,
         value,
-        bold: isBoldAddressField(match[1]),
+        bold: !reference && isBoldAddressField(match[1]),
         ...(runs && { runs }),
       });
     }
@@ -477,8 +484,8 @@ function fixSaleTableLayout(table: Element) {
   body.insertBefore(table, clause);
 }
 
-function expandSalePaymentRows(replacements: Map<Segment, Replacement[]>, forPdf: boolean) {
-  const columns = salePaymentColumns.map(key => [...replacements].filter(([segment, edits]) =>
+function expandSalePaymentRows(replacements: Map<Segment, Replacement[]>, forPdf: boolean, columnsToExpand: readonly string[] = salePaymentColumns) {
+  const columns = columnsToExpand.map(key => [...replacements].filter(([segment, edits]) =>
     (segment.text === `{{${key}}}` || segment.text === fieldToken(key)) && edits.length === 1));
   if (columns.some(matches => matches.length !== 1)) return;
   const entries = columns.map(matches => matches[0]);
@@ -564,6 +571,7 @@ export async function fillOriginalWord(
   conditionalSale?: "docx" | "pdf",
   uppercase = false,
   boldPagareDate = false,
+  vehicle?: Vehicle,
 ) {
   if (original.size > fileLimit) throw new NativeDocumentError("El archivo supera el tamaño máximo de generación.");
   if (!nativeVariables && !fields.length) return new Blob([original], { type: wordMime });
@@ -577,11 +585,17 @@ export async function fillOriginalWord(
     parts.set(name, part);
     segments.push(...wordSegments(part, name, nativeVariables !== null));
   }
+  const reference = nativeVariables ? await identifyReferenceWord(files["word/document.xml"]) : undefined;
+  const referenceValues = reference && vehicle && values.vehiculo_garantia
+    ? { ...values, vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia) }
+    : values;
   const replacements = nativeVariables
-    ? resolveNativeTargets(segments, nativeVariables, fields, values, allowIncomplete, uppercase, boldPagareDate)
+    ? resolveNativeTargets(segments, nativeVariables, fields, referenceValues, allowIncomplete, reference ? false : uppercase, !reference && boldPagareDate, reference)
     : resolveTargets(segments, markdown, fields, values, uppercase, boldPagareDate);
   const changed = new Set<string>();
-  const paymentPart = conditionalSale && expandSalePaymentRows(replacements, conditionalSale === "pdf");
+  const expandPayments = conditionalSale || reference === "venta_condicional" || reference === "acto_seguro";
+  const paymentPart = expandPayments && expandSalePaymentRows(replacements, conditionalSale === "pdf",
+    reference === "acto_seguro" ? ["cuotas_seguro_numeros", "cuotas_seguro_fechas", "cuotas_seguro_montos"] : salePaymentColumns);
   if (paymentPart) changed.add(paymentPart);
   if (conditionalSale === "pdf" && !paymentPart) {
     const firstDueDate = "{{fecha_de_vencimiento_de_la_cuota_1}}";
@@ -633,10 +647,13 @@ async function downloadOriginal(contractId: string, accountId: string) {
 async function readContractText(contractId: string, accountId: string) {
   const part = "word/document.xml";
   const files = await unpackOriginalWord(await downloadOriginal(contractId, accountId));
-  return wordSegments(parseWordPart(files[part]), part, false).map(segment => segment.text);
+  return {
+    body: files[part],
+    paragraphs: wordSegments(parseWordPart(files[part]), part, false).map(segment => segment.text),
+  };
 }
 
-export function extractSalesCommitment(paragraphs: readonly string[], values: Record<string, string>) {
+export function extractSalesCommitment(paragraphs: readonly string[], values: Record<string, string>, reviewedSale = false) {
   let clause: string | undefined;
   for (const paragraph of paragraphs) {
     const start = paragraph.search(/\bse\s+compromete\b/iu);
@@ -655,16 +672,18 @@ export function extractSalesCommitment(paragraphs: readonly string[], values: Re
     const field: TemplateField = key.startsWith("fecha_")
       ? { key, label: key, required: true, kind: "date", dateStyle: "long" }
       : { key, label: key, required: true, kind: "text" };
-    return normalizeWordTemplateLine(formatWordTemplateValue(field, input));
+    const formatted = normalizeWordTemplateLine(formatWordTemplateValue(field, input));
+    return reviewedSale ? referenceWordValue("venta_condicional", key, 0, input, formatted) : formatted;
   });
 }
 
 export async function readSalesCommitmentFromContract(contractId: string, accountId: string, values: Record<string, string>) {
-  return extractSalesCommitment(await readContractText(contractId, accountId), values);
+  const { body, paragraphs } = await readContractText(contractId, accountId);
+  return extractSalesCommitment(paragraphs, values, await identifyReferenceWord(body) === "venta_condicional");
 }
 
 export async function hasInsuranceIssuerInContract(contractId: string, accountId: string) {
-  return (await readContractText(contractId, accountId)).some(hasInsuranceCompanyNameInText);
+  return (await readContractText(contractId, accountId)).paragraphs.some(hasInsuranceCompanyNameInText);
 }
 
 export async function prepareNativeDocument(input: {
@@ -674,6 +693,7 @@ export async function prepareNativeDocument(input: {
   conditionalSale?: boolean;
   uppercase?: boolean;
   boldPagareDate?: boolean;
+  vehicle?: Vehicle;
 }) {
   const { accountId, contractId, sourceFormat, output, markdown, fields, values, nativeVariables } = input;
   if (sourceFormat === "pdf") {
@@ -685,7 +705,7 @@ export async function prepareNativeDocument(input: {
   }
 
   const original = await downloadOriginal(contractId, accountId);
-  const word = await fillOriginalWord(original, markdown, fields, values, nativeVariables, input.allowIncomplete, input.conditionalSale ? output : undefined, input.uppercase, input.boldPagareDate);
+  const word = await fillOriginalWord(original, markdown, fields, values, nativeVariables, input.allowIncomplete, input.conditionalSale ? output : undefined, input.uppercase, input.boldPagareDate, input.vehicle);
   if (output === "docx") return word;
   const pdf = await renderContractPdf(contractId, accountId, word, input.companyId, input.operationId);
   if (pdf.type !== "application/pdf" || !pdf.size) throw new ApiError(502, "INVALID_RENDERED_PDF", "The renderer did not return a PDF");

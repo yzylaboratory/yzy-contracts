@@ -472,7 +472,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
       await checkGenerationAccess(contractId, accountId, company?.id, operationId);
       const docType = expediente?.type ?? documentTypeFromName(title)?.id;
       const boldPagareDate = usesBoldNotarialDate(docType) || /^\s*pagar[eé]\b/i.test(title);
-      const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale, uppercase: uppercaseValues, boldPagareDate });
+      const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale, uppercase: uppercaseValues, boldPagareDate, vehicle: expediente?.operation.vehicle });
       if (output === "preview") {
         const artifact = previewArtifact.current?.key === artifactKey ? previewArtifact.current.artifact : await prepare();
         if (!await isActiveAccount(accountId) || !mounted.current) return;

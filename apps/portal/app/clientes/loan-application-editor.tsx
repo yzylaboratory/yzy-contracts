@@ -6,6 +6,7 @@ import { ArrowLeft, FileText, FileType2 } from "lucide-react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
+import { Textarea } from "@/components/arc/textarea/textarea";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { applicationAmountLabel, applicationDateLabel } from "@/components/case-application/case-application";
@@ -147,6 +148,9 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
   const [confirmBusy, setConfirmBusy] = useState<"saving" | "generating" | null>(null);
   const [confirmFailure, setConfirmFailure] = useState("");
   const [batchFormat, setBatchFormat] = useState<GeneratedFormat | null>(null);
+  const [distributionPrompt, setDistributionPrompt] = useState<{ submit: (value: string) => void } | null>(null);
+  const [distributionDraft, setDistributionDraft] = useState("");
+  const confirmedDistribution = useRef<{ operationId: string; value: string } | null>(null);
   const formatSheetRef = useRef<HTMLDialogElement>(null);
   const [createdOperation, setCreatedOperation] = useState<Operation | null>(null);
   const [generationProgress, setGenerationProgress] = useState<BatchProgress | null>(null);
@@ -289,6 +293,23 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
     onSaved(target, true);
   }
 
+  function requestDistribution(operationId: string, signal: AbortSignal): Promise<string> {
+    signal.throwIfAborted();
+    if (confirmedDistribution.current?.operationId === operationId) {
+      return Promise.resolve(confirmedDistribution.current.value);
+    }
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+      setDistributionPrompt({ submit(value) {
+        signal.removeEventListener("abort", abort);
+        confirmedDistribution.current = { operationId, value };
+        setDistributionPrompt(null);
+        resolve(value);
+      } });
+    });
+  }
+
   async function confirmAndGenerate(format: GeneratedFormat, retryOnly = false) {
     if (!pending || confirmBusy !== null || completionOperation !== null) return;
     setBatchFormat(format);
@@ -325,6 +346,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
       ? generationResult.failed.map(item => item.type)
       : undefined;
 
+    const operationId = targetOperation.id;
     try {
       const result = await generateInitialExpedienteDocuments({
         accountId,
@@ -332,6 +354,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
         operation: targetOperation,
         preferredFormat: format,
         retryOnlyTypes: retryTypes,
+        requestDisbursementDistribution: signal => requestDistribution(operationId, signal),
         onProgress: progress => {
           if (mounted.current) setGenerationProgress(progress);
         },
@@ -370,7 +393,8 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
       }
     } catch (error) {
       if (!mounted.current) return;
-      setConfirmFailure(clientErrorMessage(error, "No se pudieron generar los documentos iniciales del expediente."));
+      setDistributionPrompt(null);
+      if (!controller.signal.aborted) setConfirmFailure(clientErrorMessage(error, "No se pudieron generar los documentos iniciales del expediente."));
       setConfirmBusy(null);
       onDirty(false);
     } finally {
@@ -544,9 +568,20 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
       ? showingGenerationStage
         ? <section className={styles.panel} aria-labelledby="loan-application-title" data-tour="operation-generating">
           <h2 id="loan-application-title" ref={heading} tabIndex={-1}>
-            {completionOperation ? "Expediente emitido" : "Emitiendo documentos del expediente"}
+            {distributionPrompt ? "Distribución del desembolso" : completionOperation ? "Expediente emitido" : "Emitiendo documentos del expediente"}
           </h2>
-          <ExpedienteGenerationStage
+          {distributionPrompt ? <form className={styles.stack} onSubmit={event => {
+            event.preventDefault();
+            if (distributionDraft.trim()) distributionPrompt.submit(distributionDraft.trim());
+          }}>
+            <Textarea autoFocus label="¿Cómo se distribuye el desembolso?" name="distribucion_desembolso"
+              description="Indica los destinatarios y los montos. El reparto se incluirá en los documentos que lo soliciten."
+              rows={3} required value={distributionDraft} onChange={event => setDistributionDraft(event.target.value)} />
+            <div className={styles.actions}>
+              <Button type="button" variant="secondary" onClick={() => batchAbort.current?.abort()}>Volver a la revisión</Button>
+              <Button type="submit" disabled={!distributionDraft.trim()}>Generar documentos</Button>
+            </div>
+          </form> : <ExpedienteGenerationStage
             phase={stagePhase}
             clientName={client.name}
             preferredFormat={batchFormat ?? preferences.defaultFormat}
@@ -554,7 +589,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
             operationReference={createdOperation?.reference}
             insurancePaid={Boolean(pending.insurance_paid)}
             onOpenExpediente={completionOperation ? () => openCompletedExpediente(completionOperation) : undefined}
-          />
+          />}
         </section>
         : <section className={styles.panel} aria-labelledby="loan-application-title" data-tour="operation-form">
           <h2 id="loan-application-title" ref={heading} tabIndex={-1}>Revisión y confirmación</h2>

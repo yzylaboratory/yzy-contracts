@@ -31,7 +31,7 @@ import {
   isInsuranceCompanyName,
   type DocumentType,
 } from "./document-catalog";
-import { caseVehicleKeys, isExpedienteField, missingVehicleMessage, percentageDateKey, resolveExpedienteFields, usesBoldNotarialDate, usesUppercaseDocumentData } from "./expediente-fields";
+import { caseVehicleKeys, isExpedienteField, missingVehicleMessage, percentageDateKey, resolveExpedienteFields, usesBoldNotarialDate, usesDisbursementData, usesUppercaseDocumentData } from "./expediente-fields";
 import { saveGeneratedArtifact, type DocumentFormat, type GeneratedFormat, type GeneratedOutput } from "./generated-documents-api";
 import { hasInsuranceIssuerInContract, NativeDocumentError, prepareNativeDocument, readSalesCommitmentFromContract } from "./native-document";
 import { wordsSource } from "./native-field-kinds";
@@ -109,6 +109,7 @@ export async function generateInitialExpedienteDocuments(input: {
   client: Client;
   operation: Operation;
   preferredFormat: GeneratedFormat;
+  requestDisbursementDistribution: (signal: AbortSignal) => Promise<string>;
   retryOnlyTypes?: readonly DocumentType[];
   onProgress?: (progress: BatchProgress) => void;
   signal?: AbortSignal;
@@ -154,6 +155,12 @@ export async function generateInitialExpedienteDocuments(input: {
     }
     resolvedTargets.push({ type, label, entry: resolution.entry });
   }
+
+  const needsDistribution = resolvedTargets.some(({ type, entry }) =>
+    usesDisbursementData(type) && entry?.template.native_variables?.some(field => field.key === "distribucion_desembolso"));
+  const distribution = needsDistribution
+    ? await input.requestDisbursementDistribution(requestSignal)
+    : undefined;
 
   let cachedSalesParagraph: string | undefined;
   let salesParagraphError: string | undefined;
@@ -282,7 +289,9 @@ export async function generateInitialExpedienteDocuments(input: {
       const values = resolveCompanyAndDerivedValues(
         fields,
         selectedCompany,
-        resolved.values,
+        usesDisbursementData(target.type) && distribution !== undefined
+          ? { ...resolved.values, distribucion_desembolso: distribution }
+          : resolved.values,
         key => isExpedienteField(key, target.type) ||
           (isInsuranceDocument && isInsuranceIssuerField(key)) ||
           (isInsuranceSale && isCompanyField(key) && !isCompanyContractClauseField(key)),
@@ -345,6 +354,7 @@ export async function generateInitialExpedienteDocuments(input: {
         conditionalSale: target.type === "venta_condicional" || isInsuranceSale,
         uppercase: uppercaseValues,
         boldPagareDate: usesBoldNotarialDate(target.type),
+        vehicle: operation.vehicle,
       });
 
       const filename = `${fileBase(contract.name)}.${effectiveOutput}`;

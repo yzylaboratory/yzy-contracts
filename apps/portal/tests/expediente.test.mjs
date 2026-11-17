@@ -279,7 +279,8 @@ test("the promissory note writes identity and every payment in numbers and words
   const { values, issues } = resolveExpedienteFields("pagare_autentico", client, operation, {
     salesCommitmentParagraph: "se compromete a pagar las cuotas pactadas",
   });
-  assert.deepEqual(issues, []);
+  // The prose can list different amounts, but the reviewed note requires one repeated amount.
+  assert.deepEqual(issues.map(issue => issue.key), ["cuota_intereses_monto", "cuota_intereses_monto_letras"]);
   assert.equal(values.cliente_cedula_letras, "CERO CERO CERO GUION CERO CERO CERO CERO CERO CERO CERO GUION UNO");
   assert.equal(
     resolveExpedienteFields("pagare_autentico", { ...client, identity: "001-1465695-2" }, operation, {
@@ -1092,4 +1093,84 @@ test("la venta condicional con bill of lading no imprime las etiquetas de matrí
   let result = text;
   for (const { start, end, value } of edits) result = result.slice(0, start) + value + result.slice(end);
   assert.equal(result, "COLOR: AZUL, CHASIS NO: 19XFC1F32LE013448");
+});
+
+test("reviewed Word bodies apply their own case, preserve pending signatures, and accept feminine treatment", async () => {
+  const { identifyReferenceWord, referenceWordValue } = await import("../app/contratos/reference-word.ts");
+  const customBody = new TextEncoder().encode("<w:document/>");
+  assert.equal(await identifyReferenceWord(customBody), undefined);
+  const name = "Nélida del Río";
+  assert.equal(referenceWordValue("venta_condicional", "cliente_nombre", 0, name, name), "NÉLIDA DEL RÍO");
+  assert.equal(referenceWordValue("venta_condicional", "cliente_nombre", 1, name, name), name);
+  assert.equal(referenceWordValue("designacion_cuenta", "cliente_nombre", 1, name, name), name);
+  assert.equal(referenceWordValue("designacion_cuenta", "cliente_nombre", 2, name, name), "NÉLIDA DEL RÍO");
+  assert.equal(referenceWordValue("levantamiento_oposicion", "cliente_nacionalidad", 0, "DOMINICANA", "DOMINICANA"), "dominicana");
+  assert.equal(referenceWordValue("pagare_autentico", "cliente_tratamiento", 0, "la Sra.", "la Sra."), "la señora");
+  assert.equal(referenceWordValue("pagare_seguro", "cliente_tratamiento", 0, "LA SEÑORA", "LA SEÑORA"), "la SRA.");
+  assert.equal(referenceWordValue("autorizacion_data", "cliente_tratamiento", 0, "Dra.", "Dra."), "Dra.");
+});
+
+test("reviewed Word dates follow the specific occurrence in the source template", async () => {
+  const { referenceWordValue } = await import("../app/contratos/reference-word.ts");
+  const value = (type, key = "fecha_firma", occurrence = 0) => referenceWordValue(type, key, occurrence, "2026-11-16", "16/11/2026");
+  assert.equal(value("venta_condicional"), "los DIECISÉIS (16) días del mes de NOVIEMBRE del año 2026");
+  assert.equal(value("acuerdo_seguro", "fecha_firma", 1), "DIECISÉIS (16) días del mes de NOVIEMBRE del año 2026");
+  assert.equal(value("entrega_vehiculo_fines_saldo"), "los DIECISÉIS (16) DÍAS DEL MES DE NOVIEMBRE DEL AÑO DOS MIL VEINTISÉIS (2026)");
+  assert.equal(value("entrega_vehiculo_fines_saldo", "fecha_firma", 1), value("venta_condicional"));
+  assert.equal(value("autorizacion_desembolso"), "16/11/2026");
+  assert.equal(value("venta_condicional", "fecha_abono_extraordinario_1"), "16 de noviembre del año 2026");
+});
+
+test("reviewed guarantees keep the recorded use and distinguish registration from plate", async () => {
+  const { reviewedVehicleDescription, referenceWordValue } = await import("../app/contratos/reference-word.ts");
+  const { expedienteVehicleDescription } = await import("../app/contratos/expediente-fields.ts");
+  const describe = vehicle => reviewedVehicleDescription(vehicle, expedienteVehicleDescription(vehicle));
+  assert.equal(describe({ vehicle_type: "automóvil privado", registration_number: "TEST1", plate: "TEST1" }),
+    "un automóvil privado, Placa TEST1");
+  assert.equal(describe({ vehicle_type: "camioneta", plate: "TEST2", registration_number: "M1", chassis_number: "C1" }),
+    "una camioneta, Matrícula M1, Placa TEST2, Chasis C1");
+  assert.equal(describe({ make: "Prueba", chassis_number: "C1", source_document: "bill_of_lading" }),
+    "Marca Prueba, Chasis C1");
+  assert.equal(reviewedVehicleDescription({ vehicle_type: "automóvil" }, "descripción editada"), "descripción editada");
+  assert.equal(referenceWordValue("venta_condicional", "vehiculo_tipo", 0, "automóvil privado", "automóvil privado"), "AUTOMÓVIL");
+});
+
+test("the initial batch requests one manual distribution only for selected disbursement templates", async t => {
+  const { generateInitialExpedienteDocuments } = await import("../app/contratos/batch-document-generation.ts");
+  const types = ["autorizacion_desembolso", "designacion_cuenta"];
+  const accountId = "synthetic-admin";
+  const companyId = "synthetic-company";
+  const templates = types.map(type => ({
+    id: type, name: type, original_file_name: type + ".docx", template_id: type, company_id: companyId,
+  }));
+  let listed = templates;
+  t.mock.method(supabase.auth, "getSession", async () => ({
+    data: { session: { user: { id: accountId }, access_token: "synthetic-token" } },
+  }));
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    const path = new URL(url).pathname;
+    assert.equal(init.method, "GET");
+    if (path.endsWith("/companies")) return Response.json({ items: [] });
+    if (path.endsWith("/contracts")) return Response.json({ items: listed, page: 1, per_page: 100, total: listed.length });
+    const definition = getDocumentType(path.split("/").at(-1));
+    assert.ok(definition);
+    return Response.json({ native_variables: definition.requiredFields.map(key => ({ key, occurrences: 1 })) });
+  });
+  let requests = 0;
+  const input = {
+    accountId, client, operation: { ...operation, company_id: companyId }, preferredFormat: "docx",
+    requestDisbursementDistribution: async () => { requests++; return "Cuenta de prueba"; },
+  };
+  const result = await generateInitialExpedienteDocuments(input);
+  assert.equal(requests, 1);
+  assert.equal(result.failed.length, 2); // Ambos llegan a la validación de la empresa sintética ausente.
+  assert.ok(result.failed.every(item => item.message.includes("empresa")));
+  const cancellation = new DOMException("Cancelado", "AbortError");
+  await assert.rejects(generateInitialExpedienteDocuments({
+    ...input, requestDisbursementDistribution: async () => { throw cancellation; },
+  }), error => error === cancellation);
+  await generateInitialExpedienteDocuments({ ...input, retryOnlyTypes: ["gps"] });
+  listed = [];
+  await generateInitialExpedienteDocuments(input);
+  assert.equal(requests, 1);
 });

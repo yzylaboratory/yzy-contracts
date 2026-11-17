@@ -182,6 +182,13 @@ const vehicleFields = [
   ["vehiculo_motor", "Motor", "engine_number"],
 ] as const satisfies readonly (readonly [string, string, keyof Vehicle])[];
 
+export function expedienteVehicleDescription(vehicle: Vehicle) {
+  return vehicleFields.flatMap(([, label, field]) => {
+    const value = text(vehicle[field]);
+    return value ? [`${label} ${value}`] : [];
+  }).join(", ");
+}
+
 const interestColumns = ["cuotas_intereses_numeros", "cuotas_intereses_fechas", "cuotas_intereses_montos"];
 export const percentageDateKey = "fecha_ancla_cuota_extraordinaria";
 export const signatureDateRequired = "Guarda la fecha de firma en el detalle del expediente.";
@@ -510,14 +517,9 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     parrafo_compromiso_pago: text(context.salesCommitmentParagraph),
   };
 
-  const guarantee: string[] = [];
-  for (const [marker, label, field] of vehicleFields) {
-    const value = text(operation.vehicle[field]);
-    values[marker] = value;
-    if (value) guarantee.push(`${label} ${value}`);
-  }
+  for (const [marker, , field] of vehicleFields) values[marker] = text(operation.vehicle[field]);
   values.vehiculo_matricula = values.vehiculo_matricula || values.vehiculo_placa;
-  values.vehiculo_garantia = guarantee.join(", ");
+  values.vehiculo_garantia = expedienteVehicleDescription(operation.vehicle);
   values.vehiculo_descripcion = values.vehiculo_garantia;
   values.vehiculo_ano = values.vehiculo_anio;
   // Autorizaciones, GPS, levantamiento y actas de entrega describen el vehículo en mayúsculas, como en los modelos.
