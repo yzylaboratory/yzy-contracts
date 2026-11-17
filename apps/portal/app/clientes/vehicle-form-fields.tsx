@@ -19,11 +19,11 @@ export function VehicleFormFields({ value, onChange, errors, disabled, required 
     <div className={styles.formFields}>{vehicleFields.map(([field, label]) => {
       const values = suggestions[field];
       const props = { name: field, label, value: value[field] ?? "", autoComplete: "off", maxLength: 200, required, error: errors?.[field] };
-      const update = (next: string) => onChange({ ...value, [field]: next });
+      const update = (next: string) => onChange({ ...value, [field]: next.toLocaleUpperCase("es") });
 
       return values ? <Combobox key={field} {...props} disabled={disabled} allowCustomValue
         inputMode={field === "year" ? "numeric" : undefined}
-        options={values.map(value => ({ label: value, value }))}
+        options={values.map(option => option.toLocaleUpperCase("es")).map(option => ({ label: option, value: option }))}
         placeholder="Escribe o selecciona…" clearLabel={`Borrar ${label.toLowerCase()}`} optionsLabel={`Sugerencias de ${label.toLowerCase()}`}
         emptyMessage={field === "model" && values.length === 0 ? "Escribe el modelo del vehículo." : "Sin coincidencias. Puedes usar el valor escrito."}
         onValueChange={update} />

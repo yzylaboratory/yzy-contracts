@@ -604,6 +604,10 @@ impl Vehicle {
             ("vehicle_type", &mut self.vehicle_type),
         ] {
             normalize_optional_text(field, value, 200)?;
+            // Vehicle data is recorded in uppercase, as it appears in contracts.
+            if let Some(text) = value {
+                *text = text.to_uppercase();
+            }
         }
         Ok(())
     }

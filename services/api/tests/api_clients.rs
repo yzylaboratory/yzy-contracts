@@ -839,11 +839,11 @@ async fn operation_timeline_preserves_legacy_update_and_records_nested_changes()
         )
     );
     assert!(
-        changes.contains(&json!({"field": "vehicle.color", "before": "Azul", "after": "Verde"}))
+        changes.contains(&json!({"field": "vehicle.color", "before": "AZUL", "after": "VERDE"}))
     );
     assert!(
         changes.contains(
-            &json!({"field": "vehicle.make", "before": "Marca sintética", "after": null})
+            &json!({"field": "vehicle.make", "before": "MARCA SINTÉTICA", "after": null})
         )
     );
     assert!(changes.contains(&json!({
