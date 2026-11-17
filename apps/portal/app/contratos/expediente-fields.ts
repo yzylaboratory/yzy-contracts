@@ -241,6 +241,11 @@ export function usesUppercaseDocumentData(type?: DocumentType) {
   return type === "levantamiento_oposicion";
 }
 
+/** Autorización de desembolso y designación de cuenta: monto financiado y reparto escrito al generar. */
+export function usesDisbursementData(type?: DocumentType) {
+  return type === "autorizacion_desembolso" || type === "designacion_cuenta";
+}
+
 /** Texto combinado de cuotas con montos y fechas en letras; solo pagarés. */
 export function usesNotarialPaymentProse(type?: DocumentType) {
   return type === "pagare_autentico" || type === "pagare_seguro";
@@ -490,7 +495,7 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
   values.vehiculo_ano = values.vehiculo_anio;
   // Autorizaciones, GPS, levantamiento y actas de entrega describen el vehículo en mayúsculas, como en los modelos.
   if (
-    type === "autorizacion_asegurar_vehiculo" || type === "autorizacion_data" || type === "gps" || type === "autorizacion_desembolso"
+    type === "autorizacion_asegurar_vehiculo" || type === "autorizacion_data" || type === "gps" || usesDisbursementData(type)
     || type === "entrega_vehiculo" || type === "entrega_vehiculo_fines_saldo"
     || usesUppercaseDocumentData(type)
   ) {
@@ -500,7 +505,7 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     values.vehiculo_ano = values.vehiculo_anio;
   }
   // Autorización de datos, GPS y desembolso llevan nombre y domicilio en mayúsculas.
-  if (type === "autorizacion_data" || type === "gps" || type === "autorizacion_desembolso") {
+  if (type === "autorizacion_data" || type === "gps" || usesDisbursementData(type)) {
     for (const key of ["cliente_nombre", "cliente_nombre_firma", "cliente_direccion", "cliente_direccion_transito"] as const) {
       if (values[key]) values[key] = values[key].toLocaleUpperCase("es");
     }
@@ -547,7 +552,7 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     !(type === "venta_condicional_seguro" && !baseFields.has(key) && key !== "monto_de_cada_cuota") &&
     !(type === "acto_seguro" && insuranceScheduleMarkers.has(key)) &&
     // La distribución del desembolso se escribe a mano al generar.
-    !(type === "autorizacion_desembolso" && key === "distribucion_desembolso"));
+    !(usesDisbursementData(type) && key === "distribucion_desembolso"));
   let insuranceIssues: { key: string; message: string }[] = [];
   if (definition.requiresInsuranceCompany) {
     const count = context.insuranceInstallmentCount ?? operation.financing?.insurance_installment_count ?? 10;

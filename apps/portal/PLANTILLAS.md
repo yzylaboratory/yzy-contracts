@@ -22,6 +22,7 @@ Inserta los marcadores en texto normal de Word o dentro de celdas. Escribe cada 
 | Acuerdo de seguro | `cliente_nombre`, `cliente_cedula`, `fecha_firma` |
 | Autorización para asegurar vehículo | `cliente_nombre`, `cliente_cedula`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma` |
 | Autorización de desembolso | `cliente_nombre`, `cliente_cedula`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma`, `monto_desembolso`, `distribucion_desembolso` (nombre, domicilio y vehículo en mayúsculas; `fecha_firma` como 30/09/2026; `monto_desembolso` es la cuota final de capital en letras y números; `distribucion_desembolso` se escribe al generar) |
+| Designación de cuenta | `cliente_nombre`, `cliente_cedula`, `cliente_direccion`, `fecha_firma`, `monto_desembolso`, `distribucion_desembolso` (`fecha_contrato` como 30/09/2026 y `fecha_firma` al estilo del acto notarial; `nombre_del_notario` es opcional) |
 | Levantamiento de oposición | `cliente_nombre`, `cliente_cedula`, `cliente_direccion`, `vehiculo_garantia` |
 | Entrega de vehículo y entrega de vehículo con fines de saldo | `cliente_nombre`, `cliente_cedula`, `vehiculo_garantia`, `fecha_firma` |
 | Entrega de documentos | `cliente_nombre`, `cliente_cedula`, `vehiculo_garantia`, `operacion_referencia`, `fecha_contrato`, `fecha_firma` |

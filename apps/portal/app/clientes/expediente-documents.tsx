@@ -123,7 +123,8 @@ export function ExpedienteDocuments({ accountId, operationId, action, loan }: {
   const loanDate = loan?.application.application_date;
   const loanAmount = loan?.application.requested_amount_minor;
   // The loan application follows the format chosen for the case documents.
-  const loanFormat = items.some(record => record.format === "docx") ? "docx" : "pdf";
+  // La solicitud se descarga en Word como los demás documentos del expediente; la vista previa sigue en PDF.
+  const loanFormat = "docx";
 
   return <section ref={section} className={styles.panel} aria-labelledby="expediente-documents-title">
     <div className={styles.header}>

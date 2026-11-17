@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Banknote, Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FolderOpen, Handshake, KeyRound, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
+import { Banknote, Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FolderOpen, Handshake, KeyRound, Landmark, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
 import { listGeneratedDocuments } from "@/app/contratos/generated-documents-api";
 import { Badge } from "@/components/arc/badge/badge";
@@ -20,7 +20,7 @@ const icons = {
   venta_condicional: Handshake, venta_condicional_seguro: ShieldCheck, pagare_autentico: FileSignature, entrega_voluntaria: KeyRound,
   acto_seguro: Shield, pagare_seguro: FileBadge, declaracion_jurada: ClipboardCheck,
   gps: MapPin, autorizacion_data: FileLock, acuerdo_seguro: ShieldCheck,
-  autorizacion_asegurar_vehiculo: FileCheck, autorizacion_desembolso: Banknote, levantamiento_oposicion: Unlock,
+  autorizacion_asegurar_vehiculo: FileCheck, autorizacion_desembolso: Banknote, designacion_cuenta: Landmark, levantamiento_oposicion: Unlock,
   entrega_vehiculo: Car, entrega_vehiculo_fines_saldo: Receipt, entrega_documentos: FolderOpen, carta_saldo: FileText,
 } satisfies Record<DocumentType, typeof Car>;
 

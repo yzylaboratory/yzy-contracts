@@ -73,6 +73,9 @@ export const DOCUMENT_TYPES = [
   { id: "autorizacion_desembolso", label: "Autorización de desembolso", requiredFields: [
     ...customer, "cliente_direccion", ...vehicle, ...signature, "monto_desembolso", "distribucion_desembolso",
   ] },
+  { id: "designacion_cuenta", label: "Designación de cuenta", requiredFields: [
+    ...customer, "cliente_direccion", ...signature, "monto_desembolso", "distribucion_desembolso",
+  ] },
   { id: "levantamiento_oposicion", label: "Levantamiento de oposición", requiredFields: [...customer, "cliente_direccion", ...vehicle] },
   { id: "entrega_vehiculo", label: "Entrega de vehículo", requiredFields: vehicleReceipt },
   { id: "entrega_vehiculo_fines_saldo", label: "Entrega de vehículo con fines de saldo", requiredFields: vehicleReceipt },
