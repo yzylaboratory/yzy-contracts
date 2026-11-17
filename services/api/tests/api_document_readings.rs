@@ -164,7 +164,12 @@ async fn reads_an_id_card_with_a_strict_schema_and_checks_it() {
     assert_eq!(body["data"]["id_number"], "001-0000001-7");
     let warnings = body["warnings"].as_array().unwrap();
     assert_eq!(warnings.len(), 1, "{warnings:?}");
-    assert!(warnings[0].as_str().unwrap().starts_with("expiration_date"));
+    assert!(
+        warnings[0]
+            .as_str()
+            .unwrap()
+            .starts_with("Fecha de vencimiento")
+    );
 }
 
 #[tokio::test]

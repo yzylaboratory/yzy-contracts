@@ -35,6 +35,26 @@ import {
 } from "./monthly-payment-plan";
 import { MonthlyPaymentTable } from "./monthly-payment-table";
 import { VehicleFormFields } from "./vehicle-form-fields";
+import { readDocument, vehicleFromBillOfLading, vehicleFromRegistration, type DocumentCategory } from "./document-readings-api";
+import { DocumentScan, type ScanOutcome } from "./document-scan";
+
+const vehicleDocuments = [
+  { value: "vehicle_registration", label: "Matrícula", uploadLabel: "Sube la matrícula", hint: "Foto o PDF del Certificado de Propiedad de Vehículos de Motor (DGII)." },
+  { value: "bill_of_lading", label: "Bill of lading", uploadLabel: "Sube el bill of lading", hint: "PDF o fotos de todas las páginas del conocimiento de embarque." },
+] as const;
+
+async function readVehicle(category: DocumentCategory, files: File[], signal: AbortSignal): Promise<{ mismatch: string } | { vehicle: Vehicle; warnings: string[] }> {
+  if (category === "bill_of_lading") {
+    const reading = await readDocument("bill_of_lading", files, signal);
+    if (!reading.matches_category) return { mismatch: "El archivo no parece un bill of lading" };
+    const vehicle = vehicleFromBillOfLading(reading.data);
+    if (!vehicle) return { mismatch: "El bill of lading no describe ningún vehículo" };
+    return { vehicle, warnings: reading.warnings };
+  }
+  const reading = await readDocument("vehicle_registration", files, signal);
+  if (!reading.matches_category) return { mismatch: "El archivo no parece una matrícula de vehículo" };
+  return { vehicle: vehicleFromRegistration(reading.data), warnings: reading.warnings };
+}
 import styles from "./clients.module.css";
 
 type LoanDraft = {
@@ -101,7 +121,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
   const formId = useId();
   const key = `${clientScope(accountId, client.id)}:loan:${operation?.id ?? companyId}`;
   const { save, saving, failure } = useClientSave(key, onDirty, onSaved, clientScope(accountId));
-  const { draft, updateDraft, discardDraft } = useClientDraft<LoanDraft>(key, () => {
+  const { draft, updateDraft, patchDraft, discardDraft } = useClientDraft<LoanDraft>(key, () => {
     const capital = operation?.application?.requested_amount_minor ?? 0;
     return {
       status: operation?.status ?? "solicitud",
@@ -482,6 +502,14 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
           {planTotalError && <p className={styles.failure} role="alert">El total de las cuotas supera el monto permitido.</p>}
         </>}
       </div>}
+      <DocumentScan title="Rellenar con un documento del vehículo" disabled={saving} options={vehicleDocuments}
+        onRead={async (category, files, signal): Promise<ScanOutcome> => {
+          const result = await readVehicle(category, files, signal);
+          if ("mismatch" in result) return result;
+          patchDraft(current => ({ ...current, vehicle: { ...current.vehicle, ...result.vehicle } }));
+          const filled = vehicleFields.filter(([key]) => result.vehicle[key]).map(([, label]) => label);
+          return { filled, warnings: result.warnings };
+        }} />
       <VehicleFormFields value={draft.vehicle} disabled={saving} required onChange={vehicle => updateDraft({ ...draft, vehicle })} />
       {clientMissing.length > 0 && <div className={styles.stack}>
         <Alert tone="info" title={`El cliente tiene ${clientMissing.length} datos pendientes`}>

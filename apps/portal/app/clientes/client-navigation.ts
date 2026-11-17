@@ -121,6 +121,16 @@ export function useClientDraft<T>(key: string, initial: () => T, onDirty: (dirty
     onDirty(true);
   }
 
+  /** For changes that land after an await, so edits made meanwhile are kept. */
+  function patchDraft(change: (current: T) => T) {
+    setDraft(current => {
+      const next = change(current);
+      drafts.set(key, next);
+      return next;
+    });
+    onDirty(true);
+  }
+
   function discardDraft() {
     drafts.delete(key);
     saves.delete(key);
@@ -128,5 +138,5 @@ export function useClientDraft<T>(key: string, initial: () => T, onDirty: (dirty
     onDirty(false);
   }
 
-  return { draft, updateDraft, discardDraft };
+  return { draft, updateDraft, patchDraft, discardDraft };
 }

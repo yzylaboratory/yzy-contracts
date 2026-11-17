@@ -9,6 +9,8 @@ import { ClientProfileFields, clientContractFields, hasClientProfile, type Clien
 import { displayClientIdentity, displayClientPhone, formatCedula, formatPhone, handleMaskedBackspace } from "./client-masks";
 import { clientDraftKey, clientScope, useClientDraft, useClientSave } from "./client-navigation";
 import { saveClient, type Client, type ClientWrite } from "./clients-api";
+import { clientFromIdCard, readDocument } from "./document-readings-api";
+import { DocumentScan, type ScanOutcome } from "./document-scan";
 import { missingLoanClientFields } from "./loan-application-fields";
 import styles from "./clients.module.css";
 
@@ -42,7 +44,7 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
     !/^\d{3}-\d{3}-\d{4}$/.test(originalPhone);
   const key = clientDraftKey(accountId, client?.id);
   const { save, saving, failure } = useClientSave(key, onDirty, onSaved, clientScope(accountId));
-  const { draft, updateDraft, discardDraft } = useClientDraft(key, () => ({
+  const { draft, updateDraft, patchDraft, discardDraft } = useClientDraft(key, () => ({
     name: client?.name ?? "",
     identity: displayClientIdentity(originalIdentity),
     address: client?.address ?? "",
@@ -60,6 +62,26 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
     const title = pageTitleId ? document.getElementById(pageTitleId) : heading.current;
     title?.focus();
   }, [pageTitleId]);
+
+  async function fillFromIdCard(files: File[], signal: AbortSignal): Promise<ScanOutcome> {
+    const reading = await readDocument("dominican_id_card", files, signal);
+    if (!reading.matches_category) return { mismatch: "El archivo no parece una cédula dominicana" };
+    const fill = clientFromIdCard(reading.data);
+    const filled = [
+      fill.name && "Nombre completo",
+      fill.identity && "Cédula",
+      fill.profile.nationality && "Nacionalidad",
+      fill.profile.marital_status && "Estado civil",
+    ].filter((label): label is string => Boolean(label));
+    patchDraft(current => ({
+      ...current,
+      ...(fill.name && { name: fill.name }),
+      ...(fill.identity && { identity: formatCedula(fill.identity) }),
+      profile: { ...current.profile, ...fill.profile },
+    }));
+    setErrors(current => ({ ...current, name: undefined, identity: undefined }));
+    return { filled, warnings: reading.warnings };
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,6 +144,9 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
       {topActions && failure && <p className={styles.failure} role="alert">{failure}</p>}
       {topActions && missing.length > 0 && <p className={styles.muted} role="status">Faltan {missing.length} datos. Siguiente pendiente: {missing[0]}.</p>}
       <form id={formId} className={styles.stack} noValidate onSubmit={submit}>
+        {!client && <DocumentScan title="Rellenar con la cédula" disabled={saving}
+          options={[{ value: "dominican_id_card", label: "Cédula", uploadLabel: "Sube la cédula", hint: "Foto o PDF del frente de la cédula, nueva o anterior. Puedes agregar el reverso." }]}
+          onRead={(_, files, signal) => fillFromIdCard(files, signal)} />}
         <fieldset className={styles.clientFormFields} aria-label="Datos del cliente" disabled={saving}>
           <Input
             label="Nombre completo"
