@@ -50,9 +50,14 @@ prev = e.get("PREV_SHA", "")
 try:
     commits = (get(f"https://api.github.com/repos/{e['REPO']}/compare/{prev}...{sha}")["commits"]
                if prev and prev != sha else [get(f"https://api.github.com/repos/{e['REPO']}/commits/{sha}")])
+    product = ("services/api/", "apps/portal/", "supabase/migrations/")
     for item in commits:
         lines = item["commit"]["message"].splitlines()
         if lines[0].startswith("Merge "):
+            continue
+        # Only product changes go in the email, not CI/ops/docs commits.
+        files = get(f"https://api.github.com/repos/{e['REPO']}/commits/{item['sha']}").get("files", [])
+        if not any(f["filename"].startswith(product) for f in files):
             continue
         included.append(f"{lines[0]} ({item['sha'][:7]}, {item['commit']['author']['name']})")
         for line in lines[1:]:
