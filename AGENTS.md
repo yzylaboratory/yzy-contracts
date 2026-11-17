@@ -13,3 +13,13 @@
 ## Production deploys
 
 Deploy only by pushing to `main` (or running the "Deploy production" workflow). GitHub Actions builds commit-tagged images and runs the locked deploy script on Hetzner; deploys queue one at a time. Never build images on the server, rsync working trees, edit the server `compose.yaml`/`.env`, or apply SQL by hand. Details: `ops/deployment/README.md`.
+
+Every deploy emails admin@yzylabs.com through YZY Notifications with the commits it ships. Write each commit body as `- ` bullets in Spanish saying what changed for the user (they are copied into that email), for example:
+
+```
+Elegir Word o PDF al generar el expediente
+
+- El botón "Confirmar" abre el panel para elegir el formato (`formatSheetRef`).
+- La solicitud de préstamo se descarga en Word (`download_docx`).
+- Nuevo campo de seguro pagado (`insurance_paid`).
+```

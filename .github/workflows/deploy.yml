@@ -70,3 +70,21 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf '%s' "$TOKEN" | ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes \
             root@${{ vars.DEPLOY_HOST }} "sha-${{ github.sha }}"
+
+  notify-build-failure:
+    needs: build
+    if: failure()
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: {}
+    steps:
+      - name: Notify build failure
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes \
+            root@${{ vars.DEPLOY_HOST }} "build-failed sha-${{ github.sha }}" < /dev/null
