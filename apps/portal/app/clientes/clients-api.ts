@@ -47,6 +47,7 @@ export type OperationWrite = {
   financing?: Financing | null;
   application?: CaseApplication | null;
   insurance_installment_minor?: number | null;
+  insurance_paid?: boolean;
 };
 
 export type OperationPatch = Partial<OperationWrite> & { extraordinary_payment_amounts_minor?: number[] };
@@ -125,8 +126,8 @@ export function deleteExpediente(accountId: string, operation: Pick<Operation, "
   });
 }
 
-export function getLoanApplicationPdf(accountId: string, expedienteId: string) {
-  return apiBlob(`/expedientes/${encodeURIComponent(expedienteId)}/solicitud-prestamo.pdf`, { expectedAccountId: accountId });
+export function getLoanApplicationDocument(accountId: string, expedienteId: string, format: "pdf" | "docx") {
+  return apiBlob(`/expedientes/${encodeURIComponent(expedienteId)}/solicitud-prestamo.${format}`, { expectedAccountId: accountId });
 }
 
 export function getClient(accountId: string, clientId: string, signal?: AbortSignal) {

@@ -21,6 +21,7 @@ const OPERATION_FIELDS: &[&str] = &[
     "contract_date",
     "signature_date",
     "status",
+    "insurance_paid",
     "insurance_installment_minor",
     "vehicle.registration_number",
     "vehicle.chassis_number",

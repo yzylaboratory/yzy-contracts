@@ -19,6 +19,7 @@ type PaymentDraft = { id: number; date: string; amount: string };
 type OperationDraft = {
   status: OperationStatus;
   contractDate: string;
+  insurancePaid: boolean;
   insuranceAmount: string;
   vehicle: Vehicle;
   interest: PaymentDraft[];
@@ -89,6 +90,7 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
   const { draft, updateDraft, discardDraft } = useClientDraft<OperationDraft>(key, () => ({
     status: operation?.status ?? "solicitud",
     contractDate: operation?.contract_date ?? "",
+    insurancePaid: Boolean(operation?.insurance_paid),
     insuranceAmount: amountFieldValue(operation?.insurance_installment_minor),
     vehicle: operation?.vehicle ?? {},
     interest: operation?.financing?.interest_installments.map((payment, index) => ({ id: index, ...readPayment(payment) })) ?? [],
@@ -96,6 +98,7 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
     extraordinary: operation?.financing?.extraordinary_payments.map((payment, index) => ({ id: index, ...readPayment(payment) })) ?? [],
   }), onDirty);
   const { interest, principal, extraordinary } = draft;
+  const insurancePaid = Boolean(draft.insurancePaid);
   const savedPlan = operation?.financing;
   const requiresPlan = !operation || Boolean(savedPlan || principal.date || principal.amount.trim() || interest.length || extraordinary.length);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -108,7 +111,7 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.hash === "#monto-cuota-seguro") {
-      const target = document.getElementById("monto-cuota-seguro");
+      const target = document.getElementById("monto-cuota-seguro") ?? document.getElementById("seguro-saldo");
       if (target) {
         target.focus();
         return;
@@ -174,7 +177,7 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
     const nextErrors: Record<string, string> = {};
     const vehicle: OperationDraft["vehicle"] = {};
     if (draft.contractDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.contractDate)) nextErrors.contract_date = "Indica una fecha válida.";
-    const hasInsuranceInput = draft.insuranceAmount.trim() !== "";
+    const hasInsuranceInput = !insurancePaid && draft.insuranceAmount.trim() !== "";
     const insuranceInstallment = hasInsuranceInput ? typedMoneyMinor(draft.insuranceAmount) : undefined;
     if (hasInsuranceInput && (insuranceInstallment === undefined || insuranceInstallment <= 0)) {
       nextErrors.insurance_installment_amount = "Indica un monto mayor que cero con hasta dos decimales.";
@@ -187,7 +190,8 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
     const body: OperationPatch = {
       ...(operation ? { status: draft.status } : {}),
       contract_date: draft.contractDate || null,
-      insurance_installment_minor: hasInsuranceInput ? insuranceInstallment : null,
+      insurance_paid: insurancePaid,
+      insurance_installment_minor: !insurancePaid && hasInsuranceInput ? insuranceInstallment : null,
       vehicle,
     };
     const samePlan = savedPlan &&
@@ -220,7 +224,7 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
         final_principal: finalPrincipal,
         extraordinary_payments: extraordinaryPayments.filter(payment => payment !== undefined),
         extraordinary_from_signature: savedPlan?.extraordinary_from_signature,
-        insurance_installment_count: savedPlan?.insurance_installment_count,
+        insurance_installment_count: insurancePaid ? null : savedPlan?.insurance_installment_count,
         monthly_plan: savedPlan?.monthly_plan,
       };
     }
@@ -254,10 +258,34 @@ export function OperationEditor({ accountId, companyId, clientId, clientName, op
           value={draft.status} disabled={saving}
           onValueChange={value => { if (isOperationStatus(value)) changeDraft({ status: value }); }} />}
         <Input name="contract_date" label="Fecha del contrato" type="date" value={draft.contractDate} error={errors.contract_date} onChange={event => changeDraft({ contractDate: event.target.value })} />
-        <MoneyField id="monto-cuota-seguro" name="insurance_installment_amount" label="Monto de cada cuota del seguro"
-          description="Opcional. Se usa en la venta condicional de seguro."
-          value={draft.insuranceAmount} error={errors.insurance_installment_amount}
-          onValueChange={insuranceAmount => changeDraft({ insuranceAmount })} />
+      </fieldset>
+      <fieldset className={styles.sectionFields} aria-label="Seguro del vehículo" disabled={saving}>
+        <legend>Seguro</legend>
+        <label className={styles.insuranceToggle} htmlFor="seguro-saldo">
+          <input
+            id="seguro-saldo"
+            name="insurance_paid"
+            type="checkbox"
+            checked={insurancePaid}
+            onChange={event => changeDraft({ insurancePaid: event.target.checked })}
+          />
+          <span className={styles.insuranceToggleText}>
+            <span className={styles.insuranceToggleTitle}>¿Seguro saldo?</span>
+            <span className={styles.muted}>
+              {insurancePaid
+                ? "El seguro está saldo. No se requerirá monto de cuota ni se generarán documentos del seguro."
+                : "Marca esta opción si el seguro ya está saldo y no requiere financiamiento."}
+            </span>
+          </span>
+        </label>
+        {!insurancePaid && (
+          <div className={`${styles.formFields} ${styles.alignTop}`}>
+            <MoneyField id="monto-cuota-seguro" name="insurance_installment_amount" label="Monto de cada cuota del seguro"
+              description="Opcional. Se usa en la venta condicional de seguro."
+              value={draft.insuranceAmount} error={errors.insurance_installment_amount}
+              onValueChange={insuranceAmount => changeDraft({ insuranceAmount })} />
+          </div>
+        )}
       </fieldset>
       <VehicleFormFields value={draft.vehicle} errors={errors} disabled={saving} onChange={vehicle => changeDraft({ vehicle })} />
       <fieldset className={styles.sectionFields} disabled={saving}>

@@ -291,6 +291,39 @@
   font-weight: 600;
 }
 
+.insuranceToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-block-size: 44px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  cursor: pointer;
+}
+
+.insuranceToggle input[type="checkbox"] {
+  flex: 0 0 auto;
+  inline-size: 18px;
+  block-size: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--foreground);
+  cursor: pointer;
+}
+
+.insuranceToggleText {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.insuranceToggleTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .payment {
   display: grid;
   justify-items: start;
@@ -422,4 +455,110 @@
   .documentsMobile {
     display: block;
   }
+}
+
+.formatChoice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.formatSheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: min(560px, 100%);
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--surface-raised, var(--surface));
+  color: inherit;
+}
+
+.formatSheet[open] {
+  animation: formatSheetIn 220ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.formatSheet::backdrop {
+  background: rgba(0, 0, 0, .4);
+}
+
+.formatSheetBody {
+  display: grid;
+  gap: 16px;
+  padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
+}
+
+.formatSheetBody h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.formatSheetHandle {
+  justify-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong, var(--border));
+}
+
+.formatSheet .formatButton {
+  flex: 1 1 200px;
+}
+
+@keyframes formatSheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.formatButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.formatButton span {
+  display: grid;
+}
+
+.formatButton small {
+  font-size: 12px;
+  opacity: .85;
+}
+
+.formatButton:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.formatButton:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(0, 0, 0, .25));
+}
+
+.formatWord {
+  background: #185abd;
+}
+
+.formatPdf {
+  background: #c4271b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formatButton { transition: none; }
+  .formatSheet[open] { animation: none; }
+  .formatButton:hover { transform: none; }
 }

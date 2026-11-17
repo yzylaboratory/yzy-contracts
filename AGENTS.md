@@ -9,3 +9,7 @@
 - Antes de editar a mano, usa herramientas que cambien el código sin pasar por el modelo:
   - Reescrituras estructurales en muchos archivos (firma de una función y todas sus llamadas): `ast-grep run -p '<patrón>' -r '<reemplazo>' -l rust|ts -U <ruta>`. Revisa primero sin `-U`.
   - Arreglos automáticos de lint y compilador: `pnpm fix` (portal con `eslint --fix` y API con `cargo clippy --fix` + `cargo fmt`), o por separado `pnpm lint:fix` y `pnpm fix:api`.
+
+## Production deploys
+
+Deploy only by pushing to `main` (or running the "Deploy production" workflow). GitHub Actions builds commit-tagged images and runs the locked deploy script on Hetzner; deploys queue one at a time. Never build images on the server, rsync working trees, edit the server `compose.yaml`/`.env`, or apply SQL by hand. Details: `ops/deployment/README.md`.

@@ -28,7 +28,7 @@ export const companyClauseDefaults: Record<string, string> = {
   empresa_representante_ocupacion: "comerciante",
   empresa_representante_direccion: "calle Proyecto # 35, Santa Cruz, Villa Mella, Santo Domingo Norte",
   empresa_representante_nombre_firma: "FRANCISCO A. MARTÍNEZ ROSARIO",
-  empresa_representante_cedula_letras: "cero cero uno guion ciento cuarenta y seis quinientos sesenta y nueve cinco guion dos",
+  empresa_representante_cedula_letras: "cero cero uno guion un millón cuatrocientos sesenta y cinco mil seiscientos noventa y cinco guion dos",
   empresa_horario_pagos: "lunes a viernes, de 8:00 a. m. a 5:00 p. m., y los sábados, de 8:00 a. m. a 1:30 p. m.",
   empresa_mora_diaria_porcentaje: "6%",
   empresa_hora_limite_pago: "5:00 p. m.",
@@ -39,7 +39,7 @@ export const companyClauseDefaults: Record<string, string> = {
   empresa_dias_aviso_revision_tasa: "30",
   empresa_testigo_richard: "RICHARD ANTONIO MEJIA ROSARIO",
   empresa_testigo_richard_cedula: "402-0964456-2",
-  empresa_testigo_usuario: "ANA ESTHER BALBUENA ALCANTARA",
+  empresa_testigo_usuario: "CINDY C. DOMINGUEZ CALZADO",
   empresa_testigo_usuario_nacionalidad: "dominicana",
   empresa_testigo_usuario_estado_civil: "soltera/casada",
   empresa_testigo_usuario_cedula: "402-3415245-8",
@@ -116,7 +116,7 @@ const witnessFields = {
   },
   testigo_usuario: {
     label: "Nombre del segundo testigo",
-    description: "En los modelos: ANA ESTHER BALBUENA ALCANTARA.",
+    description: "En los modelos: CINDY C. DOMINGUEZ CALZADO.",
     placeholder: companyClauseDefaults.empresa_testigo_usuario,
   },
   testigo_usuario_nacionalidad: {

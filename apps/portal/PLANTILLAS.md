@@ -12,20 +12,21 @@ Inserta los marcadores en texto normal de Word o dentro de celdas. Escribe cada 
 
 | Tipo | Marcadores |
 | --- | --- |
-| Venta condicional | `cliente_nombre`, `cliente_cedula`, `cliente_direccion_transito`, `vehiculo_matricula`, `fecha_contrato`, `fecha_firma`, `cuotas_intereses`, `cuota_final_capital`, `abonos_extraordinarios`, `total_financiamiento` |
+| Venta condicional | `cliente_nombre`, `cliente_cedula`, `cliente_direccion_transito`, `vehiculo_matricula`, `fecha_contrato`, `fecha_firma` (`fecha_firma` al estilo del acto notarial), `cuotas_intereses`, `cuota_final_capital`, `total_financiamiento` |
 | Pagaré auténtico | `cliente_nombre`, `cliente_cedula`, `cliente_cedula_letras`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma`, `parrafo_compromiso_pago`, `cantidad_cuotas`, `cantidad_cuotas_letras`, `cuotas_intereses`, `cuota_final_capital`, `total_financiamiento`, `total_financiamiento_letras`, `testigo_richard`, `testigo_usuario` |
 | Entrega voluntaria | `cliente_nombre`, `cliente_cedula`, `cliente_cedula_letras`, `vehiculo_garantia`, `fecha_firma` |
 | Acto de seguro | `cliente_nombre`, `vehiculo_garantia`, `cantidad_cuotas_seguro`, `fecha_firma`, `cuotas_seguro_numeros`, `cuotas_seguro_fechas`, `cuotas_seguro_montos`, `monto_total_seguro`, `monto_total_seguro_letras` |
 | Pagaré de seguro | `cliente_nombre`, `vehiculo_garantia`, `cantidad_cuotas_seguro`, `fecha_firma` |
 | Declaración jurada | `cliente_nombre`, `cliente_cedula`, `cliente_telefono`, `cliente_correo`, `cliente_origen_ingresos`, `fecha_contrato`, `vehiculo_garantia`, `fecha_firma` |
-| GPS y autorización de datos | `cliente_nombre`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma` |
+| GPS y autorización de datos | `cliente_nombre`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma` (nombre, domicilio y vehículo en mayúsculas; `fecha_firma` al estilo del acto notarial) |
 | Acuerdo de seguro | `cliente_nombre`, `cliente_cedula`, `fecha_firma` |
 | Autorización para asegurar vehículo | `cliente_nombre`, `cliente_cedula`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma` |
 | Levantamiento de oposición | `cliente_nombre`, `cliente_cedula`, `cliente_direccion`, `vehiculo_garantia` |
-| Entrega de vehículo, entrega de vehículo con fines de saldo y entrega de documentos | `cliente_nombre`, `cliente_cedula`, `vehiculo_garantia`, `operacion_referencia`, `fecha_contrato`, `fecha_firma` |
+| Entrega de vehículo y entrega de vehículo con fines de saldo | `cliente_nombre`, `cliente_cedula`, `vehiculo_garantia`, `fecha_firma` |
+| Entrega de documentos | `cliente_nombre`, `cliente_cedula`, `vehiculo_garantia`, `operacion_referencia`, `fecha_contrato`, `fecha_firma` |
 | Carta de saldo | `cliente_nombre`, `cliente_cedula`, `vehiculo_garantia`, `operacion_referencia`, `fecha_contrato`, `fecha_firma`, `saldo_confirmado`, `fecha_saldo` |
 
-`cliente_cedula_numeros` equivale a `cliente_cedula`. `vehiculo_descripcion` equivale a `vehiculo_garantia`, que reúne los datos registrados. Puedes agregar campos específicos como `vehiculo_marca`, `vehiculo_modelo`, `vehiculo_anio`, `vehiculo_color`, `vehiculo_chasis`, `vehiculo_placa`, `vehiculo_motor` y `vehiculo_tipo`. En la venta, `cliente_direccion_transito` incluye el literal «y de tránsito por la capital de la República Dominicana».
+`cliente_cedula_numeros` equivale a `cliente_cedula`. `vehiculo_descripcion` equivale a `vehiculo_garantia`, que reúne los datos registrados. Puedes agregar campos específicos como `vehiculo_marca`, `vehiculo_modelo`, `vehiculo_anio`, `vehiculo_color`, `vehiculo_chasis`, `vehiculo_placa`, `vehiculo_motor` y `vehiculo_tipo`. En los contratos, las direcciones se imprimen en mayúsculas y `cliente_direccion_transito` incluye el literal «Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA».
 
 ## Plan de cuotas y compromiso de pago
 
@@ -39,4 +40,4 @@ Al generar el pagaré, selecciona el Word de venta condicional de la empresa del
 
 Los documentos de seguro pueden incluir la razón social autorizada en el Word o usar los marcadores dedicados `empresa_seguro_nombre` y `emisor_seguro_nombre`. Para otros datos de un perfil autorizado, puedes usar claves como `empresa_seguro_rnc` o `emisor_seguro_direccion`. Para **Acto de seguro** y **Venta condicional de seguro**, el monto de cada cuota del seguro se registra en el expediente.
 
-Para el **Acto de seguro**, coloca `cuotas_seguro_numeros`, `cuotas_seguro_fechas` y `cuotas_seguro_montos` en tres celdas de la misma fila. El portal toma automáticamente las 10 cuotas mensuales a partir de la fecha de firma y del monto de cada cuota registrado en el expediente, agrega una línea por cuota en cada columna y completa el total en números y letras. En **Pagaré de seguro**, puedes ajustar la cantidad de cuotas al generar (10 por defecto).
+Para el **Acto de seguro**, coloca `cuotas_seguro_numeros`, `cuotas_seguro_fechas` y `cuotas_seguro_montos` en tres celdas de la misma fila. El portal toma automáticamente las cuotas mensuales registradas en el expediente (10 por defecto) a partir de la fecha de firma y del monto de cada cuota, agrega una línea por cuota en cada columna y completa el total en números y letras. **Pagaré de seguro** también toma directamente la cantidad de cuotas registrada en el expediente (10 por defecto).

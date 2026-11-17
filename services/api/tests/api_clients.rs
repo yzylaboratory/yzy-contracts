@@ -1612,6 +1612,7 @@ async fn insurance_installment_amount_is_stored_per_case_and_recorded_in_its_his
         .await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
     assert_eq!(created["insurance_installment_minor"], 919800);
+    assert_eq!(created["insurance_paid"], false);
 
     let operation_id = created["id"].as_str().unwrap();
     let detail = operation_detail(company, client_id, operation_id);
@@ -1658,10 +1659,35 @@ async fn insurance_installment_amount_is_stored_per_case_and_recorded_in_its_his
     }));
 
     let (status, cleared) = app
-        .patch(admin, &detail, json!({"insurance_installment_minor": null}))
+        .patch(
+            admin,
+            &detail,
+            json!({"insurance_installment_minor": null, "insurance_paid": true}),
+        )
         .await;
     assert_eq!(status, StatusCode::OK, "{cleared}");
     assert!(cleared["insurance_installment_minor"].is_null());
+    assert_eq!(cleared["insurance_paid"], true);
+
+    let (status, invalid_null_paid) = app
+        .patch(admin, &detail, json!({"insurance_paid": null}))
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "{invalid_null_paid}"
+    );
+
+    let (status, paid_case) = app
+        .post(
+            admin,
+            &collection,
+            json!({"company_id": company, "vehicle": {}, "insurance_paid": true}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{paid_case}");
+    assert_eq!(paid_case["insurance_paid"], true);
+    assert!(paid_case["insurance_installment_minor"].is_null());
 }
 
 #[tokio::test]

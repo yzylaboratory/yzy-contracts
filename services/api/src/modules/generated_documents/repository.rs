@@ -18,7 +18,8 @@ pub async fn insert(
 ) -> sqlx::Result<Option<DocumentMetadata>> {
     // Fresh documents inherit access to their source and, if shared, its company.
     // Authorized historical imports retain their own display name and date.
-    sqlx::query_as(
+    let mut tx = db.begin().await?;
+    let saved: Option<DocumentMetadata> = sqlx::query_as(
         "INSERT INTO yzy_contracts.generated_documents
             (owner_id, id, contract_id, contract_name, format, filename, markdown,
              email, imported_from_session, created_at, artifact, company, operation_id, operation_company_id, document_type)
@@ -63,8 +64,28 @@ pub async fn insert(
     .bind(body.company.as_ref().map(|company| company.id))
     .bind(body.operation_id)
     .bind(&body.document_type)
-    .fetch_optional(db)
-    .await
+    .fetch_optional(&mut *tx)
+    .await?;
+    // A regenerated case document replaces the earlier copy of the same
+    // template and format in that case.
+    if let Some(saved) = &saved
+        && saved.operation_id.is_some()
+    {
+        sqlx::query(
+            "DELETE FROM yzy_contracts.generated_documents
+             WHERE operation_id = $1 AND operation_company_id = $2
+               AND contract_id = $3 AND format = $4 AND id <> $5",
+        )
+        .bind(saved.operation_id)
+        .bind(body.company.as_ref().map(|company| company.id))
+        .bind(body.contract_id)
+        .bind(body.format.as_str())
+        .bind(saved.id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(saved)
 }
 
 pub async fn find(db: &PgPool, owner: Uuid, id: Uuid) -> sqlx::Result<Option<StoredDocument>> {

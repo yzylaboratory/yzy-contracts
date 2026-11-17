@@ -35,12 +35,13 @@ export const insuranceSaleCaseFields = {
   numero_de_serie_del_motor: "vehiculo_motor",
 } as const;
 
+const vehicleReceipt = [...customer, ...vehicle, ...signature] as const;
 const receipt = [...customer, ...vehicle, "operacion_referencia", "fecha_contrato", ...signature] as const;
 
 export const DOCUMENT_TYPES = [
   { id: "venta_condicional", label: "Venta condicional", requiredFields: [
     "vehiculo_matricula", "fecha_contrato", ...signature,
-    "cuotas_intereses", "cuota_final_capital", "abonos_extraordinarios", "total_financiamiento",
+    "cuotas_intereses", "cuota_final_capital", "total_financiamiento",
   ] },
   { id: "venta_condicional_seguro", label: "Venta condicional de seguro", requiresInsuranceCompany: true, requiredFields: [
     "fecha_de_firma", "placa_del_vehiculo",
@@ -49,8 +50,10 @@ export const DOCUMENT_TYPES = [
   ] },
   { id: "pagare_autentico", label: "Pagaré auténtico", requiredFields: [
     ...customer, "cliente_cedula_letras", "cliente_direccion", ...vehicle, ...signature,
-    "parrafo_compromiso_pago", "cantidad_cuotas", "cantidad_cuotas_letras",
-    "cuotas_intereses", "cuota_final_capital", "total_financiamiento", "total_financiamiento_letras",
+    "parrafo_compromiso_pago", "cantidad_cuotas_intereses", "cantidad_cuotas_intereses_letras",
+    "cuota_intereses_monto", "cuota_intereses_monto_letras", "fecha_primera_cuota_intereses_letras",
+    "cuota_final_capital_monto", "cuota_final_capital_letras", "fecha_cuota_final_capital_letras",
+    "total_financiamiento", "total_financiamiento_letras",
     "testigo_richard", "testigo_usuario",
   ] },
   { id: "entrega_voluntaria", label: "Entrega voluntaria", requiredFields: [...customer, "cliente_cedula_letras", ...vehicle, ...signature] },
@@ -68,8 +71,8 @@ export const DOCUMENT_TYPES = [
     ...customer, "cliente_direccion", ...vehicle, ...signature,
   ] },
   { id: "levantamiento_oposicion", label: "Levantamiento de oposición", requiredFields: [...customer, "cliente_direccion", ...vehicle] },
-  { id: "entrega_vehiculo", label: "Entrega de vehículo", requiredFields: receipt },
-  { id: "entrega_vehiculo_fines_saldo", label: "Entrega de vehículo con fines de saldo", requiredFields: receipt },
+  { id: "entrega_vehiculo", label: "Entrega de vehículo", requiredFields: vehicleReceipt },
+  { id: "entrega_vehiculo_fines_saldo", label: "Entrega de vehículo con fines de saldo", requiredFields: vehicleReceipt },
   { id: "entrega_documentos", label: "Entrega de documentos", requiredFields: receipt },
   { id: "carta_saldo", label: "Carta de saldo", requiredFields: [...receipt, "saldo_confirmado", "fecha_saldo"] },
 ] as const satisfies readonly { id: string; label: string; requiredFields: readonly string[]; requiresInsuranceCompany?: true }[];
@@ -88,9 +91,28 @@ export const POST_CLOSING_DOCUMENT_TYPES: readonly DocumentType[] = [
   "carta_saldo",
 ];
 
+export const INSURANCE_DOCUMENT_TYPES: readonly DocumentType[] = [
+  "venta_condicional_seguro",
+  "acto_seguro",
+  "pagare_seguro",
+  "acuerdo_seguro",
+  "autorizacion_asegurar_vehiculo",
+];
+
+export function isInsuranceDocumentType(type: DocumentType) {
+  return INSURANCE_DOCUMENT_TYPES.includes(type);
+}
+
 export const INITIAL_EXPEDIENTE_DOCUMENT_TYPES: readonly DocumentType[] = DOCUMENT_TYPES
   .map(document => document.id)
   .filter(id => !POST_CLOSING_DOCUMENT_TYPES.includes(id));
+
+export function initialExpedienteDocumentTypes(options?: { insurancePaid?: boolean }): DocumentType[] {
+  if (options?.insurancePaid) {
+    return INITIAL_EXPEDIENTE_DOCUMENT_TYPES.filter(type => !isInsuranceDocumentType(type));
+  }
+  return [...INITIAL_EXPEDIENTE_DOCUMENT_TYPES];
+}
 
 export function getDocumentType(value: string | null | undefined): DocumentDefinition | undefined {
   return DOCUMENT_TYPES.find(document => document.id === value);

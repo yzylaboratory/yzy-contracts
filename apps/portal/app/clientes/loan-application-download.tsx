@@ -8,7 +8,7 @@ import { Button } from "@/components/arc/button/button";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { isActiveAccount } from "@/lib/api";
 import { recordPortalActivity } from "@/lib/activity";
-import { getLoanApplicationPdf, type Client, type Operation } from "./clients-api";
+import { getLoanApplicationDocument, type Client, type Operation } from "./clients-api";
 import { missingLoanClientFields, missingLoanVehicleFields } from "./loan-application-fields";
 import table from "@/app/contratos/contracts.module.css";
 import styles from "./clients.module.css";
@@ -26,7 +26,7 @@ export function LoanApplicationIncompleteActions({ client, operation, onComplete
   const { clientIncomplete, applicationIncomplete, blocked } = loanApplicationDocumentState(client, operation);
   if (!blocked) return null;
   return <div className={styles.stack}>
-    <p className={styles.muted}>Completa los datos pendientes para ver o descargar la solicitud en PDF.</p>
+    <p className={styles.muted}>Completa los datos pendientes para ver o descargar la solicitud.</p>
     <div className={styles.actions}>
       {clientIncomplete && <Button type="button" variant="secondary" onClick={onCompleteClient}>Completar datos del cliente</Button>}
       {applicationIncomplete && <Button type="button" variant="secondary" onClick={onCompleteApplication}>Completar solicitud</Button>}
@@ -35,8 +35,8 @@ export function LoanApplicationIncompleteActions({ client, operation, onComplete
 }
 
 /** Icon actions for the documents table row. */
-export function LoanApplicationDownload({ accountId, client, operation }: {
-  accountId: string; client: Client; operation: Operation;
+export function LoanApplicationDownload({ accountId, client, operation, format }: {
+  accountId: string; client: Client; operation: Operation; format: "pdf" | "docx";
 }) {
   const downloadButton = useRef<HTMLButtonElement>(null);
   const previewButton = useRef<HTMLButtonElement>(null);
@@ -45,15 +45,15 @@ export function LoanApplicationDownload({ accountId, client, operation }: {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { blocked } = loanApplicationDocumentState(client, operation);
   const reference = operation.reference?.replace(/[^a-z0-9-]/gi, "-") || operation.id;
-  const filename = `solicitud-de-prestamo-${reference}.pdf`;
+  const filename = `solicitud-de-prestamo-${reference}.${format}`;
 
   useEffect(() => {
     if (!previewUrl) return;
     return () => URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
-  async function loadPdf() {
-    const blob = await getLoanApplicationPdf(accountId, operation.id);
+  async function load(requested: "pdf" | "docx") {
+    const blob = await getLoanApplicationDocument(accountId, operation.id, requested);
     if (!(await isActiveAccount(accountId))) return null;
     return blob;
   }
@@ -62,7 +62,7 @@ export function LoanApplicationDownload({ accountId, client, operation }: {
     setFailure(false);
     setBusy("download");
     try {
-      const blob = await loadPdf();
+      const blob = await load(format);
       if (blob && downloadButton.current) downloadBlob(blob, filename);
     } catch {
       setFailure(true);
@@ -75,7 +75,7 @@ export function LoanApplicationDownload({ accountId, client, operation }: {
     setFailure(false);
     setBusy("preview");
     try {
-      const blob = await loadPdf();
+      const blob = await load("pdf");
       if (!blob || !previewButton.current) return;
       setPreviewUrl(URL.createObjectURL(blob));
     } catch {
@@ -94,9 +94,9 @@ export function LoanApplicationDownload({ accountId, client, operation }: {
           <Eye size={18} aria-hidden="true" />
         </Button>
       </Tooltip>
-      <Tooltip content="Descargar PDF">
+      <Tooltip content={format === "docx" ? "Descargar Word" : "Descargar PDF"}>
         <Button ref={downloadButton} type="button" variant="ghost" className={`${table.rowAction} ${styles.documentAction}`}
-          aria-label="Descargar solicitud de préstamo en PDF"
+          aria-label={`Descargar solicitud de préstamo en ${format === "docx" ? "Word" : "PDF"}`}
           disabled={blocked || busy === "preview"} loading={busy === "download"} onClick={() => void download()}>
           <Download size={18} aria-hidden="true" />
         </Button>
@@ -106,7 +106,7 @@ export function LoanApplicationDownload({ accountId, client, operation }: {
     {previewUrl && (
       <DocumentPreviewDialog
         pdfUrl={previewUrl}
-        documentName={filename}
+        documentName={`solicitud-de-prestamo-${reference}.pdf`}
         onOpen={() => recordPortalActivity(accountId, "document_previewed", "client_record")}
         onClose={() => {
           setPreviewUrl(null);

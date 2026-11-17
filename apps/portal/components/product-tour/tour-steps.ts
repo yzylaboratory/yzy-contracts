@@ -165,7 +165,7 @@ export function tourCopy(step: TourStep, targets: TourTargets): TourCopy {
       };
       return {
         title: "Completa la solicitud de préstamo",
-        description: "Indica la fecha de solicitud, el monto, la fecha de firma, las cuotas del seguro y los datos del vehículo; luego pulsa Continuar al plan de pagos.",
+        description: "Indica la fecha de solicitud, el monto, la fecha de firma, las cuotas del seguro (o marca si el seguro está saldo) y los datos del vehículo; luego pulsa Continuar al plan de pagos.",
         target: "operation-form",
       };
     case "prepare":

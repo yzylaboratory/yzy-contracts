@@ -26,12 +26,12 @@ import {
 import {
   documentFieldAliases,
   getDocumentType,
-  INITIAL_EXPEDIENTE_DOCUMENT_TYPES,
+  initialExpedienteDocumentTypes,
   INSURANCE_COMPANY_NAME,
   isInsuranceCompanyName,
   type DocumentType,
 } from "./document-catalog";
-import { isExpedienteField, percentageDateKey, resolveExpedienteFields } from "./expediente-fields";
+import { isExpedienteField, percentageDateKey, resolveExpedienteFields, usesUppercaseDocumentData } from "./expediente-fields";
 import { saveGeneratedArtifact, type DocumentFormat, type GeneratedFormat, type GeneratedOutput } from "./generated-documents-api";
 import { hasInsuranceIssuerInContract, NativeDocumentError, prepareNativeDocument, readSalesCommitmentFromContract } from "./native-document";
 import { wordsSource } from "./native-field-kinds";
@@ -114,7 +114,9 @@ export async function generateInitialExpedienteDocuments(input: {
   signal?: AbortSignal;
 }): Promise<BatchGenerationResult> {
   const { accountId, client, operation, preferredFormat, retryOnlyTypes, onProgress, signal } = input;
-  const targetTypes = retryOnlyTypes?.length ? [...retryOnlyTypes] : [...INITIAL_EXPEDIENTE_DOCUMENT_TYPES];
+  const targetTypes = retryOnlyTypes?.length
+    ? [...retryOnlyTypes]
+    : initialExpedienteDocumentTypes({ insurancePaid: operation.insurance_paid === true });
   const controller = new AbortController();
   const requestSignal = signal ?? controller.signal;
   const outputFormat: DocumentFormat = preferredFormat === "docx" ? "docx" : "pdf";
@@ -275,6 +277,7 @@ export async function generateInitialExpedienteDocuments(input: {
         insuranceCompanyValues: issuerValues,
       });
 
+      const uppercaseValues = usesUppercaseDocumentData(target.type);
       const values = resolveCompanyAndDerivedValues(
         fields,
         selectedCompany,
@@ -282,6 +285,7 @@ export async function generateInitialExpedienteDocuments(input: {
         key => isExpedienteField(key, target.type) ||
           (isInsuranceDocument && isInsuranceIssuerField(key)) ||
           (isInsuranceSale && isCompanyField(key) && !isCompanyContractClauseField(key)),
+        uppercaseValues,
       );
 
       const hasDocumentValue = (key: string) => !isInsuranceIssuerField(key) && (
@@ -313,7 +317,7 @@ export async function generateInitialExpedienteDocuments(input: {
         }
       }
 
-      const companySnapshot = buildCompanySnapshot(selectedCompany, companyFields, values);
+      const companySnapshot = buildCompanySnapshot(selectedCompany, companyFields, values, uppercaseValues);
       if (companySnapshot && (Object.keys(companySnapshot.values).length > companyFieldLimit || companyValuesSize(companySnapshot.values) > companyProfileLimit)) {
         throw new NativeDocumentError("Los valores de empresa de este documento superan el tamaño permitido.");
       }
@@ -336,6 +340,8 @@ export async function generateInitialExpedienteDocuments(input: {
         nativeVariables: template.native_variables ?? null,
         allowIncomplete: false,
         conditionalSale: target.type === "venta_condicional" || isInsuranceSale,
+        uppercase: uppercaseValues,
+        boldPagareDate: target.type === "pagare_autentico" || target.type === "pagare_seguro",
       });
 
       const filename = `${fileBase(contract.name)}.${effectiveOutput}`;

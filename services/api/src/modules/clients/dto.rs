@@ -271,6 +271,7 @@ pub(super) struct Operation {
     pub application: Option<CaseApplication>,
     #[schema(minimum = 1, maximum = 9_007_199_254_740_991_i64)]
     pub insurance_installment_minor: Option<i64>,
+    pub insurance_paid: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -294,6 +295,9 @@ pub(super) struct OperationWrite {
     pub application: Option<CaseApplication>,
     #[schema(minimum = 1, maximum = 9_007_199_254_740_991_i64)]
     pub insurance_installment_minor: Option<i64>,
+    /// True when insurance is already paid in full and insurance documents should be omitted.
+    #[serde(default)]
+    pub insurance_paid: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
@@ -332,6 +336,9 @@ pub(super) struct OperationPatch {
     #[serde(default, deserialize_with = "nullable_patch")]
     #[schema(value_type = Option<i64>, minimum = 1, maximum = 9_007_199_254_740_991_i64)]
     pub insurance_installment_minor: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "non_null_patch")]
+    #[schema(nullable = false)]
+    pub insurance_paid: Option<bool>,
 }
 
 impl From<OperationWrite> for OperationPatch {
@@ -347,6 +354,7 @@ impl From<OperationWrite> for OperationPatch {
             extraordinary_payment_amounts_minor: None,
             application: Some(body.application),
             insurance_installment_minor: Some(body.insurance_installment_minor),
+            insurance_paid: Some(body.insurance_paid.unwrap_or(false)),
         }
     }
 }

@@ -122,6 +122,8 @@ export function ExpedienteDocuments({ accountId, operationId, action, loan }: {
 
   const loanDate = loan?.application.application_date;
   const loanAmount = loan?.application.requested_amount_minor;
+  // The loan application follows the format chosen for the case documents.
+  const loanFormat = items.some(record => record.format === "docx") ? "docx" : "pdf";
 
   return <section ref={section} className={styles.panel} aria-labelledby="expediente-documents-title">
     <div className={styles.header}>
@@ -148,14 +150,14 @@ export function ExpedienteDocuments({ accountId, operationId, action, loan }: {
               {loanDate && <span className={styles.documentMeta}>Fecha · {applicationDateLabel(loanDate)}</span>}
               {loanAmount != null && loanAmount > 0 && <span className={styles.documentMeta}>Monto · {applicationAmountLabel(loanAmount)}</span>}
               <span className={`${styles.documentMeta} ${styles.documentsMobile}`}>
-                PDF{loanDate ? <> · <time dateTime={loanDate}>{applicationDateLabel(loanDate)}</time></> : null}
+                {formatLabel[loanFormat]}{loanDate ? <> · <time dateTime={loanDate}>{applicationDateLabel(loanDate)}</time></> : null}
               </span>
             </th>
             <td className={styles.documentsDetail}>
               {loanDate ? <time dateTime={loanDate}>{applicationDateLabel(loanDate)}</time> : "—"}
             </td>
-            <td className={styles.documentsDetail}><span className={styles.documentFormat} data-format="pdf">PDF</span></td>
-            <td><LoanApplicationDownload accountId={accountId} client={loan.client} operation={loan.operation} /></td>
+            <td className={styles.documentsDetail}><span className={styles.documentFormat} data-format={loanFormat}>{formatLabel[loanFormat]}</span></td>
+            <td><LoanApplicationDownload accountId={accountId} client={loan.client} operation={loan.operation} format={loanFormat} /></td>
           </tr>}
           {items.map(record => <tr key={record.id}>
             <th scope="row">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText, FileType2 } from "lucide-react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
@@ -10,6 +10,7 @@ import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { applicationAmountLabel, applicationDateLabel } from "@/components/case-application/case-application";
 import { usePortalPreferences } from "@/app/configuracion/preferences-store";
+import type { GeneratedFormat } from "@/app/contratos/generated-documents-api";
 import { generateInitialExpedienteDocuments, type BatchGenerationResult, type BatchProgress } from "@/app/contratos/batch-document-generation";
 import { MoneyField, typeMoney } from "@/app/contratos/money-field";
 import { moneyMinor } from "@/app/contratos/native-field-kinds";
@@ -41,6 +42,7 @@ type LoanDraft = {
   date: string;
   amount: string;
   signatureDate: string;
+  insurancePaid: boolean;
   insuranceAmount: string;
   insuranceCount: string;
   vehicle: Vehicle;
@@ -106,6 +108,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
       date: operation?.application?.application_date ?? (operation ? "" : localDate.format(new Date())),
       amount: amountFieldValue(operation?.application?.requested_amount_minor),
       signatureDate: operation?.signature_date ?? "",
+      insurancePaid: Boolean(operation?.insurance_paid),
       insuranceAmount: amountFieldValue(operation?.insurance_installment_minor),
       insuranceCount: operation?.financing?.insurance_installment_count ? String(operation.financing.insurance_installment_count) : "",
       vehicle: operation?.vehicle ?? {},
@@ -122,6 +125,8 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
   const [insuranceFocused, setInsuranceFocused] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState<"saving" | "generating" | null>(null);
   const [confirmFailure, setConfirmFailure] = useState("");
+  const [batchFormat, setBatchFormat] = useState<GeneratedFormat | null>(null);
+  const formatSheetRef = useRef<HTMLDialogElement>(null);
   const [createdOperation, setCreatedOperation] = useState<Operation | null>(null);
   const [generationProgress, setGenerationProgress] = useState<BatchProgress | null>(null);
   const [generationResult, setGenerationResult] = useState<BatchGenerationResult | null>(null);
@@ -147,7 +152,8 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
       focusedHash.current = true;
       const hash = window.location.hash;
       if (hash === "#fecha-firma" || hash === "#monto-cuota-seguro") {
-        const target = document.getElementById(hash.slice(1));
+        const target = document.getElementById(hash.slice(1))
+          ?? (hash === "#monto-cuota-seguro" ? document.getElementById("seguro-saldo") : null);
         if (target) {
           target.focus();
           return;
@@ -163,12 +169,13 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
   const hasAmount = requestedAmount !== undefined && requestedAmount > 0;
   const hasSignature = isCalendarDate(draft.signatureDate);
   const signatureOk = operation ? (!draft.signatureDate || hasSignature) : hasSignature;
+  const insurancePaid = Boolean(draft.insurancePaid);
   const hasInsuranceInput = draft.insuranceAmount.trim() !== "";
-  const insuranceInstallment = hasInsuranceInput ? typedMoneyMinor(draft.insuranceAmount) : undefined;
-  const insuranceOk = insuranceInstallment !== undefined && insuranceInstallment > 0;
+  const insuranceInstallment = !insurancePaid && hasInsuranceInput ? typedMoneyMinor(draft.insuranceAmount) : undefined;
+  const insuranceOk = insurancePaid || (insuranceInstallment !== undefined && insuranceInstallment > 0);
   const insuranceCountInput = (draft.insuranceCount ?? "").trim();
-  const insuranceCount = /^\d{1,3}$/.test(insuranceCountInput) ? Number(insuranceCountInput) : undefined;
-  const insuranceCountOk = insuranceCount !== undefined && insuranceCount >= 1 && insuranceCount <= maxMonthlyInstallments;
+  const insuranceCount = !insurancePaid && /^\d{1,3}$/.test(insuranceCountInput) ? Number(insuranceCountInput) : undefined;
+  const insuranceCountOk = insurancePaid || (insuranceCount !== undefined && insuranceCount >= 1 && insuranceCount <= maxMonthlyInstallments);
   const clientMissing = missingLoanClientFields(client);
   const vehicleMissing = missingLoanVehicleFields(draft.vehicle);
   const installmentAmount = parseAmountMinor(draft.installmentAmount) ?? 0;
@@ -183,8 +190,8 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
   const planOk = !planStarted || (Boolean(draftPlan) && !planTotalError && !planOutOfRange);
   const canContinue = hasDate && hasAmount && signatureOk && insuranceOk && insuranceCountOk && clientMissing.length === 0 && vehicleMissing.length === 0 && planOk;
   const amountError = !amountFocused && draft.amount !== "" && !hasAmount ? "Indica un monto mayor que cero." : undefined;
-  const insuranceError = !insuranceFocused && hasInsuranceInput && !insuranceOk ? "Indica un monto mayor que cero." : undefined;
-  const insuranceMissing = [
+  const insuranceError = !insurancePaid && !insuranceFocused && hasInsuranceInput && !insuranceOk ? "Indica un monto mayor que cero." : undefined;
+  const insuranceMissing = insurancePaid ? [] : [
     ...(insuranceOk ? [] : ["el monto de cada cuota del seguro"]),
     ...(insuranceCountOk ? [] : ["la cantidad de cuotas del seguro"]),
   ];
@@ -209,7 +216,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
     const financing = draftPlan ? {
       ...draftPlan,
       extraordinary_payments: operation?.financing?.extraordinary_payments ?? [],
-      insurance_installment_count: insuranceCount ?? null,
+      insurance_installment_count: insurancePaid ? null : (insuranceCount ?? null),
       extraordinary_from_signature: operation?.financing?.extraordinary_from_signature,
       monthly_plan: operation?.financing?.monthly_plan,
     } : undefined;
@@ -218,7 +225,8 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
       application: { ...operation?.application, application_date: draft.date, requested_amount_minor: requestedAmount },
       vehicle: vehicleBody(),
       signature_date: draft.signatureDate || null,
-      insurance_installment_minor: insuranceInstallment,
+      insurance_paid: insurancePaid,
+      insurance_installment_minor: insurancePaid ? null : (insuranceInstallment ?? null),
       ...(financing ? { financing } : {}),
     };
   }
@@ -249,7 +257,10 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
 
   function continueFromPlan(financing: Financing) {
     if (!pending) return;
-    setPending({ ...pending, financing: { ...financing, insurance_installment_count: insuranceCount ?? null } });
+    setPending({
+      ...pending,
+      financing: { ...financing, insurance_installment_count: insurancePaid ? null : (insuranceCount ?? null) },
+    });
     setIntakeStage("review");
   }
 
@@ -266,8 +277,9 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
     onSaved(target, true);
   }
 
-  async function confirmAndGenerate(retryOnly = false) {
+  async function confirmAndGenerate(format: GeneratedFormat, retryOnly = false) {
     if (!pending || confirmBusy !== null || completionOperation !== null) return;
+    setBatchFormat(format);
     setConfirmFailure("");
     setCompletionOperation(null);
     if (completionTimer.current) {
@@ -306,7 +318,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
         accountId,
         client,
         operation: targetOperation,
-        preferredFormat: preferences.defaultFormat,
+        preferredFormat: format,
         retryOnlyTypes: retryTypes,
         onProgress: progress => {
           if (mounted.current) setGenerationProgress(progress);
@@ -383,16 +395,43 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
           value={draft.signatureDate}
           error={draft.signatureDate && !hasSignature ? "Indica una fecha válida." : undefined}
           onChange={event => updateDraft(refreshPlan({ ...draft, signatureDate: event.target.value }))} />
-        <MoneyField id="monto-cuota-seguro" name="insurance_installment_amount" label="Monto de cada cuota del seguro" required
-          value={draft.insuranceAmount}
-          error={insuranceError}
-          onFocus={() => setInsuranceFocused(true)}
-          onBlur={() => setInsuranceFocused(false)}
-          onValueChange={insuranceAmount => updateDraft({ ...draft, insuranceAmount })} />
-        <Input id="cantidad-cuotas-seguro" name="insurance_installment_count" label="Cantidad de cuotas del seguro" required
-          inputMode="numeric" value={draft.insuranceCount ?? ""}
-          error={insuranceCountInput && !insuranceCountOk ? `Indica un número entero entre 1 y ${maxMonthlyInstallments}.` : undefined}
-          onChange={event => updateDraft({ ...draft, insuranceCount: event.target.value.replace(/\D/g, "").slice(0, 3) })} />
+      </fieldset>
+      <fieldset className={styles.sectionFields} aria-label="Seguro del vehículo" disabled={saving}>
+        <legend>Seguro</legend>
+        <label className={styles.insuranceToggle} htmlFor="seguro-saldo">
+          <input
+            id="seguro-saldo"
+            name="insurance_paid"
+            type="checkbox"
+            checked={insurancePaid}
+            onChange={event => {
+              if (event.target.checked) setInsuranceFocused(false);
+              updateDraft({ ...draft, insurancePaid: event.target.checked });
+            }}
+          />
+          <span className={styles.insuranceToggleText}>
+            <span className={styles.insuranceToggleTitle}>¿Seguro saldo?</span>
+            <span className={styles.muted}>
+              {insurancePaid
+                ? "El seguro está saldo. No se requerirán cuotas ni se generarán los documentos del seguro al crear el expediente."
+                : "Marca esta opción si el seguro ya está saldo y no requiere financiamiento ni documentos del seguro."}
+            </span>
+          </span>
+        </label>
+        {!insurancePaid && (
+          <div className={`${styles.formFields} ${styles.alignTop}`}>
+            <MoneyField id="monto-cuota-seguro" name="insurance_installment_amount" label="Monto de cada cuota del seguro" required
+              value={draft.insuranceAmount}
+              error={insuranceError}
+              onFocus={() => setInsuranceFocused(true)}
+              onBlur={() => setInsuranceFocused(false)}
+              onValueChange={insuranceAmount => updateDraft({ ...draft, insuranceAmount })} />
+            <Input id="cantidad-cuotas-seguro" name="insurance_installment_count" label="Cantidad de cuotas del seguro" required
+              inputMode="numeric" value={draft.insuranceCount ?? ""}
+              error={insuranceCountInput && !insuranceCountOk ? `Indica un número entero entre 1 y ${maxMonthlyInstallments}.` : undefined}
+              onChange={event => updateDraft({ ...draft, insuranceCount: event.target.value.replace(/\D/g, "").slice(0, 3) })} />
+          </div>
+        )}
       </fieldset>
       {!operation && <p className={styles.muted}>La fecha de firma se usa para calcular el calendario de cuotas.</p>}
       {operation && <div className={styles.stack}>
@@ -490,9 +529,10 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
           <ExpedienteGenerationStage
             phase={stagePhase}
             clientName={client.name}
-            preferredFormat={preferences.defaultFormat}
+            preferredFormat={batchFormat ?? preferences.defaultFormat}
             progress={generationProgress}
             operationReference={createdOperation?.reference}
+            insurancePaid={Boolean(pending.insurance_paid)}
             onOpenExpediente={completionOperation ? () => openCompletedExpediente(completionOperation) : undefined}
           />
         </section>
@@ -500,6 +540,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
           <h2 id="loan-application-title" ref={heading} tabIndex={-1}>Revisión y confirmación</h2>
           <LoanReview client={client} application={pending.application} vehicle={pending.vehicle}
             signatureDate={typeof pending.signature_date === "string" ? pending.signature_date : undefined}
+            insurancePaid={Boolean(pending.insurance_paid)}
             insuranceInstallmentMinor={typeof pending.insurance_installment_minor === "number" ? pending.insurance_installment_minor : undefined}
             insuranceInstallmentCount={pending.financing?.insurance_installment_count ?? undefined}
             financing={pending.financing} />
@@ -542,16 +583,41 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
                 Ir al expediente
               </Button>
             )}
-            <Button
-              type="button"
-              onClick={() => void confirmAndGenerate(Boolean(generationResult?.failed.length))}
-            >
-              {generationResult?.failed.length
-                ? "Reintentar documentos pendientes"
-                : createdOperation
-                  ? "Reintentar generación"
-                  : "Confirmar y guardar expediente"}
-            </Button>
+            {batchFormat ? (
+              <Button type="button" onClick={() => void confirmAndGenerate(batchFormat, Boolean(generationResult?.failed.length))}>
+                {generationResult?.failed.length ? "Reintentar documentos pendientes" : "Reintentar generación"}
+              </Button>
+            ) : (
+              <>
+                <Button type="button" onClick={() => formatSheetRef.current?.showModal()}>
+                  Confirmar
+                </Button>
+                <dialog
+                  ref={formatSheetRef}
+                  className={styles.formatSheet}
+                  aria-labelledby="batch-format-label"
+                  onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }}
+                >
+                  <div className={styles.formatSheetBody}>
+                    <span className={styles.formatSheetHandle} aria-hidden="true" />
+                    <h2 id="batch-format-label">¿En qué formato generamos los documentos?</h2>
+                    <div className={styles.formatChoice}>
+                      <button type="button" className={`${styles.formatButton} ${styles.formatWord}`} onClick={() => { formatSheetRef.current?.close(); void confirmAndGenerate("docx"); }}>
+                        <FileText size={22} aria-hidden="true" />
+                        <span><strong>Word</strong><small>.docx editable</small></span>
+                      </button>
+                      <button type="button" className={`${styles.formatButton} ${styles.formatPdf}`} onClick={() => { formatSheetRef.current?.close(); void confirmAndGenerate("pdf"); }}>
+                        <FileType2 size={22} aria-hidden="true" />
+                        <span><strong>PDF</strong><small>.pdf listo para imprimir</small></span>
+                      </button>
+                    </div>
+                    <Button type="button" variant="secondary" onClick={() => formatSheetRef.current?.close()}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </dialog>
+              </>
+            )}
           </div>
         </section>
       : applicationForm;
@@ -570,11 +636,12 @@ function vehicleMissingHint(missing: string[]) {
   return "Todos los campos del vehículo son obligatorios para continuar.";
 }
 
-function LoanReview({ client, application, vehicle, signatureDate, insuranceInstallmentMinor, insuranceInstallmentCount, financing }: {
+function LoanReview({ client, application, vehicle, signatureDate, insurancePaid, insuranceInstallmentMinor, insuranceInstallmentCount, financing }: {
   client: Client;
   application: NonNullable<Operation["application"]>;
   vehicle: Vehicle;
   signatureDate?: string;
+  insurancePaid?: boolean;
   insuranceInstallmentMinor?: number;
   insuranceInstallmentCount?: number;
   financing?: Financing | null;
@@ -584,8 +651,12 @@ function LoanReview({ client, application, vehicle, signatureDate, insuranceInst
     <ReviewSection title="Datos del solicitante" fields={[
       ["Fecha de la solicitud", details.date],
       ...(signatureDate ? [["Fecha de firma", applicationDateLabel(signatureDate)]] : []),
-      ...(insuranceInstallmentMinor ? [["Monto de cada cuota del seguro", applicationAmountLabel(insuranceInstallmentMinor)]] : []),
-      ...(insuranceInstallmentCount ? [["Cantidad de cuotas del seguro", String(insuranceInstallmentCount)]] : []),
+      ...(insurancePaid
+        ? [["Seguro", "Saldo (sin documentos del seguro)"]]
+        : [
+          ...(insuranceInstallmentMinor ? [["Monto de cada cuota del seguro", applicationAmountLabel(insuranceInstallmentMinor)]] : []),
+          ...(insuranceInstallmentCount ? [["Cantidad de cuotas del seguro", String(insuranceInstallmentCount)]] : []),
+        ]),
       ...details.applicant,
     ]} />
     <ReviewSection title="Datos del vehículo" fields={details.vehicle} />

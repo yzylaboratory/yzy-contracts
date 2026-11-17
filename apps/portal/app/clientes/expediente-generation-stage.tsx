@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AlertTriangle, Check, CheckCheck, FileCheck2, FileText, Loader2, Stamp } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import type { BatchProgress, BatchQueueItem } from "@/app/contratos/batch-document-generation";
-import { INITIAL_EXPEDIENTE_DOCUMENT_TYPES, getDocumentType } from "@/app/contratos/document-catalog";
+import { initialExpedienteDocumentTypes, getDocumentType } from "@/app/contratos/document-catalog";
 import type { GeneratedFormat } from "@/app/contratos/generated-documents-api";
 import styles from "./expediente-generation-stage.module.css";
 
@@ -14,18 +14,13 @@ type StagePhase = "saving" | "preparing" | "generating" | "complete";
 
 const CLAUSE_WIDTHS = ["92%", "78%", "86%", "64%", "88%", "52%"] as const;
 
-const SEEDED_ITEMS: BatchQueueItem[] = INITIAL_EXPEDIENTE_DOCUMENT_TYPES.map(type => ({
-  type,
-  label: getDocumentType(type)?.label ?? type,
-  status: "pending",
-}));
-
 export function ExpedienteGenerationStage({
   phase,
   clientName,
   preferredFormat,
   progress,
   operationReference,
+  insurancePaid,
   onOpenExpediente,
 }: {
   phase: StagePhase;
@@ -33,6 +28,7 @@ export function ExpedienteGenerationStage({
   preferredFormat: GeneratedFormat;
   progress: BatchProgress | null;
   operationReference?: string | null;
+  insurancePaid?: boolean;
   onOpenExpediente?: () => void;
 }) {
   const reducedMotion = useReducedMotion();
@@ -52,7 +48,12 @@ export function ExpedienteGenerationStage({
   const activeRowRef = useRef<HTMLLIElement>(null);
   const prevDoneCount = useRef(0);
 
-  const items = progress?.items.length ? progress.items : SEEDED_ITEMS;
+  const seededItems: BatchQueueItem[] = initialExpedienteDocumentTypes({ insurancePaid }).map(type => ({
+    type,
+    label: getDocumentType(type)?.label ?? type,
+    status: "pending",
+  }));
+  const items = progress?.items.length ? progress.items : seededItems;
   const total = progress?.total ?? items.length;
   const completed = phase === "complete" ? total : (progress?.completed ?? 0);
   const doneCount = items.filter(item => item.status === "done").length;

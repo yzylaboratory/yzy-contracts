@@ -7,9 +7,9 @@ import { expedienteDocumentsHref, expedienteHref } from "@/app/clientes/client-p
 import { MonthlyPaymentTable } from "@/app/clientes/monthly-payment-table";
 import { hasOperationCompanyScope } from "@/app/clientes/operation-templates";
 import { conditionalSaleHandwrittenFields, documentFieldAliases, getDocumentType, insuranceScheduleFields, isInsuranceSaleCalculatedField } from "@/app/contratos/document-catalog";
-import { matchDocumentTemplate } from "@/app/clientes/document-template-match";
+import { matchDocumentTemplate, documentTypeFromName } from "@/app/clientes/document-template-match";
 import { buildCompanySnapshot, buildContractTemplateFields, fileBase, getContractCompanyFields } from "@/app/contratos/contract-template-fields";
-import { expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesSignatureAsContractDate } from "@/app/contratos/expediente-fields";
+import { documentClauseCase, expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesSignatureAsContractDate, usesUppercaseDocumentData } from "@/app/contratos/expediente-fields";
 import { applicationAmountLabel, applicationDateLabel, clientContractFields } from "@/components/case-application/case-application";
 import { usePortalPreferences } from "@/app/configuracion/preferences-store";
 import { companyContractClauseField, companyFieldLimit, companyNotaryField, companyProfileLimit, companyProfileValue, companyValueLimit, companyValuesSize, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
@@ -161,7 +161,8 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const { toast } = useToastStack();
   const conditionalSalePlan = expediente?.type === "venta_condicional" ? expediente.operation.financing : undefined;
   const isInsuranceSale = expediente?.type === "venta_condicional_seguro";
-  const blankHandwrittenIdentity = expediente?.type === "venta_condicional" || expediente?.type === "venta_condicional_seguro";
+  const uppercaseValues = usesUppercaseDocumentData(expediente?.type ?? documentTypeFromName(title)?.id);
+  const blankHandwrittenIdentity = expediente?.type === "venta_condicional";
   const { markdown, fields } = useMemo(
     () => buildContractTemplateFields(content, nativeVariables, expediente?.type),
     [content, expediente?.type, nativeVariables],
@@ -200,12 +201,12 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const notaryFields = fields.filter(field => companyNotaryField(field.key));
   const missingNotaryFields = selectedCompany ? notaryFields.filter(field => {
     const notary = companyNotaryField(field.key)!;
-    return validateTemplateField(field, selectedCompany.values[notary.key] ?? "");
+    return validateTemplateField(field, companyProfileValue(selectedCompany.values, notary.key));
   }) : [];
   const missingNotary = missingNotaryFields.length > 0;
   const missingWitnesses = selectedCompany ? witnessFields.filter(field => {
     const witness = companyWitnessField(field.key)!;
-    return validateTemplateField(field, selectedCompany.values[witness.key] ?? "");
+    return validateTemplateField(field, companyProfileValue(selectedCompany.values, witness.key));
   }) : [];
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [companyEdits, setCompanyEdits] = useState<{ id: string; values: Record<string, string> } | null>(null);
@@ -225,9 +226,9 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   const reviewFields = fields.filter(field => {
     const { key } = field;
     const notary = companyNotaryField(key);
-    if (notary) return Boolean(selectedCompany?.values[notary.key]?.trim() && !missingNotaryFields.includes(field));
+    if (notary) return Boolean(selectedCompany && companyProfileValue(selectedCompany.values, notary.key).trim() && !missingNotaryFields.includes(field));
     const witness = companyWitnessField(key);
-    if (witness) return Boolean(selectedCompany?.values[witness.key]?.trim() && !missingWitnesses.includes(field));
+    if (witness) return Boolean(selectedCompany && companyProfileValue(selectedCompany.values, witness.key).trim() && !missingWitnesses.includes(field));
     const clause = companyContractClauseField(key);
     if (clause) {
       const value = companyProfileValue(selectedCompany?.values, key);
@@ -252,7 +253,8 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     !companyContractClauseField(field.key) &&
     !(expediente && fixedDates.has(field.key)) &&
     !(isInsuranceSale && (field.key === "fecha_de_firma" || isInsuranceSaleCalculatedField(field.key))) &&
-    !(expediente?.type === "acto_seguro" && (insuranceScheduleKeys.has(field.key) || field.key === "cantidad_cuotas_seguro")) &&
+    !(expediente?.type === "acto_seguro" && insuranceScheduleKeys.has(field.key)) &&
+    !(isInsuranceDocument && field.key === "cantidad_cuotas_seguro") &&
     !(expediente && clientContractKeys.has(field.key)) &&
     !(blankHandwrittenIdentity && conditionalSaleHandwrittenKeys.has(field.key)) &&
     !(usesCaseExtraordinary && isExtraordinaryPaymentField(field.key)) &&
@@ -260,17 +262,20 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     !derivedWords.has(field.key));
   const missingKeySet = new Set(missingFields.map(field => field.key));
   const schedules = scheduleGroups.filter(group => Object.values(group.keys).every(key => missingKeySet.has(key)));
-  const baseValues = useMemo(() => Object.fromEntries(fields.map(({ key }) => {
+  const baseValues = useMemo(() => Object.fromEntries(fields.map(({ key, kind }) => {
+    const forceUpper = uppercaseValues && kind !== "email";
     const notary = companyNotaryField(key);
-    if (notary) return [key, normalizeWordTemplateLine(selectedCompany?.values[notary.key]?.trim() ?? "")];
+    if (notary) return [key, selectedCompany ? documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, notary.key)), forceUpper) : ""];
     const witness = companyWitnessField(key);
-    if (witness) return [key, normalizeWordTemplateLine(selectedCompany?.values[witness.key]?.trim() ?? "")];
+    if (witness) return [key, selectedCompany ? documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, witness.key)), forceUpper) : ""];
     if (companyContractClauseField(key)) {
-      return [key, normalizeWordTemplateLine(companyProfileValue(selectedCompany?.values, key))];
+      return [key, documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany?.values, key)), forceUpper)];
     }
     if (usesCaseExtraordinary && isExtraordinaryPaymentField(key)) return [key, context.values[key] ?? ""];
     if (isInsuranceSale && (key === "fecha_de_firma" || isInsuranceSaleCalculatedField(key))) return [key, context.values[key] ?? ""];
-    if (expediente?.type === "acto_seguro" && (insuranceScheduleKeys.has(key) || key === "cantidad_cuotas_seguro")) return [key, context.values[key] ?? ""];
+    if (expediente?.type === "acto_seguro" && insuranceScheduleKeys.has(key) || isInsuranceDocument && key === "cantidad_cuotas_seguro") {
+      return [key, context.values[key] ?? ""];
+    }
     if (expediente && (isExpedienteField(key, expediente.type) || isInsuranceDocument && isInsuranceIssuerField(key) ||
       isInsuranceSale && isCompanyField(key) && !isCompanyContractClauseField(key))) {
       return [key, fixedDates.has(key) || clientContractKeys.has(key) || context.documentInputs.has(key) ? context.values[key] ?? "" : editedValues[key] ?? context.values[key] ?? ""];
@@ -280,13 +285,18 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     if (companyEdits?.id === selectedCompany.id && Object.hasOwn(companyEdits.values, key)) {
       return [key, companyEdits.values[key]];
     }
-    return [key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, key))];
-  })), [usesCaseExtraordinary, companyEdits, context.documentInputs, context.values, editedValues, expediente, fields, fixedDates, isInsuranceDocument, isInsuranceSale, selectedCompany]);
+    return [key, documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, key)), forceUpper)];
+  })), [usesCaseExtraordinary, uppercaseValues, companyEdits, context.documentInputs, context.values, editedValues, expediente, fields, fixedDates, isInsuranceDocument, isInsuranceSale, selectedCompany]);
   const values = useMemo(() => {
     const next: Record<string, string> = { ...baseValues };
-    for (const [key, source] of derivedWords) if (!next[key]?.trim()) next[key] = wordsFor(source, baseValues[source.key]);
+    for (const [key, source] of derivedWords) {
+      if (!next[key]?.trim()) {
+        const words = wordsFor(source, baseValues[source.key]);
+        next[key] = uppercaseValues ? words.toLocaleUpperCase("es") : words;
+      }
+    }
     return next;
-  }, [baseValues, derivedWords]);
+  }, [baseValues, derivedWords, uppercaseValues]);
   const [emailOpen, setEmailOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confirmedSource, setConfirmedSource] = useState(false);
@@ -439,13 +449,15 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
     let recording = false;
     try {
       const nativeFormat = output === "email" ? attachmentFormat : output === "preview" ? "pdf" : output;
-      const company: GeneratedOutput["company"] = buildCompanySnapshot(selectedCompany, companyFields, values);
+      const company: GeneratedOutput["company"] = buildCompanySnapshot(selectedCompany, companyFields, values, uppercaseValues);
       if (company && (Object.keys(company.values).length > companyFieldLimit || companyValuesSize(company.values) > companyProfileLimit)) {
         throw new NativeDocumentError("Los valores de empresa de este documento superan el tamaño permitido. Reduce los campos más largos.");
       }
       const artifactKey = JSON.stringify([nativeFormat, values, company, operationId]);
       await checkGenerationAccess(contractId, accountId, company?.id, operationId);
-      const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale });
+      const docType = expediente?.type ?? documentTypeFromName(title)?.id;
+      const boldPagareDate = docType === "pagare_autentico" || docType === "pagare_seguro" || /^\s*pagar[eé]\b/i.test(title);
+      const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale, uppercase: uppercaseValues, boldPagareDate });
       if (output === "preview") {
         const artifact = previewArtifact.current?.key === artifactKey ? previewArtifact.current.artifact : await prepare();
         if (!await isActiveAccount(accountId) || !mounted.current) return;
@@ -549,7 +561,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
             {reviewFields.length > 0 && <Accordion defaultOpen={-1} items={[{
               title: `Datos registrados (${reviewFields.length})`,
               content: <dl className={styles.reviewValues}>{reviewFields.map(field => {
-                const value = formatTemplateValue(field, values[field.key]);
+                const value = documentClauseCase(field.key, formatTemplateValue(field, values[field.key]), uppercaseValues && field.kind !== "email");
                 return <div key={field.key} data-long={value.length > 48 ? "" : undefined}>
                   <dt>{usesSignatureForContractDate && field.key === "fecha_contrato" ? "Fecha de firma" : field.label}</dt><dd>{value}</dd>
                 </div>;

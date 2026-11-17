@@ -392,6 +392,7 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
     );
     let mut other_case_payload = payload.clone();
     other_case_payload["operation_id"] = json!(empty_id);
+    let mut latest = Value::Null;
     for _ in 0..2 {
         let target = format!("{DOCUMENTS}/{}/artifact", Uuid::new_v4());
         let (status, document) = put_artifact(
@@ -404,7 +405,9 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
         )
         .await;
         assert_eq!(status, StatusCode::CREATED, "{document}");
+        latest = document;
     }
+    // Regenerating the same template and format in a case replaces the copy.
     let (status, page) = app
         .get(
             owner,
@@ -412,8 +415,8 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{page}");
-    assert_eq!(page["total"], 2);
-    assert_eq!(page["items"][0]["operation_id"], empty_id);
+    assert_eq!(page["total"], 1);
+    assert_eq!(page["items"][0]["id"], latest["id"]);
     let (status, page) = app
         .get(owner, &format!("{DOCUMENTS}?operation_id={operation_id}"))
         .await;
@@ -438,7 +441,7 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
         app.get(owner, &format!("{DOCUMENTS}?operation_id={empty_id}"))
             .await
             .1["total"],
-        2
+        1
     );
 
     assert_eq!(
@@ -481,8 +484,8 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(app.get(owner, &detail).await.0, StatusCode::OK);
-    assert_eq!(app.get(owner, DOCUMENTS).await.1["total"], 3);
-    assert_eq!(app.get(owner, STATS).await.1["total"], 3);
+    assert_eq!(app.get(owner, DOCUMENTS).await.1["total"], 2);
+    assert_eq!(app.get(owner, STATS).await.1["total"], 2);
     assert_eq!(
         binary_request(&app, owner, Method::GET, &artifact, PDF_MIME, Vec::new())
             .await

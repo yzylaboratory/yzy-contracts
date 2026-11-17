@@ -97,6 +97,10 @@ export function notarialDate(date: Date) {
   return `${dayWords} (${String(day).padStart(2, "0")}) DE ${notarialMonths[date.getUTCMonth()]} DEL AÑO ${yearWords} (${year})`;
 }
 
+/** Fecha completa en letras: «dieciséis de noviembre del año dos mil veintiséis». */
+export function wordsDate(date: Date) {
+  return `${integerWords(date.getUTCDate())} de ${notarialMonths[date.getUTCMonth()].toLowerCase()} del año ${integerWords(date.getUTCFullYear())}`;
+}
 /** Encabezado del acto: «TRECE (13) días del mes de OCTUBRE del año 2026». */
 export function notarialActDate(date: Date) {
   const day = date.getUTCDate();
@@ -203,6 +207,7 @@ const baseFields = new Set([
   "cuotas_intereses", "cuota_final_capital", "abonos_extraordinarios",
   "numero_cuota_final_capital", "fecha_cuota_final_capital", "cuota_final_capital_monto", "cuota_final_capital_letras",
   "cuota_intereses_monto", "cuota_intereses_monto_letras",
+  "fecha_primera_cuota_intereses_letras", "fecha_cuota_final_capital_letras",
   "total_financiamiento", "total_financiamiento_letras",
   "cantidad_cuotas", "cantidad_cuotas_letras", "cantidad_cuotas_intereses", "cantidad_cuotas_intereses_letras",
   "cantidad_cuotas_seguro", "cantidad_cuotas_seguro_letras",
@@ -227,7 +232,13 @@ export function usesSignatureAsContractDate(type?: DocumentType) {
 /** Fechas del acto y montos en letras al estilo notarial (00/100, mayúsculas). */
 export function usesNotarialDocumentStyle(type?: DocumentType) {
   return type === "pagare_autentico" || type === "pagare_seguro" || type === "acto_seguro"
-    || type === "entrega_voluntaria" || type === "declaracion_jurada" || type === "venta_condicional_seguro";
+    || type === "entrega_voluntaria" || type === "declaracion_jurada" || type === "venta_condicional_seguro"
+    || type === "autorizacion_data" || type === "gps";
+}
+
+/** Documentos cuyos datos se insertan íntegramente en mayúsculas. */
+export function usesUppercaseDocumentData(type?: DocumentType) {
+  return type === "levantamiento_oposicion";
 }
 
 /** Texto combinado de cuotas con montos y fechas en letras; solo pagarés. */
@@ -243,22 +254,30 @@ function text(value?: string | null) {
   return value?.trim() ?? "";
 }
 
-/** Spells a digit run without reading more than three digits as one number (no «millón»). */
-function cedulaSegmentWords(segment: string) {
-  if (!segment || /[^0-9]/.test(segment)) return "";
-  if (segment.startsWith("0")) return Array.from(segment, digit => smallNumbers[Number(digit)]).join(" ");
-  if (segment.length <= 3) return integerWords(Number(segment));
-  const parts: string[] = [];
-  for (let index = 0; index < segment.length; index += 3) {
-    const chunk = segment.slice(index, index + 3);
-    parts.push(chunk.startsWith("0")
-      ? Array.from(chunk, digit => smallNumbers[Number(digit)]).join(" ")
-      : integerWords(Number(chunk)));
-  }
-  return parts.join(" ");
+export function isContractAddressKey(key: string) {
+  return /(?:^|_)(?:direccion|domicilio)(?:_|$)/i.test(key) && !/correo|email|electronica|electrónica/i.test(key);
 }
 
-/** Cédula in words: «cero cero uno guion ciento cuarenta y seis quinientos sesenta y nueve cinco guion dos». */
+/** Nacionalidad y estado civil van en minúsculas; las direcciones (y los documentos configurados en mayúsculas) van en mayúsculas. */
+export function documentClauseCase(key: string, value: string, uppercase = false) {
+  if (!value) return value;
+  if (uppercase) return value.toLocaleUpperCase("es");
+  if (/(?:nacionalidad|estado_civil)/.test(key)) return value.toLocaleLowerCase("es");
+  if (isContractAddressKey(key)) return value.toLocaleUpperCase("es");
+  return value;
+}
+
+/** Reads each cédula segment as a whole integer, preserving leading zeros, interrupted only by «guion». */
+function cedulaSegmentWords(segment: string) {
+  if (!segment || /[^0-9]/.test(segment)) return "";
+  const leadingZeros = segment.match(/^0+/)?.[0].length ?? 0;
+  const rest = segment.slice(leadingZeros);
+  const words = Array.from({ length: leadingZeros }, () => smallNumbers[0]);
+  if (rest) words.push(integerWords(Number(rest)));
+  return words.join(" ");
+}
+
+/** Cédula in words: «cero cero uno guion un millón cuatrocientos sesenta y cinco mil seiscientos noventa y cinco guion dos». */
 export function cedulaWords(identity?: string | null) {
   const input = text(identity);
   if (!/^(?:\d{11}|\d{3}-\d{7}-\d)$/.test(input)) return "";
@@ -302,6 +321,7 @@ function addFinancing(values: Record<string, string>, financing: NonNullable<Ope
     values.fecha_cuota_final_capital = capital.date;
     values.cuota_final_capital_monto = moneyNumber(capital.amount_minor);
     values.cuota_final_capital_letras = notarialMoneyWords(capital.amount_minor);
+    values.fecha_cuota_final_capital_letras = notarialDate(isoDate(capital.date)!);
   }
   const interestValid = interest.every((payment, index) =>
     validPayment(payment) && payment.date < capital.date && (!index || payment.date > interest[index - 1].date));
@@ -323,6 +343,7 @@ function addFinancing(values: Record<string, string>, financing: NonNullable<Ope
     const interestCount = interest.length;
     values.cantidad_cuotas_intereses = String(interestCount);
     values.cantidad_cuotas_intereses_letras = notarialCountWords(interestCount);
+    if (interest[0]) values.fecha_primera_cuota_intereses_letras = notarialDate(isoDate(interest[0].date)!);
     if (uniformInterest) {
       values.cuota_intereses_monto = moneyNumber(firstInterest);
       values.cuota_intereses_monto_letras = notarialMoneyWords(firstInterest);
@@ -425,7 +446,8 @@ const fieldMessages: Record<string, string> = {
 
 export function resolveExpedienteFields(type: DocumentType, client: ClientWrite, operation: OperationWrite, context: Context) {
   const name = text(client.name);
-  const address = text(client.address);
+  const address = documentClauseCase("cliente_direccion", text(client.address));
+  const upperTransitPhrase = transitPhrase.toLocaleUpperCase("es");
   const signatureDate = isoDate(operation.signature_date) ? operation.signature_date! : "";
   const identity = identityValues(client.identity);
   const balance = context.confirmedBalanceMinor;
@@ -434,14 +456,14 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     cliente_nombre: name,
     cliente_nombre_firma: name,
     cliente_tratamiento: text(client.profile?.treatment),
-    cliente_nacionalidad: text(client.profile?.nationality),
+    cliente_nacionalidad: documentClauseCase("cliente_nacionalidad", text(client.profile?.nationality)),
     cliente_ocupacion: text(client.profile?.position),
-    cliente_estado_civil: text(client.profile?.marital_status),
+    cliente_estado_civil: documentClauseCase("cliente_estado_civil", text(client.profile?.marital_status)),
     cliente_cedula: identity.number,
     cliente_cedula_numeros: identity.number,
     cliente_cedula_letras: identity.words,
     cliente_direccion: address,
-    cliente_direccion_transito: address && (address.endsWith(transitPhrase) ? address : `${address} ${transitPhrase}`),
+    cliente_direccion_transito: address && (/\by de tr[aá]nsito por\b/i.test(address) ? address : `${address} ${upperTransitPhrase}`),
     cliente_telefono: text(client.phone),
     cliente_correo: text(client.email),
     cliente_origen_ingresos: text(client.income_source),
@@ -465,8 +487,35 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
   values.vehiculo_garantia = guarantee.join(", ");
   values.vehiculo_descripcion = values.vehiculo_garantia;
   values.vehiculo_ano = values.vehiculo_anio;
+  // Autorizaciones, GPS, levantamiento y actas de entrega describen el vehículo en mayúsculas, como en los modelos.
+  if (
+    type === "autorizacion_asegurar_vehiculo" || type === "autorizacion_data" || type === "gps"
+    || type === "entrega_vehiculo" || type === "entrega_vehiculo_fines_saldo"
+    || usesUppercaseDocumentData(type)
+  ) {
+    for (const [marker] of vehicleFields) values[marker] = values[marker].toLocaleUpperCase("es");
+    values.vehiculo_garantia = values.vehiculo_garantia.toLocaleUpperCase("es");
+    values.vehiculo_descripcion = values.vehiculo_garantia;
+    values.vehiculo_ano = values.vehiculo_anio;
+  }
+  // Autorización de datos y GPS llevan nombre y domicilio en mayúsculas.
+  if (type === "autorizacion_data" || type === "gps") {
+    for (const key of ["cliente_nombre", "cliente_nombre_firma", "cliente_direccion", "cliente_direccion_transito"] as const) {
+      if (values[key]) values[key] = values[key].toLocaleUpperCase("es");
+    }
+  }
   // La declaración jurada describe la ocupación con el origen de ingresos registrado en el expediente.
   if (type === "declaracion_jurada") values.cliente_ocupacion = values.cliente_origen_ingresos;
+  if (usesUppercaseDocumentData(type)) {
+    for (const key of [
+      "cliente_nombre", "cliente_nombre_firma", "cliente_tratamiento",
+      "cliente_nacionalidad", "cliente_ocupacion", "cliente_estado_civil",
+      "cliente_cedula_letras", "cliente_direccion", "cliente_direccion_transito",
+      "cliente_origen_ingresos", "operacion_referencia",
+    ] as const) {
+      if (values[key]) values[key] = values[key].toLocaleUpperCase("es");
+    }
+  }
   // Marcadores con nombre largo (p. ej. nombre_completo_del_cliente) usan los mismos datos del expediente.
   for (const [marker, key] of Object.entries(insuranceSaleCaseFields)) values[marker] = values[key];
   values.placa_del_vehiculo = values.vehiculo_placa || values.vehiculo_matricula;
@@ -479,7 +528,7 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     for (const key of Object.keys(values)) if (isExtraordinaryPaymentField(key)) delete values[key];
     if (payments) Object.assign(values, extraordinaryPaymentValues(payments, type === "pagare_autentico"));
   }
-  if (type === "venta_condicional" || type === "venta_condicional_seguro") {
+  if (type === "venta_condicional") {
     for (const key of conditionalSaleHandwrittenFields) values[key] = "";
   }
   if (type === "venta_condicional_seguro") {
@@ -535,15 +584,23 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     }
     const issuer = text(context.insuranceCompanyName);
     if (isInsuranceCompanyName(issuer)) {
+      const upperIssuer = issuer.toLocaleUpperCase("es");
       for (const [key, value] of Object.entries(context.insuranceCompanyValues ?? {})) {
         if (!/^empresa_[a-z0-9_]+$/.test(key)) continue;
-        values[`empresa_seguro_${key.slice(8)}`] = text(value);
-        values[`emisor_seguro_${key.slice(8)}`] = text(value);
-        if (type === "venta_condicional_seguro") values[key] = text(value);
+        const normalized = key === "empresa_razon_social" || key === "empresa_nombre"
+          ? text(value).toLocaleUpperCase("es")
+          : documentClauseCase(key, text(value));
+        values[`empresa_seguro_${key.slice(8)}`] = normalized;
+        values[`emisor_seguro_${key.slice(8)}`] = normalized;
+        if (type === "venta_condicional_seguro") values[key] = normalized;
+      }
+      if (type === "venta_condicional_seguro") {
+        values.empresa_razon_social = values.empresa_razon_social || upperIssuer;
+        values.empresa_nombre = values.empresa_nombre || upperIssuer;
       }
       values.representante_seguro_nombre = text(context.insuranceCompanyValues?.empresa_representante_nombre);
       for (const key of ["empresa_seguro_nombre", "emisor_seguro_nombre", "empresa_seguro_razon_social", "emisor_seguro_razon_social"]) {
-        values[key] = issuer;
+        values[key] = upperIssuer;
       }
     }
     required.push("empresa_seguro_nombre");

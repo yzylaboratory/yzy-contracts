@@ -246,7 +246,12 @@ function ExpedienteDetail({ accountId, operation, client, companyName, clientPan
           <dt>Fecha de firma</dt>
           <dd>{operation.signature_date ? applicationDateLabel(operation.signature_date) : "Sin indicar"}</dd>
         </div>
-        {operation.insurance_installment_minor != null && operation.insurance_installment_minor > 0 && (
+        {operation.insurance_paid ? (
+          <div>
+            <dt>Seguro</dt>
+            <dd>Saldo (sin documentos del seguro)</dd>
+          </div>
+        ) : operation.insurance_installment_minor != null && operation.insurance_installment_minor > 0 && (
           <div>
             <dt>Monto de cada cuota del seguro</dt>
             <dd>{applicationAmountLabel(operation.insurance_installment_minor)}</dd>

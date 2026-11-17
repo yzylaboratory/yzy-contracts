@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api";
 import { getContractDownload, renderContractPdf, type NativeVariable } from "./contracts-api";
 import { hasInsuranceCompanyNameInText } from "./document-catalog";
-import { multilinePaymentFields } from "./expediente-fields";
+import { documentClauseCase, isContractAddressKey, multilinePaymentFields } from "./expediente-fields";
 import type { DocumentFormat } from "./generated-documents-api";
 import { countTemplateFields, fieldToken, formatTemplateValue, type TemplateField } from "./template-fields";
 
@@ -34,9 +34,40 @@ export class NativeDocumentError extends Error {}
 type WordText = { node: Element; start: number; end: number };
 type Segment = { part: string; text: string; nodes: WordText[] };
 type Match = { segment: Segment; start: number; end: number };
-type Replacement = Match & { value: string };
+type TextRun = { text: string; bold: boolean };
+type Replacement = Match & { value: string; bold?: boolean; runs?: readonly TextRun[] };
 
 const salePaymentColumns = ["cuotas_intereses_numeros", "cuotas_intereses_fechas", "cuotas_intereses_montos"];
+const pagareDateKeys = new Set(["fecha_firma", "fecha_de_firma"]);
+
+function isBoldAddressField(key: string) {
+  return isContractAddressKey(key);
+}
+
+export function pagareDateRuns(key: string, value: string, boldPagareDate: boolean): readonly TextRun[] | undefined {
+  if (!boldPagareDate || !pagareDateKeys.has(key) || !value) return undefined;
+  const actMatch = /^(.+?\(\d+\))( días del mes de )([A-ZÁÉÍÓÚÑ]+)( del año )(\d{4})$/.exec(value);
+  if (actMatch) {
+    return [
+      { text: actMatch[1], bold: true },
+      { text: actMatch[2], bold: false },
+      { text: actMatch[3], bold: true },
+      { text: actMatch[4], bold: false },
+      { text: actMatch[5], bold: true },
+    ];
+  }
+  const longMatch = /^(\d{1,2})( de )([a-záéíóúñ]+)( de )(\d{4})$/.exec(value);
+  if (longMatch) {
+    return [
+      { text: longMatch[1], bold: true },
+      { text: longMatch[2], bold: false },
+      { text: longMatch[3], bold: true },
+      { text: longMatch[4], bold: false },
+      { text: longMatch[5], bold: true },
+    ];
+  }
+  return [{ text: value, bold: true }];
+}
 
 function nativeKeys(text: string) {
   const keys: string[] = [];
@@ -135,7 +166,7 @@ function textMatches(segments: Segment[], needle: string) {
   return result;
 }
 
-function resolveTargets(segments: Segment[], markdown: string, fields: TemplateField[], values: Record<string, string>) {
+function resolveTargets(segments: Segment[], markdown: string, fields: TemplateField[], values: Record<string, string>, uppercase = false, boldPagareDate = false) {
   const counts = countTemplateFields(markdown);
   const bySegment = new Map<Segment, Replacement[]>();
   for (const field of fields) {
@@ -161,10 +192,11 @@ function resolveTargets(segments: Segment[], markdown: string, fields: TemplateF
     if (matches.length !== expected) {
       throw new NativeDocumentError(`El marcador de «${field.label}» aparece más veces en Word que en la plantilla. Revisa el vínculo.`);
     }
-    const value = formatWordTemplateValue(field, Object.hasOwn(values, field.key) ? values[field.key] : "");
+    const value = formatWordTemplateValue(field, Object.hasOwn(values, field.key) ? values[field.key] : "", uppercase);
+    const runs = pagareDateRuns(field.key, value, boldPagareDate);
     for (const match of matches) {
       const existing = bySegment.get(match.segment) ?? [];
-      existing.push({ ...match, value });
+      existing.push({ ...match, value, bold: isBoldAddressField(field.key), ...(runs && { runs }) });
       bySegment.set(match.segment, existing);
     }
   }
@@ -183,7 +215,7 @@ export function normalizeWordTemplateLine(value: string) {
   return value.replace(/[\r\n\t]/g, " ");
 }
 
-export function formatWordTemplateValue(field: TemplateField, input: string) {
+export function formatWordTemplateValue(field: TemplateField, input: string, uppercase = false) {
   const formatted = formatTemplateValue(
     field.key === "fecha_cuota_final_capital" && field.kind === "date" && field.dateStyle !== "notarial" && field.dateStyle !== "notarialAct"
       ? { ...field, dateStyle: "numeric" }
@@ -196,10 +228,18 @@ export function formatWordTemplateValue(field: TemplateField, input: string) {
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/u.test(value)) {
     throw new NativeDocumentError(`El valor de «${field.label}» contiene caracteres incompatibles con Word.`);
   }
-  return value;
+  return documentClauseCase(field.key, value, uppercase && field.kind !== "email");
 }
 
-function resolveNativeTargets(segments: Segment[], variables: NativeVariable[], fields: TemplateField[], values: Record<string, string>, allowIncomplete: boolean) {
+function resolveNativeTargets(
+  segments: Segment[],
+  variables: NativeVariable[],
+  fields: TemplateField[],
+  values: Record<string, string>,
+  allowIncomplete: boolean,
+  uppercase = false,
+  boldPagareDate = false,
+) {
   if (!variables.length || variables.length > variableLimit) throw new NativeDocumentError(invalidVariables);
   const byKey = new Map(fields.map(field => [field.key, field]));
   const expected = new Map<string, { remaining: number; value: string }>();
@@ -211,7 +251,7 @@ function resolveNativeTargets(segments: Segment[], variables: NativeVariable[], 
     }
     total += occurrences;
     if (total > occurrenceLimit) throw new NativeDocumentError(invalidVariables);
-    const value = formatWordTemplateValue(field, Object.hasOwn(values, key) ? values[key] : "");
+    const value = formatWordTemplateValue(field, Object.hasOwn(values, key) ? values[key] : "", uppercase);
     if (!value && field.required && !allowIncomplete) throw new NativeDocumentError(`Completa el campo «${field.label}».`);
     expected.set(key, { remaining: occurrences, value });
   }
@@ -223,14 +263,69 @@ function resolveNativeTargets(segments: Segment[], variables: NativeVariable[], 
       const field = expected.get(match[1]);
       if (!field || field.remaining === 0) throw new NativeDocumentError(invalidVariables);
       field.remaining--;
-    const prefix = segment.text.slice(0, match.index);
-    const value = prefix.endsWith("RD$") && field.value.startsWith("RD$") ? field.value.slice(3) : field.value;
-    edits.push({ segment, start: match.index, end: match.index + match[0].length, value });
+      const prefix = segment.text.slice(0, match.index);
+      const value = prefix.endsWith("RD$") && field.value.startsWith("RD$") ? field.value.slice(3) : field.value;
+      const runs = pagareDateRuns(match[1], value, boldPagareDate);
+      edits.push({
+        segment,
+        start: match.index,
+        end: match.index + match[0].length,
+        value,
+        bold: isBoldAddressField(match[1]),
+        ...(runs && { runs }),
+      });
     }
     if (edits.length) bySegment.set(segment, edits.reverse());
   }
   if ([...expected.values()].some(field => field.remaining !== 0)) throw new NativeDocumentError(invalidVariables);
   return bySegment;
+}
+
+const rPrAfterBold = new Set([
+  "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline", "shadow", "emboss", "imprint",
+  "noProof", "snapToGrid", "vanish", "webHidden", "color", "spacing", "w", "kern", "position",
+  "sz", "szCs", "highlight", "u", "effect", "bdr", "shd", "fitText", "vertAlign", "rtl", "cs", "em", "lang",
+]);
+
+function isRunBold(run: Element) {
+  const rPr = wordChildren(run, "rPr")[0];
+  if (!rPr) return false;
+  const b = wordChildren(rPr, "b")[0];
+  if (!b) return false;
+  const val = b.getAttributeNS(run.namespaceURI, "val") ?? b.getAttribute("w:val") ?? b.getAttribute("val");
+  return val !== "0" && val !== "false";
+}
+
+function ensureRunBold(run: Element) {
+  const ns = run.namespaceURI;
+  const prefix = run.prefix;
+  const qName = (name: string) => (prefix ? `${prefix}:${name}` : name);
+  let rPr = wordChildren(run, "rPr")[0];
+  if (!rPr) {
+    rPr = run.ownerDocument.createElementNS(ns, qName("rPr"));
+    run.insertBefore(rPr, run.firstChild);
+  }
+  const existing = wordChildren(rPr, "b")[0];
+  if (existing) {
+    existing.removeAttributeNS(ns, "val");
+    existing.removeAttribute("w:val");
+    existing.removeAttribute("val");
+    return;
+  }
+  const b = run.ownerDocument.createElementNS(ns, qName("b"));
+  const before = Array.from(rPr.children).find(child => child.namespaceURI === ns && rPrAfterBold.has(child.localName)) ?? null;
+  rPr.insertBefore(b, before);
+}
+
+function cloneRunWithText(sourceRun: Element, sourceTextNode: Element, value: string, bold: boolean) {
+  const clone = sourceRun.cloneNode(false) as Element;
+  const rPr = wordChildren(sourceRun, "rPr")[0];
+  if (rPr) clone.appendChild(rPr.cloneNode(true));
+  const textClone = sourceTextNode.cloneNode(false) as Element;
+  clone.appendChild(textClone);
+  if (bold) ensureRunBold(clone);
+  writeWordText(textClone, value);
+  return clone;
 }
 
 function writeWordText(node: Element, value: string) {
@@ -239,6 +334,8 @@ function writeWordText(node: Element, value: string) {
     target.textContent = text;
     if (/^\s|\s$/.test(text)) {
       target.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+    } else {
+      target.removeAttributeNS("http://www.w3.org/XML/1998/namespace", "space");
     }
   };
   setText(node, first);
@@ -256,14 +353,39 @@ function writeWordText(node: Element, value: string) {
 
 function replaceInSegment(segment: Segment, edits: Replacement[]) {
   // Applying ranges right to left preserves the offsets of ranges still to edit.
-  for (const { start, end, value } of edits) {
+  for (const { start, end, value, bold, runs } of edits) {
     let wroteValue = false;
     for (const text of segment.nodes) {
       if (text.start >= end || text.end <= start) continue;
       const current = text.node.textContent ?? "";
       const prefix = current.slice(0, Math.max(0, start - text.start));
       const suffix = current.slice(Math.min(text.end, end) - text.start);
-      writeWordText(text.node, prefix + (wroteValue ? "" : value) + suffix);
+      const inserted = wroteValue ? "" : value;
+      const run = text.node.parentElement;
+      const splitRuns = inserted ? (runs ?? (bold ? [{ text: inserted, bold: true }] : undefined)) : undefined;
+      if (splitRuns?.length && run?.localName === "r" && run.parentNode && !isRunBold(run)) {
+        const anchor = run.nextSibling;
+        if (!prefix && !suffix && splitRuns.length === 1) {
+          writeWordText(text.node, splitRuns[0].text);
+          if (splitRuns[0].bold) ensureRunBold(run);
+        } else if (prefix) {
+          writeWordText(text.node, prefix);
+          for (const part of splitRuns) {
+            run.parentNode.insertBefore(cloneRunWithText(run, text.node, part.text, part.bold), anchor);
+          }
+          if (suffix) run.parentNode.insertBefore(cloneRunWithText(run, text.node, suffix, false), anchor);
+        } else {
+          const [first, ...rest] = splitRuns;
+          writeWordText(text.node, first.text);
+          if (first.bold) ensureRunBold(run);
+          for (const part of rest) {
+            run.parentNode.insertBefore(cloneRunWithText(run, text.node, part.text, part.bold), anchor);
+          }
+          if (suffix) run.parentNode.insertBefore(cloneRunWithText(run, text.node, suffix, false), anchor);
+        }
+      } else {
+        writeWordText(text.node, prefix + inserted + suffix);
+      }
       wroteValue = true;
     }
   }
@@ -418,6 +540,8 @@ export async function fillOriginalWord(
   nativeVariables: NativeVariable[] | null = null,
   allowIncomplete = false,
   conditionalSale?: "docx" | "pdf",
+  uppercase = false,
+  boldPagareDate = false,
 ) {
   if (original.size > fileLimit) throw new NativeDocumentError("El archivo supera el tamaño máximo de generación.");
   if (!nativeVariables && !fields.length) return new Blob([original], { type: wordMime });
@@ -432,8 +556,8 @@ export async function fillOriginalWord(
     segments.push(...wordSegments(part, name, nativeVariables !== null));
   }
   const replacements = nativeVariables
-    ? resolveNativeTargets(segments, nativeVariables, fields, values, allowIncomplete)
-    : resolveTargets(segments, markdown, fields, values);
+    ? resolveNativeTargets(segments, nativeVariables, fields, values, allowIncomplete, uppercase, boldPagareDate)
+    : resolveTargets(segments, markdown, fields, values, uppercase, boldPagareDate);
   const changed = new Set<string>();
   const paymentPart = conditionalSale && expandSalePaymentRows(replacements, conditionalSale === "pdf");
   if (paymentPart) changed.add(paymentPart);
@@ -526,6 +650,8 @@ export async function prepareNativeDocument(input: {
   markdown: string; fields: TemplateField[]; values: Record<string, string>; nativeVariables: NativeVariable[] | null;
   allowIncomplete?: boolean;
   conditionalSale?: boolean;
+  uppercase?: boolean;
+  boldPagareDate?: boolean;
 }) {
   const { accountId, contractId, sourceFormat, output, markdown, fields, values, nativeVariables } = input;
   if (sourceFormat === "pdf") {
@@ -537,7 +663,7 @@ export async function prepareNativeDocument(input: {
   }
 
   const original = await downloadOriginal(contractId, accountId);
-  const word = await fillOriginalWord(original, markdown, fields, values, nativeVariables, input.allowIncomplete, input.conditionalSale ? output : undefined);
+  const word = await fillOriginalWord(original, markdown, fields, values, nativeVariables, input.allowIncomplete, input.conditionalSale ? output : undefined, input.uppercase, input.boldPagareDate);
   if (output === "docx") return word;
   const pdf = await renderContractPdf(contractId, accountId, word, input.companyId, input.operationId);
   if (pdf.type !== "application/pdf" || !pdf.size) throw new ApiError(502, "INVALID_RENDERED_PDF", "The renderer did not return a PDF");

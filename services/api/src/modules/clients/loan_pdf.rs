@@ -1,6 +1,12 @@
 use std::io::{Cursor, Read, Write};
 
-use axum::{Extension, extract::State, response::Response};
+use axum::{
+    Extension,
+    body::Bytes,
+    extract::State,
+    http::header,
+    response::{IntoResponse, Response},
+};
 use serde_json::{Value, json};
 use uuid::Uuid;
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
@@ -9,7 +15,7 @@ use crate::{
     app_state::AppState,
     error::{ApiError, ErrorEnvelope},
     extract::ApiPath,
-    modules::{auth::AuthUser, contracts::render::pdf_response},
+    modules::{auth::AuthUser, contracts::render::pdf_response, files::validation::FileKind},
 };
 
 use super::{
@@ -36,6 +42,44 @@ pub(super) async fn download(
     Extension(user): Extension<AuthUser>,
     ApiPath(id): ApiPath<Uuid>,
 ) -> Result<Response, ApiError> {
+    let word = filled_application(&state, &user, id).await?;
+    pdf_response(&state, word.into()).await
+}
+
+#[utoipa::path(
+    get, path = "/api/v1/expedientes/{id}/solicitud-prestamo.docx",
+    tag = "Clients", security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Case file UUID")),
+    responses(
+        (status = 200, description = "Completed loan application as an editable Word document", content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        (status = 401, body = ErrorEnvelope), (status = 403, body = ErrorEnvelope),
+        (status = 404, body = ErrorEnvelope),
+        (status = 422, description = "Required loan application data is missing", body = ErrorEnvelope),
+        (status = 503, body = ErrorEnvelope)
+    )
+)]
+pub(super) async fn download_docx(
+    State(state): State<AppState>,
+    Extension(user): Extension<AuthUser>,
+    ApiPath(id): ApiPath<Uuid>,
+) -> Result<Response, ApiError> {
+    let word = filled_application(&state, &user, id).await?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, FileKind::Docx.mime_type()),
+            (header::CACHE_CONTROL, "private, no-store"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        Bytes::from(word),
+    )
+        .into_response())
+}
+
+async fn filled_application(
+    state: &AppState,
+    user: &AuthUser,
+    id: Uuid,
+) -> Result<Vec<u8>, ApiError> {
     let operation = repository::find_case(&state.db, id)
         .await?
         .ok_or(ApiError::ClientOperationNotFound)?;
@@ -56,7 +100,7 @@ pub(super) async fn download(
         tracing::error!(%error, "loan application template could not be filled");
         ApiError::DocumentRenderFailed
     })?;
-    pdf_response(&state, word.into()).await
+    Ok(word)
 }
 
 fn template_values(

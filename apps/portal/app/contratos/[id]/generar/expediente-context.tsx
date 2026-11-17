@@ -36,7 +36,6 @@ export function useExpedienteContext(input: {
   const { expediente, contractId, accountId, companies, fieldKeys, errors, onChange } = input;
   const [balance, setBalance] = useState("");
   const [balanceDate, setBalanceDate] = useState("");
-  const [insuranceCount, setInsuranceCount] = useState(() => String(expediente?.operation.financing?.insurance_installment_count ?? 10));
   const [issuerId, setIssuerId] = useState("");
   const issuerTrigger = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
@@ -55,7 +54,6 @@ export function useExpedienteContext(input: {
   const templatesResult = salesTemplates?.key === templatesKey ? salesTemplates : undefined;
   const sourceContractId = savedSource ?? (templatesResult && "value" in templatesResult ? templatesResult.value.id : undefined);
   const needsInsurance = getDocumentType(type)?.requiresInsuranceCompany === true;
-  const needsCount = Boolean(expediente && !isInsuranceAct && fieldKeys.includes("cantidad_cuotas_seguro"));
   const hasGenericCompanyFields = fieldKeys.some(key => isCompanyField(key) && !isInsuranceIssuerField(key));
   const hasDedicatedIssuerFields = fieldKeys.some(isInsuranceIssuerField);
   const potentialIssuers = needsInsurance && companies.kind === "ready" ? companies.items.filter(company =>
@@ -69,8 +67,6 @@ export function useExpedienteContext(input: {
   const confirmedLiteral = issuerCheck && "value" in issuerCheck && issuerCheck.value;
   const issuerUsesOperationCompany = issuer && issuer.id === expediente?.operation.company_id;
   const insuranceCompanyName = issuerName ?? (confirmedLiteral ? INSURANCE_COMPANY_NAME : undefined);
-  const count = Number(insuranceCount);
-  const validCount = /^\d+$/.test(insuranceCount) && Number.isSafeInteger(count) && count > 0;
 
   const salesValues = useMemo(() => {
     if (type !== "pagare_autentico" || !expediente) return "";
@@ -138,17 +134,15 @@ export function useExpedienteContext(input: {
     confirmedBalanceMinor: parseAmountMinor(balance), balanceDate,
     salesCommitmentParagraph: salesParagraph && "value" in salesParagraph ? salesParagraph.value : undefined,
     insuranceCompanyName, insuranceCompanyValues: issuerValues,
-    insuranceInstallmentCount: !isInsuranceAct && validCount ? count : undefined,
   }) : { values: {}, issues: [] };
 
   const issues = resolved.issues
-    .filter(issue => !["parrafo_compromiso_pago", "cantidad_cuotas_seguro", "empresa_seguro_nombre"].includes(issue.key));
+    .filter(issue => !["parrafo_compromiso_pago", "empresa_seguro_nombre"].includes(issue.key));
   if (needsSourceChoice && !sourceContractId) issues.push({
     key: "parrafo_compromiso_pago",
     message: templatesResult && "message" in templatesResult ? templatesResult.message : "Estamos buscando el Word de la venta condicional.",
   });
   if (type === "pagare_autentico" && salesParagraph && "message" in salesParagraph) issues.push({ key: "parrafo_compromiso_pago", message: salesParagraph.message });
-  if (needsCount && !validCount) issues.push({ key: "cantidad_cuotas_seguro", message: "Escribe una cantidad entera de cuotas del seguro mayor que cero." });
   if (needsInsurance && !isInsuranceSale && hasGenericCompanyFields && !issuerUsesOperationCompany) issues.push({
     key: "empresa_seguro_nombre",
     message: "El Word usa variables generales de empresa. Para un emisor distinto de la empresa del expediente, usa el nombre legal en el Word o variables de emisor de seguro.",
@@ -179,7 +173,6 @@ export function useExpedienteContext(input: {
   const documentInputs = new Set([
     ...(type === "carta_saldo" ? ["saldo_confirmado", "fecha_saldo"] : []),
     ...(type === "pagare_autentico" ? ["parrafo_compromiso_pago"] : []),
-    ...(needsCount ? ["cantidad_cuotas_seguro"] : []),
     ...(issuerOptions.length ? ["empresa_seguro_nombre"] : []),
   ]);
 
@@ -211,7 +204,6 @@ export function useExpedienteContext(input: {
             <Button type="button" variant="secondary" disabled={busy} onClick={() => setTemplatesAttempt(value => value + 1)}>Actualizar plantillas de venta</Button>
           </div>}
         </>}
-        {needsCount && <Input label="Cantidad de cuotas del seguro" name="expediente-cantidad_cuotas_seguro" type="number" min={1} step={1} value={insuranceCount} error={errors["expediente-cantidad_cuotas_seguro"]} onChange={event => { setInsuranceCount(event.target.value); onChange("cantidad_cuotas_seguro"); }} />}
         {reviewAction}
       </div>
       {needsInsurance && (issuerOptions.length > 1 ? <Select ref={issuerTrigger} label="Emisor del seguro" name="expediente-empresa_seguro_nombre" value={issuer?.id ?? ""} options={issuerOptions}

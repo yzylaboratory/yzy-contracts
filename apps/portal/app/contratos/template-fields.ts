@@ -1,5 +1,5 @@
 import { isEmailAddress } from "./document-export";
-import { notarialActDate, notarialDate } from "./expediente-fields";
+import { documentClauseCase, notarialActDate, notarialDate, wordsDate } from "./expediente-fields";
 
 export type TemplateFieldType = "text" | "date" | "identity" | "amount" | "duration" | "email" | "money" | "integer" | "phone";
 export type TemplateField = {
@@ -7,7 +7,7 @@ export type TemplateField = {
   label: string;
   kind: TemplateFieldType;
   required: boolean;
-  dateStyle?: "numeric" | "long" | "notarial" | "notarialAct";
+  dateStyle?: "numeric" | "long" | "notarial" | "notarialAct" | "words";
   placeholder?: string;
   width?: "wide" | "compact";
   sourceTexts?: string[];
@@ -259,10 +259,12 @@ export function formatTemplateValue(field: TemplateField, input: string) {
     if (date) {
       if (field.dateStyle === "notarial") return notarialDate(date);
       if (field.dateStyle === "notarialAct") return notarialActDate(date);
+      if (field.dateStyle === "words") return wordsDate(date);
       return dateFormatters[field.dateStyle].format(date);
     }
   }
-  return field.kind === "identity" ? value.replace(/^(\d{3})(\d{7})(\d)$/, "$1-$2-$3") : value;
+  const formatted = field.kind === "identity" ? value.replace(/^(\d{3})(\d{7})(\d)$/, "$1-$2-$3") : value;
+  return field.kind === "text" ? documentClauseCase(field.key, formatted) : formatted;
 }
 
 export function fillTemplate(markdown: string, fields: TemplateField[], values: Record<string, string>, preview = false) {

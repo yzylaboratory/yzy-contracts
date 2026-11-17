@@ -2443,6 +2443,52 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/expedientes/{id}/solicitud-prestamo.docx:
+    get:
+      tags:
+      - Clients
+      operationId: download_docx
+      parameters:
+      - name: id
+        in: path
+        description: Case file UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Completed loan application as an editable Word document
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Required loan application data is missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
   /api/v1/expedientes/{id}/solicitud-prestamo.pdf:
     get:
       tags:
@@ -5379,6 +5425,7 @@ components:
       - contract_id
       - status
       - vehicle
+      - insurance_paid
       - created_at
       - updated_at
       properties:
@@ -5420,6 +5467,8 @@ components:
           format: int64
           maximum: 9007199254740991
           minimum: 1
+        insurance_paid:
+          type: boolean
         reference:
           type:
           - string
@@ -5471,6 +5520,8 @@ components:
           format: int64
           maximum: 9007199254740991
           minimum: 1
+        insurance_paid:
+          type: boolean
         reference:
           type:
           - string
@@ -5528,6 +5579,11 @@ components:
           format: int64
           maximum: 9007199254740991
           minimum: 1
+        insurance_paid:
+          type:
+          - boolean
+          - 'null'
+          description: True when insurance is already paid in full and insurance documents should be omitted.
         reference:
           type:
           - string

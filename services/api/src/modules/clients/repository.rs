@@ -329,8 +329,8 @@ pub(super) async fn create_operation(
     let mut tx = db.begin().await?;
     let saved: Option<Operation> = sqlx::query_as(
         "INSERT INTO yzy_contracts.client_operations
-            (company_id, client_id, contract_id, reference, contract_date, vehicle, financing, application, signature_date, status, insurance_installment_minor)
-         SELECT $2, yzy_contracts.resolve_client_id($3), $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'solicitud'), $12
+            (company_id, client_id, contract_id, reference, contract_date, vehicle, financing, application, signature_date, status, insurance_installment_minor, insurance_paid)
+         SELECT $2, yzy_contracts.resolve_client_id($3), $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'solicitud'), $12, COALESCE($13, false)
          WHERE yzy_contracts.has_company_membership($1, $2)
            AND ($4::uuid IS NULL OR yzy_contracts.can_use_client_contract($1, $4, $2))
            AND EXISTS (SELECT 1 FROM yzy_contracts.clients WHERE id = yzy_contracts.resolve_client_id($3))
@@ -348,6 +348,7 @@ pub(super) async fn create_operation(
     .bind(body.signature_date.flatten().map(|date| date.0))
     .bind(body.status)
     .bind(body.insurance_installment_minor.flatten())
+    .bind(body.insurance_paid)
     .fetch_optional(&mut *tx)
     .await
     .map_err(operation_write_error)?;
@@ -475,6 +476,7 @@ pub(super) async fn update_operation(
            signature_date = CASE WHEN $16 THEN $17 ELSE signature_date END,
            status = CASE WHEN $18 THEN $19 ELSE status END,
            insurance_installment_minor = CASE WHEN $20 THEN $21 ELSE insurance_installment_minor END,
+           insurance_paid = CASE WHEN $22 THEN $23 ELSE insurance_paid END,
            updated_at = statement_timestamp()
          WHERE company_id = $2 AND client_id = yzy_contracts.resolve_client_id($3) AND id = $4
            AND deleted_at IS NULL AND yzy_contracts.has_company_membership($1, $2)
@@ -502,6 +504,8 @@ pub(super) async fn update_operation(
     .bind(body.status)
     .bind(body.insurance_installment_minor.is_some())
     .bind(body.insurance_installment_minor.flatten())
+    .bind(body.insurance_paid.is_some())
+    .bind(body.insurance_paid)
     .fetch_optional(&mut *tx)
     .await
     .map_err(operation_write_error)?;

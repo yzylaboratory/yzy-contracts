@@ -32,6 +32,7 @@ const fieldLabels = new Map<string, string>([
   ["signature_date", "Fecha de firma"],
   ["status", "Estado"],
   ["insurance_installment_minor", "Monto de cada cuota del seguro"],
+  ["insurance_paid", "Seguro saldo"],
   ["vehicle.registration_number", "Matrícula"],
   ["vehicle.chassis_number", "Chasis"],
   ["vehicle.plate", "Placa"],

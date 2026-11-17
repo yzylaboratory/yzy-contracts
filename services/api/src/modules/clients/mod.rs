@@ -26,6 +26,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(list_cases))
         .routes(routes!(get_case))
         .routes(routes!(loan_pdf::download))
+        .routes(routes!(loan_pdf::download_docx))
         .routes(routes!(list_clients, create_client))
         .routes(routes!(get_client, update_client))
         .routes(routes!(list_timeline))

@@ -17,15 +17,15 @@ registerHooks({
   },
 });
 
-const { DOCUMENT_TYPES, INITIAL_EXPEDIENTE_DOCUMENT_TYPES, POST_CLOSING_DOCUMENT_TYPES, getDocumentType, hasDocumentTemplateFields, hasInsuranceCompanyNameInText, isInsuranceCompanyName } =
+const { DOCUMENT_TYPES, INITIAL_EXPEDIENTE_DOCUMENT_TYPES, INSURANCE_DOCUMENT_TYPES, POST_CLOSING_DOCUMENT_TYPES, getDocumentType, hasDocumentTemplateFields, hasInsuranceCompanyNameInText, initialExpedienteDocumentTypes, isInsuranceCompanyName, isInsuranceDocumentType } =
   await import("../app/contratos/document-catalog.ts");
-const { expedienteExtraordinaryPayments, extraordinaryPaymentDate, extraordinaryPaymentDates, extraordinaryPaymentValues, isExpedienteField, resolveExpedienteFields } = await import("../app/contratos/expediente-fields.ts");
+const { expedienteExtraordinaryPayments, extraordinaryPaymentDate, extraordinaryPaymentDates, extraordinaryPaymentValues, isExpedienteField, notarialActDate, resolveExpedienteFields, usesNotarialDocumentStyle, usesUppercaseDocumentData } = await import("../app/contratos/expediente-fields.ts");
 
 process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-key";
-const { isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
-const { extractSalesCommitment, formatWordTemplateValue } = await import("../app/contratos/native-document.ts");
+const { buildCompanySnapshot, buildContractTemplateFields, isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
+const { extractSalesCommitment, formatWordTemplateValue, pagareDateRuns } = await import("../app/contratos/native-document.ts");
 const { getClient, listClients, listClientTimeline, listOperations, saveClient, saveOperation } =
   await import("../app/clientes/clients-api.ts");
 const { listGeneratedDocuments } = await import("../app/contratos/generated-documents-api.ts");
@@ -206,7 +206,19 @@ test("the promissory note writes identity and every payment in numbers and words
     resolveExpedienteFields("pagare_autentico", { ...client, identity: "001-1465695-2" }, operation, {
       salesCommitmentParagraph: "se compromete a pagar las cuotas pactadas",
     }).values.cliente_cedula_letras,
-    "CERO CERO UNO GUION CIENTO CUARENTA Y SEIS QUINIENTOS SESENTA Y NUEVE CINCO GUION DOS",
+    "CERO CERO UNO GUION UN MILLÓN CUATROCIENTOS SESENTA Y CINCO MIL SEISCIENTOS NOVENTA Y CINCO GUION DOS",
+  );
+  assert.equal(
+    resolveExpedienteFields("pagare_autentico", { ...client, identity: "402-0964456-2" }, operation, {
+      salesCommitmentParagraph: "se compromete a pagar las cuotas pactadas",
+    }).values.cliente_cedula_letras,
+    "CUATROCIENTOS DOS GUION CERO NOVECIENTOS SESENTA Y CUATRO MIL CUATROCIENTOS CINCUENTA Y SEIS GUION DOS",
+  );
+  assert.equal(
+    resolveExpedienteFields("pagare_autentico", { ...client, identity: "001-0309071-8" }, operation, {
+      salesCommitmentParagraph: "se compromete a pagar las cuotas pactadas",
+    }).values.cliente_cedula_letras,
+    "CERO CERO UNO GUION CERO TRESCIENTOS NUEVE MIL SETENTA Y UNO GUION OCHO",
   );
   assert.equal(values.cantidad_cuotas, "3");
   assert.equal(values.cantidad_cuotas_letras, "TRES");
@@ -269,6 +281,13 @@ test("the insurance issuer match requires the complete legal name and the count 
   assert.equal(hasInsuranceCompanyNameInText("Acto de XINVERSIONES MARTINEZ ROSARIO, SRL."), false);
   const context = { insuranceCompanyName: "INVERSIONES MARTINEZ ROSARIO, SRL" };
   assert.equal(resolveExpedienteFields("acto_seguro", client, operation, context).values.cantidad_cuotas_seguro, "10");
+  const fromExpediente = resolveExpedienteFields("pagare_seguro", client, {
+    ...operation,
+    financing: { ...operation.financing, insurance_installment_count: 24 },
+  }, context);
+  assert.deepEqual(fromExpediente.issues, []);
+  assert.equal(fromExpediente.values.cantidad_cuotas_seguro, "24");
+  assert.equal(fromExpediente.values.cantidad_cuotas_seguro_letras, "VEINTICUATRO");
   const edited = resolveExpedienteFields("pagare_seguro", client, operation, { ...context, insuranceInstallmentCount: 21 });
   assert.deepEqual(edited.issues, []);
   assert.equal(edited.values.cantidad_cuotas_seguro_letras, "VEINTIUNO");
@@ -360,11 +379,11 @@ test("both documents use case amounts, including the amounts substituted into th
 
 test("conditional sales resolve legal identity data from the client profile", () => {
   const { values } = resolveExpedienteFields("venta_condicional", { ...client, profile: {
-    treatment: " Señor ", nationality: "Dominicana", marital_status: "Soltero",
+    treatment: " Señor ", nationality: "DOMINICANA", marital_status: "SOLTERO",
   } }, operation, {});
   assert.equal(values.cliente_tratamiento, "Señor");
-  assert.equal(values.cliente_nacionalidad, "Dominicana");
-  assert.equal(values.cliente_estado_civil, "Soltero");
+  assert.equal(values.cliente_nacionalidad, "dominicana");
+  assert.equal(values.cliente_estado_civil, "soltero");
 });
 
 test("the insurance act uses explicit rows, aligned Word columns, and an exact total", () => {
@@ -471,13 +490,17 @@ test("the insurance sale selects its own template and uses the signature and ins
 
   const { values } = resolveExpedienteFields(type, client, { ...signed, insurance_installment_minor: 750050 }, {
     insuranceCompanyName: "Inversiones Martínez Rosario SRL",
-    insuranceCompanyValues: { empresa_rnc: "000000000" },
+    insuranceCompanyValues: { empresa_razon_social: "Inversiones Martínez Rosario SRL", empresa_rnc: "000000000" },
     insuranceSaleInstallmentMinor: 919800,
   });
   assert.equal(values.fecha_de_firma, "2028-01-31");
-  assert.equal(values.nombre_completo_del_cliente, "");
-  assert.equal(values.cedula_del_cliente, "");
-  assert.equal(values.domicilio_del_cliente, "");
+  assert.equal(values.nombre_completo_del_cliente, "Cliente Sintético");
+  assert.equal(values.cedula_del_cliente, "000-0000000-1");
+  assert.equal(values.domicilio_del_cliente, "CALLE DE PRUEBA");
+  assert.equal(values.empresa_razon_social, "INVERSIONES MARTÍNEZ ROSARIO SRL");
+  assert.equal(values.empresa_nombre, "INVERSIONES MARTÍNEZ ROSARIO SRL");
+  assert.equal(values.empresa_seguro_nombre, "INVERSIONES MARTÍNEZ ROSARIO SRL");
+  assert.equal(values.emisor_seguro_nombre, "INVERSIONES MARTÍNEZ ROSARIO SRL");
   assert.equal(values.fecha_de_vencimiento_de_la_cuota_1, "2028-02-29");
   assert.equal(values.fecha_de_vencimiento_de_la_cuota_2, "2028-03-31");
   assert.equal(values.fecha_de_vencimiento_de_la_cuota_10, "2028-11-30");
@@ -515,11 +538,18 @@ test("the downloadable demonstration Word files contain all required markers", (
   assert.equal(getDocumentType("desembolso"), undefined);
 });
 
-test("initial expediente generation excludes post-closing document types", () => {
+test("initial expediente generation excludes post-closing document types and omits insurance types when insurancePaid is true", () => {
   assert.deepEqual([...POST_CLOSING_DOCUMENT_TYPES], [
     "entrega_vehiculo_fines_saldo",
     "entrega_documentos",
     "carta_saldo",
+  ]);
+  assert.deepEqual([...INSURANCE_DOCUMENT_TYPES], [
+    "venta_condicional_seguro",
+    "acto_seguro",
+    "pagare_seguro",
+    "acuerdo_seguro",
+    "autorizacion_asegurar_vehiculo",
   ]);
   assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.length, 13);
   for (const excluded of POST_CLOSING_DOCUMENT_TYPES) {
@@ -527,6 +557,24 @@ test("initial expediente generation excludes post-closing document types", () =>
   }
   const combined = new Set([...INITIAL_EXPEDIENTE_DOCUMENT_TYPES, ...POST_CLOSING_DOCUMENT_TYPES]);
   assert.equal(combined.size, DOCUMENT_TYPES.length);
+
+  assert.deepEqual(initialExpedienteDocumentTypes({ insurancePaid: false }), [...INITIAL_EXPEDIENTE_DOCUMENT_TYPES]);
+  const paidTypes = initialExpedienteDocumentTypes({ insurancePaid: true });
+  assert.equal(paidTypes.length, 8);
+  for (const excluded of INSURANCE_DOCUMENT_TYPES) {
+    assert.equal(isInsuranceDocumentType(excluded), true);
+    assert.equal(paidTypes.includes(excluded), false);
+  }
+  assert.deepEqual(paidTypes, [
+    "venta_condicional",
+    "pagare_autentico",
+    "entrega_voluntaria",
+    "declaracion_jurada",
+    "gps",
+    "autorizacion_data",
+    "levantamiento_oposicion",
+    "entrega_vehiculo",
+  ]);
 });
 
 test("insurance promissory note resolves installment amounts, totals, due dates, and issuer representative", () => {
@@ -636,4 +684,276 @@ test("vehicle plate resolves conditional sale without requiring registration_num
   );
 });
 
+test("vehicle delivery receipts uppercase vehicle details and do not require operation reference or contract date", () => {
+  for (const type of ["entrega_vehiculo", "entrega_vehiculo_fines_saldo", "autorizacion_asegurar_vehiculo"]) {
+    const resolved = resolveExpedienteFields(type, client, operation, {});
+    assert.deepEqual(resolved.issues, []);
+    assert.equal(resolved.values.vehiculo_garantia, "MARCA MARCA DEMO, MATRÍCULA MAT-DEMO");
+    assert.equal(resolved.values.vehiculo_descripcion, "MARCA MARCA DEMO, MATRÍCULA MAT-DEMO");
+    assert.equal(resolved.values.vehiculo_marca, "MARCA DEMO");
+  }
+  assert.equal(
+    hasDocumentTemplateFields("entrega_vehiculo", ["cliente_nombre", "cliente_cedula", "vehiculo_garantia", "fecha_firma"]),
+    true,
+  );
+  assert.equal(
+    hasDocumentTemplateFields("entrega_vehiculo_fines_saldo", ["cliente_nombre", "cliente_cedula", "vehiculo_garantia", "fecha_firma"]),
+    true,
+  );
+  assert.equal(
+    hasDocumentTemplateFields("entrega_documentos", ["cliente_nombre", "cliente_cedula", "vehiculo_garantia", "fecha_firma"]),
+    false,
+  );
+});
 
+test("data authorization and GPS uppercase name, address and vehicle like the notarial models", () => {
+  for (const type of ["autorizacion_data", "gps"]) {
+    const resolved = resolveExpedienteFields(type, client, operation, {});
+    assert.deepEqual(resolved.issues, []);
+    assert.equal(resolved.values.cliente_nombre, "CLIENTE SINTÉTICO");
+    assert.equal(resolved.values.cliente_nombre_firma, "CLIENTE SINTÉTICO");
+    assert.equal(resolved.values.cliente_direccion, "CALLE DE PRUEBA");
+    assert.equal(
+      resolved.values.cliente_direccion_transito,
+      "CALLE DE PRUEBA Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA",
+    );
+    assert.equal(resolved.values.vehiculo_garantia, "MARCA MARCA DEMO, MATRÍCULA MAT-DEMO");
+    assert.equal(resolved.values.vehiculo_marca, "MARCA DEMO");
+    assert.equal(usesNotarialDocumentStyle(type), true);
+    assert.equal(notarialActDate(new Date("2026-10-13T00:00:00Z")), "TRECE (13) días del mes de OCTUBRE del año 2026");
+  }
+});
+
+test("all contract addresses are uppercased across expediente, company, notary, and manual template fields", async () => {
+  const { formatTemplateValue } = await import("../app/contratos/template-fields.ts");
+
+  for (const { id } of DOCUMENT_TYPES) {
+    const resolved = resolveExpedienteFields(id, client, operation, {
+      insuranceCompanyName: "INVERSIONES MARTINEZ ROSARIO, SRL",
+      insuranceCompanyValues: {
+        empresa_direccion: "Calle Primera #10, Arroyo Hondo",
+        empresa_representante_direccion: "calle Proyecto # 35, Villa Mella",
+      },
+    });
+    if (id === "venta_condicional") {
+      assert.equal(resolved.values.cliente_direccion, "");
+      assert.equal(resolved.values.cliente_direccion_transito, "");
+      assert.equal(resolved.values.domicilio_del_cliente, "");
+    } else {
+      assert.equal(resolved.values.cliente_direccion, "CALLE DE PRUEBA");
+      assert.equal(
+        resolved.values.cliente_direccion_transito,
+        "CALLE DE PRUEBA Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA",
+      );
+      assert.equal(resolved.values.domicilio_del_cliente, "CALLE DE PRUEBA");
+    }
+    if (getDocumentType(id)?.requiresInsuranceCompany) {
+      assert.equal(resolved.values.empresa_seguro_direccion, "CALLE PRIMERA #10, ARROYO HONDO");
+      assert.equal(resolved.values.emisor_seguro_direccion, "CALLE PRIMERA #10, ARROYO HONDO");
+      assert.equal(resolved.values.empresa_seguro_representante_direccion, "CALLE PROYECTO # 35, VILLA MELLA");
+    }
+  }
+
+  const alreadyTransit = resolveExpedienteFields("pagare_autentico", {
+    ...client,
+    address: "Calle de Prueba y de tránsito por la capital de la República Dominicana",
+  }, operation, {});
+  assert.equal(
+    alreadyTransit.values.cliente_direccion_transito,
+    "CALLE DE PRUEBA Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA",
+  );
+
+  const companyResolved = resolveCompanyAndDerivedValues(
+    [
+      { key: "empresa_direccion", label: "Domicilio social", kind: "text", required: true },
+      { key: "empresa_representante_direccion", label: "Domicilio del representante", kind: "text", required: true },
+      { key: "domicilio_del_notario", label: "Domicilio del notario", kind: "text", required: true },
+      { key: "cliente_correo", label: "Correo", kind: "email", required: true },
+    ],
+    {
+      values: {
+        empresa_direccion: "Plaza Botánika, Local 08-C",
+        empresa_representante_direccion: "calle Proyecto # 35, Villa Mella",
+        empresa_notario_domicilio: "Avenida República de Colombia #26",
+      },
+    },
+    { cliente_correo: "Cliente@Ejemplo.com" },
+    key => key === "cliente_correo",
+  );
+  assert.equal(companyResolved.empresa_direccion, "PLAZA BOTÁNIKA, LOCAL 08-C");
+  assert.equal(companyResolved.empresa_representante_direccion, "CALLE PROYECTO # 35, VILLA MELLA");
+  assert.equal(companyResolved.domicilio_del_notario, "AVENIDA REPÚBLICA DE COLOMBIA #26");
+  assert.equal(companyResolved.cliente_correo, "Cliente@Ejemplo.com");
+
+  assert.equal(
+    formatTemplateValue({ key: "DIRECCION", label: "Dirección del inmueble", kind: "text", required: true }, "Ave. Abraham Lincoln #10"),
+    "AVE. ABRAHAM LINCOLN #10",
+  );
+  assert.equal(
+    formatWordTemplateValue({ key: "domicilio_vendedor", label: "Domicilio", kind: "text", required: true }, "Calle Las Damas #5"),
+    "CALLE LAS DAMAS #5",
+  );
+  assert.equal(
+    formatTemplateValue({ key: "direccion_correo", label: "Correo", kind: "text", required: true }, "Usuario@Ejemplo.com"),
+    "Usuario@Ejemplo.com",
+  );
+});
+
+test("levantamiento de oposición uppercases all client, vehicle, and notary data and matches the Word model", () => {
+  assert.equal(usesUppercaseDocumentData("levantamiento_oposicion"), true);
+  assert.equal(usesUppercaseDocumentData("venta_condicional"), false);
+
+  const styledClient = {
+    ...client,
+    name: "Melkin de los Santos Valdez",
+    address: "Residencial Máximo Gómez C/ General Modesto Díaz No.49, Santo Domingo Norte",
+    profile: { treatment: "Sr.", nationality: "dominicano", marital_status: "soltero", position: "estudiante" },
+  };
+  const resolved = resolveExpedienteFields("levantamiento_oposicion", styledClient, operation, {});
+  assert.deepEqual(resolved.issues, []);
+  assert.equal(resolved.values.cliente_tratamiento, "SR.");
+  assert.equal(resolved.values.cliente_nombre, "MELKIN DE LOS SANTOS VALDEZ");
+  assert.equal(resolved.values.cliente_nacionalidad, "DOMINICANO");
+  assert.equal(resolved.values.cliente_estado_civil, "SOLTERO");
+  assert.equal(resolved.values.cliente_ocupacion, "ESTUDIANTE");
+  assert.equal(
+    resolved.values.cliente_direccion_transito,
+    "RESIDENCIAL MÁXIMO GÓMEZ C/ GENERAL MODESTO DÍAZ NO.49, SANTO DOMINGO NORTE Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA",
+  );
+  assert.equal(resolved.values.vehiculo_garantia, "MARCA MARCA DEMO, MATRÍCULA MAT-DEMO");
+  assert.equal(resolved.values.vehiculo_marca, "MARCA DEMO");
+
+  const companyResolved = resolveCompanyAndDerivedValues(
+    [
+      { key: "cliente_nacionalidad", label: "Nacionalidad", kind: "text", required: true },
+      { key: "cliente_estado_civil", label: "Estado civil", kind: "text", required: true },
+      { key: "nombre_del_notario", label: "Nombre del notario", kind: "text", required: true },
+      { key: "cliente_correo", label: "Correo", kind: "email", required: false },
+    ],
+    { values: { empresa_notario_nombre: "Lic. Felix del Orbe Berroa" } },
+    resolved.values,
+    key => isExpedienteField(key, "levantamiento_oposicion"),
+    true,
+  );
+  assert.equal(companyResolved.cliente_nacionalidad, "DOMINICANO");
+  assert.equal(companyResolved.cliente_estado_civil, "SOLTERO");
+  assert.equal(companyResolved.nombre_del_notario, "LIC. FELIX DEL ORBE BERROA");
+
+  assert.equal(
+    formatWordTemplateValue({ key: "cliente_nacionalidad", label: "Nacionalidad", kind: "text", required: true }, "dominicano", true),
+    "DOMINICANO",
+  );
+  assert.equal(
+    formatWordTemplateValue({ key: "cliente_estado_civil", label: "Estado civil", kind: "text", required: true }, "soltero", true),
+    "SOLTERO",
+  );
+  assert.equal(
+    formatWordTemplateValue({ key: "cliente_correo", label: "Correo", kind: "email", required: false }, "Cliente@Ejemplo.com", true),
+    "Cliente@Ejemplo.com",
+  );
+  const snapshot = buildCompanySnapshot(
+    { id: "c1", name: "Empresa Demo" },
+    [{ key: "nombre_del_notario", label: "Notario", kind: "text", required: true }],
+    { nombre_del_notario: "Lic. Felix del Orbe Berroa" },
+    true,
+  );
+  assert.equal(snapshot?.values.nombre_del_notario, "LIC. FELIX DEL ORBE BERROA");
+
+  const archive = unzipSync(readFileSync(new URL("../../contracts-demo/preparadas/levantamiento_oposicion.docx", root)));
+  const xml = new TextDecoder().decode(archive["word/document.xml"]);
+  const keys = Array.from(xml.matchAll(/\{\{([a-z0-9_]+)\}\}/g), match => match[1]);
+  assert.ok(hasDocumentTemplateFields("levantamiento_oposicion", keys));
+  assert.equal(keys.filter(key => key === "cliente_nombre").length, 2);
+  assert.ok(keys.includes("nombre_del_notario"));
+  assert.doesNotMatch(xml, /PODERDANTE · \{\{cliente_nombre\}\}/);
+  assert.match(xml, />PODERDANTE</);
+  assert.match(xml, /Courier New/);
+  assert.doesNotMatch(xml, /Calibri|Times New Roman|BatangChe/);
+});
+
+test("venta condicional formats fecha_firma in words like the model while keeping clause and table dates intact", async () => {
+  const { buildContractTemplateFields } = await import("../app/contratos/contract-template-fields.ts");
+  const { fields } = buildContractTemplateFields(
+    "",
+    [
+      { key: "fecha_contrato", occurrences: 1 },
+      { key: "fecha_firma", occurrences: 1 },
+      { key: "fecha_cuota_final_capital", occurrences: 1 },
+      { key: "fecha_abono_extraordinario_1", occurrences: 1 },
+      { key: "fecha_ancla_cuota_extraordinaria", occurrences: 1 },
+    ],
+    "venta_condicional",
+  );
+  const byKey = new Map(fields.map(field => [field.key, field]));
+  assert.equal(byKey.get("fecha_firma")?.dateStyle, "notarialAct");
+  assert.equal(byKey.get("fecha_contrato")?.dateStyle, "long");
+  assert.equal(
+    formatWordTemplateValue(byKey.get("fecha_firma"), "2026-11-16"),
+    "DIECISEIS (16) días del mes de NOVIEMBRE del año 2026",
+  );
+  assert.equal(formatWordTemplateValue(byKey.get("fecha_contrato"), "2026-11-16"), "16 de noviembre de 2026");
+  assert.equal(formatWordTemplateValue(byKey.get("fecha_cuota_final_capital"), "2026-11-16"), "16/11/2026");
+  assert.equal(formatWordTemplateValue(byKey.get("fecha_abono_extraordinario_1"), "2027-02-13"), "13 de febrero de 2027");
+  assert.equal(formatWordTemplateValue(byKey.get("fecha_ancla_cuota_extraordinaria"), "2027-10-13"), "13 de octubre de 2027");
+});
+
+test("pagaré signature date bolds the day, month, and year segments", () => {
+  assert.deepEqual(
+    pagareDateRuns("fecha_firma", "DIECISEIS (16) días del mes de NOVIEMBRE del año 2026", true),
+    [
+      { text: "DIECISEIS (16)", bold: true },
+      { text: " días del mes de ", bold: false },
+      { text: "NOVIEMBRE", bold: true },
+      { text: " del año ", bold: false },
+      { text: "2026", bold: true },
+    ],
+  );
+  assert.deepEqual(
+    pagareDateRuns("fecha_de_firma", "16 de noviembre de 2026", true),
+    [
+      { text: "16", bold: true },
+      { text: " de ", bold: false },
+      { text: "noviembre", bold: true },
+      { text: " de ", bold: false },
+      { text: "2026", bold: true },
+    ],
+  );
+  assert.equal(pagareDateRuns("fecha_firma", "DIECISEIS (16) días del mes de NOVIEMBRE del año 2026", false), undefined);
+  assert.equal(pagareDateRuns("fecha_contrato", "16 de noviembre de 2026", true), undefined);
+});
+
+test("second witness comes from company configuration and defaults to CINDY C. DOMINGUEZ CALZADO", () => {
+  assert.equal(companyClauseDefaults.empresa_testigo_usuario, "CINDY C. DOMINGUEZ CALZADO");
+  const templateFields = [
+    { key: "testigo_usuario", label: "Nombre del segundo testigo", kind: "text", required: true },
+    { key: "testigo_usuario_nacionalidad", label: "Nacionalidad del segundo testigo", kind: "text", required: true },
+    { key: "testigo_usuario_estado_civil", label: "Estado civil del segundo testigo", kind: "text", required: true },
+    { key: "testigo_usuario_cedula", label: "Cédula del segundo testigo", kind: "identity", required: true },
+    { key: "nombre_del_notario", label: "Nombre del notario", kind: "text", required: true },
+  ];
+
+  const fromDefault = resolveCompanyAndDerivedValues(templateFields, { values: {} }, {}, () => false);
+  assert.equal(fromDefault.testigo_usuario, "CINDY C. DOMINGUEZ CALZADO");
+  assert.equal(fromDefault.testigo_usuario_nacionalidad, "dominicana");
+  assert.equal(fromDefault.testigo_usuario_estado_civil, "soltera/casada");
+  assert.equal(fromDefault.testigo_usuario_cedula, "402-3415245-8");
+  assert.equal(fromDefault.nombre_del_notario, companyClauseDefaults.empresa_notario_nombre);
+
+  const fromCompany = resolveCompanyAndDerivedValues(
+    templateFields,
+    { values: { empresa_testigo_usuario: "Testigo Configurado" } },
+    {},
+    () => false,
+  );
+  assert.equal(fromCompany.testigo_usuario, "Testigo Configurado");
+
+  const withoutCompany = resolveCompanyAndDerivedValues(templateFields, undefined, {}, () => false);
+  assert.equal(withoutCompany.testigo_usuario, "");
+
+  const insuranceSaleFields = buildContractTemplateFields("", [
+    { key: "nombre_completo_del_cliente", occurrences: 1 },
+    { key: "cedula_del_cliente", occurrences: 1 },
+    { key: "domicilio_del_cliente", occurrences: 1 },
+  ], "venta_condicional_seguro").fields;
+  assert.deepEqual(insuranceSaleFields.map(field => field.required), [true, true, true]);
+});

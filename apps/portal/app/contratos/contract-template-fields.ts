@@ -2,7 +2,7 @@ import type { CompanySnapshot } from "@/app/configuracion/empresas/companies-api
 import { companyContractClauseField, companyNotaryField, companyProfileValue, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
 import type { NativeVariable } from "./contracts-api";
 import { conditionalSaleHandwrittenFields, getDocumentType, type DocumentType } from "./document-catalog";
-import { usesNotarialDocumentStyle } from "./expediente-fields";
+import { documentClauseCase, usesNotarialDocumentStyle } from "./expediente-fields";
 import { formatWordTemplateValue, normalizeWordTemplateLine } from "./native-document";
 import { nativeFieldKind, wordsFor, wordsSource } from "./native-field-kinds";
 import { nativeFieldLabel } from "./native-field-label";
@@ -26,7 +26,7 @@ export function buildContractTemplateFields(
   nativeVariables: NativeVariable[] | null,
   type?: DocumentType,
 ): { markdown: string; fields: TemplateField[] } {
-  const blankHandwrittenIdentity = type === "venta_condicional" || type === "venta_condicional_seguro";
+  const blankHandwrittenIdentity = type === "venta_condicional";
   if (nativeVariables) {
     return {
       markdown: "",
@@ -49,6 +49,9 @@ export function buildContractTemplateFields(
         const shortDate = key.startsWith("fecha_de_vencimiento_de_la_cuota_") ||
           key === "fecha_de_la_operacion" || key === "fecha_del_financiamiento";
         if (shortDate) return { ...field, kind: "date", dateStyle: "numeric" };
+        if (type === "entrega_vehiculo" && key === "fecha_firma") return { ...field, kind: "date", dateStyle: "words" };
+        if (type === "acuerdo_seguro") return { ...field, kind: "date", dateStyle: "words" };
+        if (type === "venta_condicional" && key === "fecha_firma") return { ...field, kind: "date", dateStyle: "notarialAct" };
         if (usesNotarialDocumentStyle(type)) {
           const actDate = key === "fecha_firma" || key === "fecha_contrato";
           return { ...field, kind: "date", dateStyle: actDate ? "notarialAct" : "notarial" };
@@ -80,28 +83,35 @@ export function resolveCompanyAndDerivedValues(
   selectedCompany: Pick<CompanySnapshot, "values"> | undefined,
   contextValues: Record<string, string>,
   isExpedienteValue: (key: string) => boolean,
+  uppercase = false,
 ) {
-  const base = Object.fromEntries(fields.map(({ key }) => {
+  const base = Object.fromEntries(fields.map(({ key, kind }) => {
+    const forceUpper = uppercase && kind !== "email";
     const notary = companyNotaryField(key);
-    if (notary) return [key, normalizeWordTemplateLine(selectedCompany?.values[notary.key]?.trim() ?? "")];
+    if (notary) {
+      return [key, selectedCompany ? documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, notary.key)), forceUpper) : ""];
+    }
     const witness = companyWitnessField(key);
-    if (witness) return [key, normalizeWordTemplateLine(selectedCompany?.values[witness.key]?.trim() ?? "")];
+    if (witness) {
+      return [key, selectedCompany ? documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, witness.key)), forceUpper) : ""];
+    }
     if (companyContractClauseField(key)) {
-      return [key, normalizeWordTemplateLine(companyProfileValue(selectedCompany?.values, key))];
+      return [key, documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany?.values, key)), forceUpper)];
     }
     if (isExpedienteValue(key)) {
-      return [key, contextValues[key] ?? ""];
+      return [key, documentClauseCase(key, contextValues[key] ?? "", forceUpper)];
     }
-    if (!isCompanyField(key)) return [key, contextValues[key] ?? ""];
+    if (!isCompanyField(key)) return [key, documentClauseCase(key, contextValues[key] ?? "", forceUpper)];
     if (!selectedCompany) return [key, ""];
-    return [key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, key))];
+    return [key, documentClauseCase(key, normalizeWordTemplateLine(companyProfileValue(selectedCompany.values, key)), forceUpper)];
   }));
 
   const values: Record<string, string> = { ...base };
   for (const field of fields) {
     const source = wordsSource(field.key, fields);
     if (source && !values[field.key]?.trim()) {
-      values[field.key] = wordsFor(source, base[source.key]);
+      const words = wordsFor(source, base[source.key]);
+      values[field.key] = uppercase ? words.toLocaleUpperCase("es") : words;
     }
   }
   return values;
@@ -111,11 +121,12 @@ export function buildCompanySnapshot(
   selectedCompany: Pick<CompanySnapshot, "id" | "name"> | undefined,
   companyFields: readonly TemplateField[],
   values: Record<string, string>,
+  uppercase = false,
 ): CompanySnapshot | undefined {
   if (!selectedCompany) return undefined;
   return {
     id: selectedCompany.id,
     name: selectedCompany.name,
-    values: Object.fromEntries(companyFields.map(field => [field.key.toLowerCase(), formatWordTemplateValue(field, values[field.key] ?? "")])),
+    values: Object.fromEntries(companyFields.map(field => [field.key.toLowerCase(), formatWordTemplateValue(field, values[field.key] ?? "", uppercase)])),
   };
 }
