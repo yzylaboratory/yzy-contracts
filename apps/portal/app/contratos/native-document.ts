@@ -1,3 +1,4 @@
+import { reviewedWordLayout } from "./reviewed-word-layout";
 import { companyReferenceRanges } from "./company-reference-ranges";
 import { companyFieldLabel } from "../configuracion/empresas/company-fields";
 import type { Vehicle } from "../clientes/clients-api";
@@ -302,7 +303,9 @@ function resolveNativeTargets(
         segment,
         ...range,
         value,
-        bold: !reference && isBoldAddressField(match[1]),
+        bold: reference
+          ? reviewedWordLayout[reference]?.boldFields.includes(match[1])
+          : isBoldAddressField(match[1]),
         ...(runs && { runs }),
       });
     }
@@ -613,9 +616,10 @@ function addCompanyEdits(doc: Document, model: string, profile: CompanyProfile, 
         if (stop > segment.text.length) break;
         const literal = segment.text.slice(start, stop);
         const value = companyReferenceValue(profile, range.key, literal, preview);
-        if (value !== literal) {
+        const bold = reviewedWordLayout[model]?.boldFields.includes(range.key);
+        if (value !== literal || bold) {
           const list = edits.get(segment) ?? [];
-          list.push({ segment, start, end: stop, value });
+          list.push({ segment, start, end: stop, value, bold });
           edits.set(segment, list);
         }
         matched = true;
@@ -676,6 +680,12 @@ export async function fillOriginalWord(
   for (const [segment, edits] of replacements) {
     replaceInSegment(segment, edits);
     changed.add(segment.part);
+  }
+
+  const layout = reference && reviewedWordLayout[reference];
+  if (layout) {
+    layout.format(parts.get("word/document.xml")!);
+    changed.add("word/document.xml");
   }
 
   const encoder = new TextEncoder();
