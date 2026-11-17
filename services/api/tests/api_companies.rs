@@ -277,3 +277,60 @@ async fn rejects_invalid_company_fields_without_creating_profiles() {
     let (_, list) = app.get(owner, ADMIN_COMPANIES).await;
     assert_eq!(list["items"], json!([]));
 }
+
+#[tokio::test]
+async fn superadmin_deletes_only_archived_unused_companies() {
+    let app = TestApp::start().await;
+    let owner = app.superadmin().await;
+    let other = app.user().await;
+    let (status, keep) = app
+        .post(
+            owner,
+            COMPANIES,
+            profile("Se queda", "Entidad sintética fija"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{keep}");
+    let (status, company) = app
+        .post(
+            owner,
+            COMPANIES,
+            profile("Temporal", "Entidad sintética temporal"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{company}");
+    let company_path = path(&company);
+
+    let (status, _) = app
+        .request(
+            Method::DELETE,
+            &company_path,
+            Some(&token_for(other.id)),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, error) = app.delete(owner, &company_path).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(error_code(&error), "COMPANY_NOT_ARCHIVED");
+
+    let (status, _) = app
+        .post(owner, &format!("{company_path}/archive"), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = app.delete(owner, &company_path).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, error) = app.get(owner, &company_path).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(error_code(&error), "COMPANY_NOT_FOUND");
+    let remaining: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM yzy_contracts.billing_accounts WHERE company_id = $1::uuid",
+    )
+    .bind(company["id"].as_str().unwrap())
+    .fetch_one(&app.admin)
+    .await
+    .unwrap();
+    assert_eq!(remaining, 0);
+    let (status, kept) = app.get(owner, &path(&keep)).await;
+    assert_eq!(status, StatusCode::OK, "{kept}");
+}

@@ -171,7 +171,8 @@ pub fn router() -> OpenApiRouter<AppState> {
                 .layer(DefaultBodyLimit::max(COMPANY_JSON_LIMIT)),
         )
         .routes(
-            routes!(get_company, update_company).layer(DefaultBodyLimit::max(COMPANY_JSON_LIMIT)),
+            routes!(get_company, update_company, delete_company)
+                .layer(DefaultBodyLimit::max(COMPANY_JSON_LIMIT)),
         )
         .routes(routes!(set_default))
         .routes(routes!(archive_company))
@@ -389,4 +390,28 @@ async fn restore_company(
     }
     let company = repository::restore(&state.db, &user, id).await?;
     Ok(Json(company.with_alias()))
+}
+
+#[utoipa::path(
+    delete, path = "/api/v1/companies/{id}", tag = "Companies", security(("bearer_auth" = [])),
+    params(("id" = Uuid, Path, description = "Company UUID")),
+    responses(
+        (status = 204, description = "Company deleted"),
+        (status = 401, description = "Missing or invalid token", body = ErrorEnvelope),
+        (status = 403, description = "Superadministrator access required", body = ErrorEnvelope),
+        (status = 404, description = "Company not found", body = ErrorEnvelope),
+        (status = 409, description = "Company is not archived or still has templates, cases or billing", body = ErrorEnvelope),
+        (status = 422, description = "Invalid company identifier", body = ErrorEnvelope),
+    )
+)]
+async fn delete_company(
+    State(state): State<AppState>,
+    Extension(user): Extension<AuthUser>,
+    ApiPath(id): ApiPath<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    if !user.superadmin {
+        return Err(ApiError::AdminRequired);
+    }
+    repository::delete(&state.db, &user, id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }

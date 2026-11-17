@@ -35,11 +35,17 @@ export function changeCompany(accountId: string, companyId: string, action: Comp
   return api<Company>(`${companyPath(companyId)}/${action}`, { method: "POST", expectedAccountId: accountId });
 }
 
+export function deleteCompany(accountId: string, companyId: string) {
+  return api<void>(companyPath(companyId), { method: "DELETE", expectedAccountId: accountId });
+}
+
 export function companyErrorMessage(error: unknown, fallback: string) {
   if (!(error instanceof ApiError)) return fallback;
   switch (error.code) {
     case "COMPANY_NOT_FOUND": return "La empresa ya no está disponible en tu cuenta.";
     case "COMPANY_ARCHIVED": return "La empresa está archivada. Restáurala antes de cambiar sus datos.";
+    case "COMPANY_NOT_ARCHIVED": return "Archiva la empresa antes de borrarla.";
+    case "COMPANY_IN_USE": return error.message;
     case "UNAUTHENTICATED": return "Inicia sesión de nuevo para continuar.";
     default: return fallback;
   }

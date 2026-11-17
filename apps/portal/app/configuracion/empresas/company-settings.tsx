@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AdminPagination } from "@/app/administracion/admin-pagination";
 import { Button } from "@/components/arc/button/button";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
 import { isActiveAccount } from "@/lib/api";
@@ -11,7 +12,7 @@ import { canManageCompanyBilling, companyPickerPath, usePortalAccess } from "@/l
 import { useNavigationDraft } from "@/lib/use-navigation-draft";
 import { settingsBackLink } from "../settings";
 import shared from "../settings.module.css";
-import { changeCompany, companyErrorMessage, saveCompany, type Company } from "./companies-api";
+import { changeCompany, companyErrorMessage, deleteCompany, saveCompany, type Company } from "./companies-api";
 import { CompanyEditor, companyDraft, withCompanyClauseDefaults, type CompanyDraft } from "./company-editor";
 import { companyFieldGroups, companyNameKey } from "./company-fields";
 import { refreshCompanyLists, useCompanies } from "./use-companies";
@@ -53,7 +54,8 @@ export function CompanyManagement({ accountId, administration = false, initialCo
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [page, setPage] = useState(1);
-  const { list, previous, reload } = useCompanies(accountId, false, administration, page, companiesPerPage);
+  const [archivedView, setArchivedView] = useState(false);
+  const { list, previous, reload } = useCompanies(accountId, administration && archivedView, administration, page, companiesPerPage);
   const refreshing = administration && list.kind === "loading" && previous?.kind === "ready";
   const displayed = refreshing ? previous : list;
   const { toast } = useToastStack();
@@ -122,7 +124,7 @@ export function CompanyManagement({ accountId, administration = false, initialCo
     }
   }, [administration, billingCompanyIds, initialCompanyId, list, editor, openEditor]);
 
-  async function mutate(key: string, perform: () => Promise<Company>, title: string, fallback: string) {
+  async function mutate(key: string, perform: () => Promise<Company | { name: string }>, title: string, fallback: string) {
     if (inProgress.current || busy !== null) return;
     inProgress.current = true;
     setBusy(key);
@@ -146,6 +148,23 @@ export function CompanyManagement({ accountId, administration = false, initialCo
     void mutate(`${company.id}:default`, () => changeCompany(accountId, company.id, "default"), "Empresa predeterminada actualizada", "No se pudo actualizar la empresa. Vuelve a intentarlo.");
   }
 
+  function archive(company: Company) {
+    if (!window.confirm(`¿Archivar ${company.name}? Dejará de aparecer en Mis empresas y no se podrán generar documentos con ella.`)) return;
+    void mutate(`${company.id}:archive`, () => changeCompany(accountId, company.id, "archive"), "Empresa archivada", "No se pudo archivar la empresa. Vuelve a intentarlo.");
+  }
+
+  function restore(company: Company) {
+    void mutate(`${company.id}:restore`, () => changeCompany(accountId, company.id, "restore"), "Empresa restaurada", "No se pudo restaurar la empresa. Vuelve a intentarlo.");
+  }
+
+  function remove(company: Company) {
+    if (!window.confirm(`¿Borrar ${company.name} definitivamente? Esta acción no se puede deshacer.`)) return;
+    void mutate(`${company.id}:delete`, async () => {
+      await deleteCompany(accountId, company.id);
+      return { name: company.name };
+    }, "Empresa borrada", "No se pudo borrar la empresa. Vuelve a intentarlo.");
+  }
+
   const companies = displayed.kind === "ready" ? displayed.items.filter(company => administration || (company.can_manage && billingCompanyIds?.includes(company.id))) : [];
   const total = displayed.kind === "ready" ? displayed.total ?? companies.length : 0;
   const lastPage = Math.max(1, Math.ceil(total / companiesPerPage));
@@ -160,9 +179,13 @@ export function CompanyManagement({ accountId, administration = false, initialCo
           <p className={shared.hint}>{company.values[companyNameKey]}</p>
           {administration && company.is_default && <span className={styles.defaultLabel}>Predeterminada</span>}
         </div>
-        {(administration || company.can_manage) && <div className={styles.rowActions}>
+        {company.archived_at ? administration && <div className={styles.rowActions}>
+          <Button type="button" variant="secondary" aria-label={`Restaurar ${company.name}`} disabled={disabled} loading={busy === `${company.id}:restore`} onClick={() => restore(company)}>Restaurar</Button>
+          <Button type="button" variant="danger" aria-label={`Borrar ${company.name}`} disabled={disabled} loading={busy === `${company.id}:delete`} onClick={() => remove(company)}>Borrar</Button>
+        </div> : (administration || company.can_manage) && <div className={styles.rowActions}>
           <Button type="button" variant="secondary" aria-label={`Editar ${company.name}`} disabled={disabled} onClick={() => openEditor(company)}>Editar</Button>
           {administration && !company.is_default && <Button type="button" variant="secondary" aria-label={`Marcar ${company.name} como predeterminada`} disabled={disabled} loading={busy === `${company.id}:default`} onClick={() => markDefault(company)}>Marcar como predeterminada</Button>}
+          {administration && <Button type="button" variant="ghost" aria-label={`Archivar ${company.name}`} disabled={disabled} loading={busy === `${company.id}:archive`} onClick={() => archive(company)}>Archivar</Button>}
         </div>}
       </li>
     );
@@ -184,6 +207,11 @@ export function CompanyManagement({ accountId, administration = false, initialCo
               <h2 id="company-list-title" tabIndex={-1}>Empresas</h2>
               {administration && <Button type="button" className={shared.primary} disabled={list.kind !== "ready" || busy !== null} onClick={() => openEditor()}>Nueva empresa</Button>}
             </div>
+            {administration && <SegmentedControl
+              label="Estado de las empresas" value={archivedView ? "archived" : "active"}
+              options={[{ value: "active", label: "Activas" }, { value: "archived", label: "Archivadas" }]}
+              onValueChange={value => { setArchivedView(value === "archived"); setPage(1); }}
+            />}
             {list.kind === "loading" && <p className={shared.hint} role="status">Cargando empresas…</p>}
             {list.kind === "error" && <div className={styles.retry}>
               <p className={shared.error} role="alert">{list.message}</p>
@@ -196,7 +224,7 @@ export function CompanyManagement({ accountId, administration = false, initialCo
                 onPage={setPage} label="Páginas de empresas"
               />}
             </> : (
-              <p className={shared.hint}>{administration ? "Agrega una empresa para asignar usuarios." : "No hay empresas disponibles."}</p>
+              <p className={shared.hint}>{administration ? archivedView ? "No hay empresas archivadas." : "Agrega una empresa para asignar usuarios." : "No hay empresas disponibles."}</p>
             ))}
             {failure && <p className={shared.error} role="alert">{failure}</p>}
           </section>

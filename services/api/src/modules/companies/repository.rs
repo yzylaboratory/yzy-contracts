@@ -253,3 +253,56 @@ pub(super) async fn restore(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<Co
     tx.commit().await?;
     Ok(company)
 }
+
+/// Permanently removes an archived company that never held documents, cases or billed periods.
+pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(), ApiError> {
+    let owner = managing_owner(db, user, id).await?;
+    let mut tx = lock_owner(db, owner).await?;
+    billing::lock_assignments(&mut tx).await?;
+    let existing = find_for_manager(&mut *tx, user, owner, id).await?;
+    if existing.archived_at.is_none() {
+        return Err(ApiError::CompanyNotArchived);
+    }
+    let (contracts, operations, billed): (bool, bool, bool) = sqlx::query_as(
+        "SELECT
+           EXISTS (SELECT 1 FROM yzy_contracts.contracts WHERE company_id = $1 OR $1 = ANY(shared_company_ids)),
+           EXISTS (SELECT 1 FROM yzy_contracts.client_operations WHERE company_id = $1),
+           EXISTS (SELECT 1 FROM yzy_contracts.billing_invoice_lines WHERE company_id = $1)
+           OR EXISTS (
+             SELECT 1 FROM yzy_contracts.billing_accounts a
+             WHERE a.company_id = $1 AND (
+               EXISTS (SELECT 1 FROM yzy_contracts.billing_invoices i WHERE i.account_id = a.id)
+               OR EXISTS (SELECT 1 FROM yzy_contracts.billing_account_companies ac
+                          WHERE ac.account_id = a.id AND ac.company_id <> $1)
+             )
+           )",
+    )
+    .bind(id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let mut uses = Vec::new();
+    if contracts {
+        uses.push("plantillas");
+    }
+    if operations {
+        uses.push("expedientes");
+    }
+    if billed {
+        uses.push("facturación");
+    }
+    if !uses.is_empty() {
+        return Err(ApiError::CompanyInUse(format!(
+            "La empresa tiene {} y no se puede borrar. Déjala archivada.",
+            uses.join(", ")
+        )));
+    }
+    let deleted: bool = sqlx::query_scalar("SELECT yzy_contracts.delete_archived_company($1)")
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if !deleted {
+        return Err(ApiError::CompanyNotArchived);
+    }
+    tx.commit().await?;
+    Ok(())
+}

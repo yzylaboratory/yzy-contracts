@@ -47,6 +47,10 @@ pub enum ApiError {
     CompanyNotFound,
     #[error("Restore this company before editing it or making it the default")]
     CompanyArchived,
+    #[error("Archive this company before deleting it")]
+    CompanyNotArchived,
+    #[error("{0}")]
+    CompanyInUse(String),
     #[error("Template not found")]
     TemplateNotFound,
     #[error("Conversion not found")]
@@ -128,6 +132,8 @@ impl ApiError {
             Self::BillingConflict(_) => "BILLING_CONFLICT",
             Self::PaymentRequired => "PAYMENT_REQUIRED",
             Self::CompanyArchived => "COMPANY_ARCHIVED",
+            Self::CompanyNotArchived => "COMPANY_NOT_ARCHIVED",
+            Self::CompanyInUse(_) => "COMPANY_IN_USE",
             Self::TemplateNotFound => "TEMPLATE_NOT_FOUND",
             Self::ConversionNotFound => "CONVERSION_NOT_FOUND",
             Self::GeneratedDocumentNotFound => "GENERATED_DOCUMENT_NOT_FOUND",
@@ -186,6 +192,8 @@ impl ApiError {
             | Self::UploadNotCompleted
             | Self::ContractAlreadyConverted
             | Self::CompanyArchived
+            | Self::CompanyNotArchived
+            | Self::CompanyInUse(_)
             | Self::ClientIdentityConflict
             | Self::CaseReferenceConflict(_)
             | Self::GeneratedDocumentConflict => StatusCode::CONFLICT,
