@@ -236,6 +236,11 @@ export function usesNotarialDocumentStyle(type?: DocumentType) {
     || type === "autorizacion_data" || type === "gps";
 }
 
+/** Día, mes y año de la fecha de firma en negrita al rellenar el Word. */
+export function usesBoldNotarialDate(type?: DocumentType) {
+  return type === "pagare_autentico" || type === "pagare_seguro" || type === "autorizacion_data";
+}
+
 /** Documentos cuyos datos se insertan íntegramente en mayúsculas. */
 export function usesUppercaseDocumentData(type?: DocumentType) {
   return type === "levantamiento_oposicion";

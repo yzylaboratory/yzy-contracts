@@ -31,7 +31,7 @@ import {
   isInsuranceCompanyName,
   type DocumentType,
 } from "./document-catalog";
-import { isExpedienteField, percentageDateKey, resolveExpedienteFields, usesUppercaseDocumentData } from "./expediente-fields";
+import { isExpedienteField, percentageDateKey, resolveExpedienteFields, usesBoldNotarialDate, usesUppercaseDocumentData } from "./expediente-fields";
 import { saveGeneratedArtifact, type DocumentFormat, type GeneratedFormat, type GeneratedOutput } from "./generated-documents-api";
 import { hasInsuranceIssuerInContract, NativeDocumentError, prepareNativeDocument, readSalesCommitmentFromContract } from "./native-document";
 import { wordsSource } from "./native-field-kinds";
@@ -341,7 +341,7 @@ export async function generateInitialExpedienteDocuments(input: {
         allowIncomplete: false,
         conditionalSale: target.type === "venta_condicional" || isInsuranceSale,
         uppercase: uppercaseValues,
-        boldPagareDate: target.type === "pagare_autentico" || target.type === "pagare_seguro",
+        boldPagareDate: usesBoldNotarialDate(target.type),
       });
 
       const filename = `${fileBase(contract.name)}.${effectiveOutput}`;

@@ -9,7 +9,7 @@ import { hasOperationCompanyScope } from "@/app/clientes/operation-templates";
 import { conditionalSaleHandwrittenFields, documentFieldAliases, getDocumentType, insuranceScheduleFields, isInsuranceSaleCalculatedField } from "@/app/contratos/document-catalog";
 import { matchDocumentTemplate, documentTypeFromName } from "@/app/clientes/document-template-match";
 import { buildCompanySnapshot, buildContractTemplateFields, fileBase, getContractCompanyFields } from "@/app/contratos/contract-template-fields";
-import { documentClauseCase, expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesSignatureAsContractDate, usesUppercaseDocumentData } from "@/app/contratos/expediente-fields";
+import { documentClauseCase, expedienteExtraordinaryPayments, isExpedienteField, isExtraordinaryPaymentField, multilinePaymentFields, percentageDateKey, usesBoldNotarialDate, usesSignatureAsContractDate, usesUppercaseDocumentData } from "@/app/contratos/expediente-fields";
 import { applicationAmountLabel, applicationDateLabel, clientContractFields } from "@/components/case-application/case-application";
 import { usePortalPreferences } from "@/app/configuracion/preferences-store";
 import { companyContractClauseField, companyFieldLimit, companyNotaryField, companyProfileLimit, companyProfileValue, companyValueLimit, companyValuesSize, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
@@ -456,7 +456,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
       const artifactKey = JSON.stringify([nativeFormat, values, company, operationId]);
       await checkGenerationAccess(contractId, accountId, company?.id, operationId);
       const docType = expediente?.type ?? documentTypeFromName(title)?.id;
-      const boldPagareDate = docType === "pagare_autentico" || docType === "pagare_seguro" || /^\s*pagar[eé]\b/i.test(title);
+      const boldPagareDate = usesBoldNotarialDate(docType) || /^\s*pagar[eé]\b/i.test(title);
       const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale, uppercase: uppercaseValues, boldPagareDate });
       if (output === "preview") {
         const artifact = previewArtifact.current?.key === artifactKey ? previewArtifact.current.artifact : await prepare();
