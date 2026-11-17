@@ -178,7 +178,7 @@ function ReferenceFields({ name, count, required, values, onChange }: {
             return <td key={key} className={key === "relationship" ? styles.comboboxCell : undefined}>
               {key === "relationship"
                 ? <Combobox label={cellLabel} name={`${name}_${index}_${key}`} value={value} required={required} allowCustomValue
-                    options={(name === "family" ? familyRelationships : personalRelationships).map(option => ({ value: option, label: option }))}
+                    options={(name === "family" ? familyRelationships : personalRelationships).map(option => option.toLocaleUpperCase("es")).map(option => ({ value: option, label: option }))}
                     placeholder="Escribe o selecciona…" clearLabel={`Borrar relación de la referencia ${index + 1}`}
                     optionsLabel="Relaciones sugeridas" emptyMessage="Sin coincidencias. Puedes usar el valor escrito."
                     maxLength={maxLength} onValueChange={update} />

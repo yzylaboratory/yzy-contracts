@@ -5408,7 +5408,7 @@ components:
         warnings:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/ReadingWarning'
           description: |-
             Fields the model could not read with confidence, plus checks done here
             (for example a cédula whose check digit does not match).
@@ -5989,6 +5989,21 @@ components:
       - $ref: '#/components/schemas/IdCardData'
       - $ref: '#/components/schemas/VehicleRegistrationData'
       - $ref: '#/components/schemas/BillOfLadingData'
+    ReadingWarning:
+      type: object
+      required:
+      - field
+      - message
+      properties:
+        field:
+          type: string
+          description: |-
+            Path of the affected field in `data`, such as `id_number`,
+            `owner.identity` or `cargo[].vehicle.vin`; `document` for the whole document.
+        message:
+          type: string
+          description: Short sentence in Spanish, without the field name.
+      additionalProperties: false
     SaveCompany:
       type: object
       required:

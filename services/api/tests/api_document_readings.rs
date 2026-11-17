@@ -103,7 +103,7 @@ fn completion(content: Value) -> ResponseTemplate {
 fn synthetic_id_card() -> Value {
     json!({
         "matches_category": true,
-        "warnings": [],
+        "warnings": [{"field": "blood_type", "message": "No se lee."}],
         "data": {
             "card_version": "current",
             "id_number": "00100000017",
@@ -163,13 +163,9 @@ async fn reads_an_id_card_with_a_strict_schema_and_checks_it() {
     // Normalized to the printed format; the check digit is valid.
     assert_eq!(body["data"]["id_number"], "001-0000001-7");
     let warnings = body["warnings"].as_array().unwrap();
-    assert_eq!(warnings.len(), 1, "{warnings:?}");
-    assert!(
-        warnings[0]
-            .as_str()
-            .unwrap()
-            .starts_with("Fecha de vencimiento")
-    );
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    assert_eq!(warnings[0]["field"], "blood_type");
+    assert_eq!(warnings[1]["field"], "expiration_date");
 }
 
 #[tokio::test]
@@ -196,8 +192,9 @@ async fn flags_a_cedula_whose_check_digit_does_not_match() {
     .await;
 
     assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["warnings"][1]["field"], "id_number");
     assert!(
-        body["warnings"][0]
+        body["warnings"][1]["message"]
             .as_str()
             .unwrap()
             .contains("dígito verificador")
@@ -255,7 +252,7 @@ async fn sends_pdfs_as_files_for_native_reading() {
 
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["data"]["cargo"][0]["vehicle"]["make"], "MARCA");
-    assert!(body["warnings"][0].as_str().unwrap().contains("VIN"));
+    assert_eq!(body["warnings"][0]["field"], "cargo[].vehicle.vin");
 }
 
 #[tokio::test]

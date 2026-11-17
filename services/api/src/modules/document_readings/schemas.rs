@@ -32,8 +32,28 @@ fn object(properties: &[(&str, Value)]) -> Value {
     })
 }
 
+/// Leaf paths of a data schema, such as `owner.identity` or `cargo[].vehicle.vin`.
+fn field_paths(schema: &Value, prefix: &str, paths: &mut Vec<String>) {
+    if let Some(properties) = schema["properties"].as_object() {
+        for (name, property) in properties {
+            let path = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}.{name}")
+            };
+            field_paths(property, &path, paths);
+        }
+    } else if schema["items"].is_object() && schema["items"]["properties"].is_object() {
+        field_paths(&schema["items"], &format!("{prefix}[]"), paths);
+    } else {
+        paths.push(prefix.to_owned());
+    }
+}
+
 /// Every category answers with the same envelope around its own data.
 pub(super) fn envelope(data: Value) -> Value {
+    let mut fields = vec![DOCUMENT_FIELD.to_owned()];
+    field_paths(&data, "", &mut fields);
     object(&[
         (
             "matches_category",
@@ -44,20 +64,54 @@ pub(super) fn envelope(data: Value) -> Value {
         ),
         (
             "warnings",
-            texts(
-                "Avisos breves en español: campos ilegibles, tapados, dudosos o documento incompleto.",
-            ),
+            json!({
+                "type": "array",
+                "description": "Avisos sobre campos ilegibles, tapados o dudosos. Uno por campo.",
+                "items": object(&[
+                    ("field", json!({
+                        "type": "string",
+                        "enum": fields,
+                        "description": "Campo afectado, o \"document\" para un aviso sobre el documento entero.",
+                    })),
+                    ("message", json!({
+                        "type": "string",
+                        "description": "Frase corta en español, sin repetir el nombre del campo.",
+                    })),
+                ]),
+            }),
         ),
         ("data", data),
     ])
 }
 
+/// Field of a warning that concerns the whole document.
+pub const DOCUMENT_FIELD: &str = "document";
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Envelope<T> {
     pub matches_category: bool,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<ReadingWarning>,
     pub data: T,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReadingWarning {
+    /// Path of the affected field in `data`, such as `id_number`,
+    /// `owner.identity` or `cargo[].vehicle.vin`; `document` for the whole document.
+    pub field: String,
+    /// Short sentence in Spanish, without the field name.
+    pub message: String,
+}
+
+impl ReadingWarning {
+    pub(super) fn new(field: &str, message: impl Into<String>) -> Self {
+        Self {
+            field: field.to_owned(),
+            message: message.into(),
+        }
+    }
 }
 
 // ---------------------------------------------------------------- Cédula
@@ -412,6 +466,22 @@ mod tests {
 
     fn accepts<T: DeserializeOwned>(schema: Value) {
         serde_json::from_value::<Envelope<T>>(sample(&schema)).expect("schema matches type");
+    }
+
+    #[test]
+    fn warnings_name_leaf_fields() {
+        let schema = bill_of_lading_schema();
+        let fields = schema["properties"]["warnings"]["items"]["properties"]["field"]["enum"]
+            .as_array()
+            .expect("enum");
+        for path in [
+            "document",
+            "shipper.name",
+            "cargo[].vehicle.vin",
+            "container_numbers",
+        ] {
+            assert!(fields.iter().any(|field| field == path), "{path}");
+        }
     }
 
     #[test]

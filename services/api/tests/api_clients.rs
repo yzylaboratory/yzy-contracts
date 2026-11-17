@@ -165,10 +165,10 @@ async fn client_profile_round_trips_without_exposing_contacts_in_lists_or_histor
         .await;
     assert_eq!(status, StatusCode::CREATED, "{saved}");
     assert_eq!(saved["profile"]["owns_home"], false);
-    assert_eq!(saved["profile"]["employer"], "Lugar sintético");
-    assert_eq!(saved["profile"]["treatment"], "Señor");
-    assert_eq!(saved["profile"]["nationality"], "Dominicana");
-    assert_eq!(saved["profile"]["marital_status"], "Soltero");
+    assert_eq!(saved["profile"]["employer"], "LUGAR SINTÉTICO");
+    assert_eq!(saved["profile"]["treatment"], "SEÑOR");
+    assert_eq!(saved["profile"]["nationality"], "DOMINICANA");
+    assert_eq!(saved["profile"]["marital_status"], "SOLTERO");
     assert_eq!(
         saved["profile"]["family_references"]
             .as_array()
@@ -203,7 +203,7 @@ async fn client_profile_round_trips_without_exposing_contacts_in_lists_or_histor
     assert_eq!(status, StatusCode::OK, "{edited}");
     assert_eq!(
         edited["profile"]["spouse"]["name"],
-        "Otro contacto sintético"
+        "OTRO CONTACTO SINTÉTICO"
     );
     let (_, timeline) = app.get(admin, &format!("{uri}/timeline")).await;
     assert!(
@@ -211,7 +211,7 @@ async fn client_profile_round_trips_without_exposing_contacts_in_lists_or_histor
             .to_string()
             .contains("Datos complementarios del cliente")
     );
-    assert!(!timeline.to_string().contains("Otro contacto sintético"));
+    assert!(!timeline.to_string().contains("OTRO CONTACTO SINTÉTICO"));
     let (status, cleared) = app.patch(admin, &uri, json!({"profile":null})).await;
     assert_eq!(status, StatusCode::OK, "{cleared}");
     assert!(cleared.get("profile").is_none());
@@ -905,7 +905,7 @@ async fn global_clients_are_searchable_editable_and_private() {
     let (status, page) = app.get(owner, &format!("{CLIENTS}?q=agata")).await;
     assert_eq!(status, StatusCode::OK, "{page}");
     assert_eq!(page["total"], 1);
-    assert_eq!(page["items"][0]["name"], "Ágata Sintética");
+    assert_eq!(page["items"][0]["name"], "ÁGATA SINTÉTICA");
     let (_, unpaginated) = app.get(owner, CLIENTS).await;
     let (_, page) = app
         .get(owner, &format!("{CLIENTS}?page=2&per_page=1"))
@@ -925,7 +925,7 @@ async fn global_clients_are_searchable_editable_and_private() {
     assert_eq!(status, StatusCode::OK, "{updated}");
     assert!(updated["phone"].is_null());
     assert_eq!(updated["identity"], saved["identity"]);
-    assert_eq!(updated["address"], "Calle ficticia");
+    assert_eq!(updated["address"], "CALLE FICTICIA");
     assert_eq!(app.get(owner, &detail).await.1, updated);
     assert_eq!(
         app.patch(owner, &detail, json!({"name": null})).await.0,
@@ -1222,8 +1222,8 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
     })).await;
     assert_eq!(status, StatusCode::OK, "{edited}");
     let expected: Vec<&str> = vec![
-        "Cliente sintético",
-        "Calle A &amp; B",
+        "CLIENTE SINTÉTICO",
+        "CALLE A &amp; B",
         "CONCEPTO: N/A",
         "NOMBRE: N/A",
         "SINT-0004",

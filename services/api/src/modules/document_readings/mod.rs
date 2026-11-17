@@ -19,7 +19,7 @@ use utoipa_axum::{
 
 use schemas::Envelope;
 pub use schemas::{
-    BillOfLadingData, CargoItem, CargoVehicle, IdCardData, Party, VehicleOwner,
+    BillOfLadingData, CargoItem, CargoVehicle, IdCardData, Party, ReadingWarning, VehicleOwner,
     VehicleRegistrationData,
 };
 
@@ -85,7 +85,7 @@ pub struct DocumentReading {
     pub matches_category: bool,
     /// Fields the model could not read with confidence, plus checks done here
     /// (for example a cédula whose check digit does not match).
-    pub warnings: Vec<String>,
+    pub warnings: Vec<ReadingWarning>,
     pub data: ReadingData,
 }
 
@@ -229,7 +229,7 @@ pub async fn read_files(
             )
         }
     };
-    warnings.retain(|warning| !warning.trim().is_empty());
+    warnings.retain(|warning| !warning.message.trim().is_empty());
 
     Ok(DocumentReading {
         category,
@@ -273,11 +273,11 @@ fn tidy(value: &mut Value) {
 const COMMON_RULES: &str = "\
 Reglas:
 - Transcribe cada valor exactamente como está impreso, respetando mayúsculas, guiones y ceros. No traduzcas ni corrijas.
-- Nunca inventes ni deduzcas un valor. Si un campo no aparece, está tapado o no se lee con seguridad, devuelve null y explica el motivo en warnings.
+- Nunca inventes ni deduzcas un valor. Si un campo no aparece, está tapado o no se lee con seguridad, devuelve null y agrega un aviso en warnings con ese campo.
 - Las fechas van en formato AAAA-MM-DD. Convierte meses escritos (\"16 ABRIL 1986\", \"Sep 16, 2026\") y fechas en casillas separadas (día, mes, año).
 - Las fotos pueden estar rotadas, inclinadas, con reflejos o mostrar otros documentos al lado. Lee solo el documento pedido e ignora los demás.
 - Si las imágenes no corresponden al tipo de documento pedido, devuelve matches_category=false.
-- warnings va en español, con frases cortas, y nombra cada campo como aparece en el documento (por ejemplo \"Tipo de sangre\"), nunca con el nombre técnico del JSON. Déjalo vacío si todo se leyó bien.";
+- Cada aviso de warnings indica el campo afectado y una frase corta en español que no repite el nombre del campo. Usa \"document\" solo para problemas de todo el documento (por ejemplo, una foto borrosa). No avises de campos que el documento simplemente no trae. Déjalo vacío si todo se leyó bien.";
 
 const ID_CARD_INSTRUCTIONS: &str = "\
 Eres un lector de documentos de identidad de la República Dominicana.
@@ -348,37 +348,47 @@ fn format_cedula(value: &str) -> Option<String> {
         .then(|| format!("{}-{}-{}", &digits[..3], &digits[3..10], &digits[10..]))
 }
 
-fn check_cedula(field: &str, value: &mut Option<String>, warnings: &mut Vec<String>) {
+fn check_cedula(field: &str, value: &mut Option<String>, warnings: &mut Vec<ReadingWarning>) {
     let Some(text) = value.as_deref() else { return };
     match format_cedula(text) {
         Some(formatted) => {
             if !cedula_check_digit_valid(&formatted) {
-                warnings.push(format!(
-                    "{field}: el dígito verificador no coincide; revisa el número leído."
+                warnings.push(ReadingWarning::new(
+                    field,
+                    "El dígito verificador no coincide; revisa el número leído.",
                 ));
             }
             *value = Some(formatted);
         }
-        None => warnings.push(format!("{field}: no tiene los 11 dígitos de una cédula.")),
+        None => warnings.push(ReadingWarning::new(
+            field,
+            "No tiene los 11 dígitos de una cédula.",
+        )),
     }
 }
 
-fn check_date(field: &str, value: &Option<String>, warnings: &mut Vec<String>) {
+fn check_date(field: &str, value: &Option<String>, warnings: &mut Vec<ReadingWarning>) {
     if let Some(text) = value
         && NaiveDate::parse_from_str(text, "%Y-%m-%d").is_err()
     {
-        warnings.push(format!("{field}: la fecha no tiene formato AAAA-MM-DD."));
+        warnings.push(ReadingWarning::new(
+            field,
+            "La fecha no tiene formato AAAA-MM-DD.",
+        ));
     }
 }
 
-fn check_id_card(data: &mut IdCardData, warnings: &mut Vec<String>) {
-    check_cedula("Cédula", &mut data.id_number, warnings);
-    check_date("Fecha de nacimiento", &data.birth_date, warnings);
-    check_date("Fecha de vencimiento", &data.expiration_date, warnings);
+fn check_id_card(data: &mut IdCardData, warnings: &mut Vec<ReadingWarning>) {
+    check_cedula("id_number", &mut data.id_number, warnings);
+    check_date("birth_date", &data.birth_date, warnings);
+    check_date("expiration_date", &data.expiration_date, warnings);
 }
 
-fn check_vehicle_registration(data: &mut VehicleRegistrationData, warnings: &mut Vec<String>) {
-    check_date("Fecha de expedición", &data.issue_date, warnings);
+fn check_vehicle_registration(
+    data: &mut VehicleRegistrationData,
+    warnings: &mut Vec<ReadingWarning>,
+) {
+    check_date("issue_date", &data.issue_date, warnings);
     // The owner may be a company (RNC, 9 digits) or a foreigner (passport).
     let is_cedula = data
         .owner
@@ -386,25 +396,28 @@ fn check_vehicle_registration(data: &mut VehicleRegistrationData, warnings: &mut
         .as_deref()
         .is_some_and(|identity| identity.chars().filter(char::is_ascii_digit).count() == 11);
     if is_cedula {
-        check_cedula("Cédula del propietario", &mut data.owner.identity, warnings);
+        check_cedula("owner.identity", &mut data.owner.identity, warnings);
     }
     if let Some(chassis) = &data.chassis_number
         && chassis.len() == 17
         && chassis.chars().any(|c| matches!(c, 'I' | 'O' | 'Q'))
     {
-        warnings.push("Chasis: un VIN no lleva I, O ni Q; revisa el número leído.".to_owned());
+        warnings.push(ReadingWarning::new(
+            "chassis_number",
+            "Un VIN no lleva I, O ni Q; revisa el número leído.",
+        ));
     }
 }
 
-fn check_bill_of_lading(data: &mut BillOfLadingData, warnings: &mut Vec<String>) {
-    check_date("Fecha del BL", &data.issue_date, warnings);
-    for (index, item) in data.cargo.iter().enumerate() {
+fn check_bill_of_lading(data: &mut BillOfLadingData, warnings: &mut Vec<ReadingWarning>) {
+    check_date("issue_date", &data.issue_date, warnings);
+    for item in &data.cargo {
         if let Some(vin) = &item.vehicle.vin
             && (vin.len() != 17 || vin.chars().any(|c| matches!(c, 'I' | 'O' | 'Q')))
         {
-            warnings.push(format!(
-                "VIN de la mercancía {}: no parece un VIN válido de 17 caracteres.",
-                index + 1
+            warnings.push(ReadingWarning::new(
+                "cargo[].vehicle.vin",
+                format!("{vin} no parece un VIN válido de 17 caracteres."),
             ));
         }
     }
@@ -473,16 +486,8 @@ mod tests {
     #[test]
     fn flags_bad_dates() {
         let mut warnings = Vec::new();
-        check_date(
-            "Fecha de nacimiento",
-            &Some("16/04/1986".to_owned()),
-            &mut warnings,
-        );
-        check_date(
-            "Fecha de nacimiento",
-            &Some("1986-04-16".to_owned()),
-            &mut warnings,
-        );
+        check_date("birth_date", &Some("16/04/1986".to_owned()), &mut warnings);
+        check_date("birth_date", &Some("1986-04-16".to_owned()), &mut warnings);
         assert_eq!(warnings.len(), 1);
     }
 }

@@ -9,7 +9,7 @@ import { ClientProfileFields, clientContractFields, hasClientProfile, type Clien
 import { displayClientIdentity, displayClientPhone, formatCedula, formatPhone, handleMaskedBackspace } from "./client-masks";
 import { clientDraftKey, clientScope, useClientDraft, useClientSave } from "./client-navigation";
 import { saveClient, type Client, type ClientWrite } from "./clients-api";
-import { clientFromIdCard, readDocument } from "./document-readings-api";
+import { clientFromIdCard, idCardFieldLabels, readDocument, relevantWarnings } from "./document-readings-api";
 import { DocumentScan, type ScanOutcome } from "./document-scan";
 import { missingLoanClientFields } from "./loan-application-fields";
 import styles from "./clients.module.css";
@@ -80,7 +80,7 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
       profile: { ...current.profile, ...fill.profile },
     }));
     setErrors(current => ({ ...current, name: undefined, identity: undefined }));
-    return { filled, warnings: reading.warnings };
+    return { filled, warnings: relevantWarnings(reading.warnings, idCardFieldLabels) };
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -143,7 +143,7 @@ export function ClientEditor({ accountId, client, pageTitleId, onSaved, onCancel
       )}
       {topActions && failure && <p className={styles.failure} role="alert">{failure}</p>}
       {topActions && missing.length > 0 && <p className={styles.muted} role="status">Faltan {missing.length} datos. Siguiente pendiente: {missing[0]}.</p>}
-      <form id={formId} className={styles.stack} noValidate onSubmit={submit}>
+      <form id={formId} className={`${styles.stack} ${styles.uppercaseForm}`} noValidate onSubmit={submit}>
         {!client && <DocumentScan title="Rellenar con la cédula" disabled={saving}
           options={[{ value: "dominican_id_card", label: "Cédula", uploadLabel: "Sube la cédula", hint: "Foto o PDF del frente de la cédula, nueva o anterior. Puedes agregar el reverso." }]}
           onRead={(_, files, signal) => fillFromIdCard(files, signal)} />}

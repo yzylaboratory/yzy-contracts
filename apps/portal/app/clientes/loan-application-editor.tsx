@@ -35,7 +35,7 @@ import {
 } from "./monthly-payment-plan";
 import { MonthlyPaymentTable } from "./monthly-payment-table";
 import { VehicleFormFields } from "./vehicle-form-fields";
-import { readDocument, vehicleFromBillOfLading, vehicleFromRegistration, type DocumentCategory } from "./document-readings-api";
+import { billOfLadingFieldLabels, readDocument, registrationFieldLabels, relevantWarnings, vehicleFromBillOfLading, vehicleFromRegistration, type DocumentCategory } from "./document-readings-api";
 import { DocumentScan, type ScanOutcome } from "./document-scan";
 
 const vehicleDocuments = [
@@ -49,11 +49,11 @@ async function readVehicle(category: DocumentCategory, files: File[], signal: Ab
     if (!reading.matches_category) return { mismatch: "El archivo no parece un bill of lading" };
     const vehicle = vehicleFromBillOfLading(reading.data);
     if (!vehicle) return { mismatch: "El bill of lading no describe ningún vehículo" };
-    return { vehicle, warnings: reading.warnings };
+    return { vehicle, warnings: relevantWarnings(reading.warnings, billOfLadingFieldLabels) };
   }
   const reading = await readDocument("vehicle_registration", files, signal);
   if (!reading.matches_category) return { mismatch: "El archivo no parece una matrícula de vehículo" };
-  return { vehicle: vehicleFromRegistration(reading.data), warnings: reading.warnings };
+  return { vehicle: vehicleFromRegistration(reading.data), warnings: relevantWarnings(reading.warnings, registrationFieldLabels) };
 }
 import styles from "./clients.module.css";
 

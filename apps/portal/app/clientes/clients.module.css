@@ -562,3 +562,9 @@
   .formatSheet[open] { animation: none; }
   .formatButton:hover { transform: none; }
 }
+
+/* Client data is recorded in uppercase (the API stores it so); email keeps its case. */
+.uppercaseForm input:not([type="email"]):not(:placeholder-shown),
+.uppercaseForm textarea:not(:placeholder-shown) {
+  text-transform: uppercase;
+}

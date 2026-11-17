@@ -243,10 +243,31 @@ impl ClientPatch {
                 normalize_optional_text(field, value, max)?;
             }
         }
+        // Client data is recorded in uppercase, as it appears in contracts.
+        // Email keeps its case.
+        if let Some(name) = &mut self.name {
+            *name = name.to_uppercase();
+        }
+        for value in [
+            &mut self.identity,
+            &mut self.address,
+            &mut self.income_source,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            uppercase(value);
+        }
         if let Some(Some(profile)) = &mut self.profile {
             profile.normalize()?;
         }
         Ok(())
+    }
+}
+
+fn uppercase(value: &mut Option<String>) {
+    if let Some(text) = value {
+        *text = text.to_uppercase();
     }
 }
 
@@ -431,13 +452,40 @@ impl ClientProfile {
             ("pay_days", &mut self.pay_days, 100),
         ] {
             normalize_optional_text(field, value, limit)?;
+            uppercase(value);
         }
         normalize_contacts(
             &mut self.spouse,
             &mut self.family_references,
             &mut self.personal_references,
             "profile",
-        )
+        )?;
+        if let Some(spouse) = &mut self.spouse {
+            for value in [
+                &mut spouse.name,
+                &mut spouse.identity,
+                &mut spouse.employer,
+                &mut spouse.employment_duration,
+                &mut spouse.position,
+                &mut spouse.address,
+            ] {
+                uppercase(value);
+            }
+        }
+        for reference in self
+            .family_references
+            .iter_mut()
+            .chain(self.personal_references.iter_mut())
+        {
+            for value in [
+                &mut reference.name,
+                &mut reference.relationship,
+                &mut reference.address,
+            ] {
+                uppercase(value);
+            }
+        }
+        Ok(())
     }
 }
 

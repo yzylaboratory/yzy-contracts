@@ -31,11 +31,14 @@ type DataOf = {
   bill_of_lading: BillOfLadingData;
 };
 
+/** `field` is a path in `data` (`owner.identity`, `cargo[].vehicle.vin`) or `document`. */
+export type ReadingWarning = { field: string; message: string };
+
 export type DocumentReading<C extends DocumentCategory> = {
   category: C;
   model: string;
   matches_category: boolean;
-  warnings: string[];
+  warnings: ReadingWarning[];
   data: DataOf[C];
 };
 
@@ -67,16 +70,16 @@ function present(value: Text): string | undefined {
   return text ? text : undefined;
 }
 
-/** "DOMINICANA" on the card, "REPUBLICA DOMINICANA" on the previous one; contracts agree with the holder. */
+/** "DOMINICANA" on the card, "REPUBLICA DOMINICANA" on the previous one; the form agrees with the holder. */
 function nationality(value: Text, sex: Text) {
   const text = present(value);
   if (!text) return undefined;
   if (/DOMINICAN/i.test(text)) {
-    if (sex === "M") return "dominicano";
-    if (sex === "F") return "dominicana";
+    if (sex === "M") return "DOMINICANO";
+    if (sex === "F") return "DOMINICANA";
     return undefined;
   }
-  return text.toLocaleLowerCase("es");
+  return text.toLocaleUpperCase("es");
 }
 
 export type ClientFill = { name?: string; identity?: string; profile: Pick<ClientProfile, "nationality" | "marital_status"> };
@@ -86,7 +89,7 @@ export function clientFromIdCard(data: IdCardData): ClientFill {
   const profile: ClientFill["profile"] = {};
   const nationalityValue = nationality(data.nationality, data.sex);
   if (nationalityValue) profile.nationality = nationalityValue;
-  const maritalStatus = present(data.marital_status)?.toLocaleLowerCase("es");
+  const maritalStatus = present(data.marital_status)?.toLocaleUpperCase("es");
   if (maritalStatus) profile.marital_status = maritalStatus;
   return { name, identity: present(data.id_number), profile };
 }
@@ -128,3 +131,26 @@ export function vehicleFromBillOfLading(data: BillOfLadingData): Vehicle | null 
 function withoutEmpty(vehicle: Vehicle): Vehicle {
   return Object.fromEntries(Object.entries(vehicle).filter(([, value]) => value)) as Vehicle;
 }
+
+/** Only warnings about fields this form fills, named with the form's labels. */
+export function relevantWarnings(warnings: ReadingWarning[], labels: Readonly<Record<string, string>>) {
+  return warnings.flatMap(({ field, message }) => {
+    const label = labels[field];
+    return label ? [`${label}: ${message}`] : [];
+  });
+}
+
+export const idCardFieldLabels = {
+  full_name: "Nombre completo", given_names: "Nombre completo", surnames: "Nombre completo",
+  id_number: "Cédula", nationality: "Nacionalidad", marital_status: "Estado civil",
+} as const;
+
+export const registrationFieldLabels = {
+  vehicle_type: "Tipo de vehículo", make: "Marca", model: "Modelo", year: "Año", color: "Color",
+  registration_number: "Placa", chassis_number: "Chasis", engine_number: "Motor o número de serie",
+} as const;
+
+export const billOfLadingFieldLabels = {
+  "cargo[].vehicle.make": "Marca", "cargo[].vehicle.model": "Modelo", "cargo[].vehicle.year": "Año",
+  "cargo[].vehicle.color": "Color", "cargo[].vehicle.vin": "Chasis",
+} as const;
