@@ -35,7 +35,7 @@ const receipt = [...customer, ...vehicle, "operacion_referencia", "fecha_contrat
 
 export const DOCUMENT_TYPES = [
   { id: "venta_condicional", label: "Venta condicional", requiredFields: [
-    "vehiculo_matricula", "fecha_contrato", ...signature,
+    "vehiculo_matricula", ...signature,
     "cuotas_intereses", "cuota_final_capital", "total_financiamiento",
   ] },
   { id: "venta_condicional_seguro", label: "Venta condicional de seguro", requiresInsuranceCompany: true, requiredFields: [

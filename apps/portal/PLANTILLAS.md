@@ -12,7 +12,7 @@ Inserta los marcadores en texto normal de Word o dentro de celdas. Escribe cada 
 
 | Tipo | Marcadores |
 | --- | --- |
-| Venta condicional | `cliente_nombre`, `cliente_cedula`, `cliente_direccion_transito`, `vehiculo_matricula`, `fecha_contrato`, `fecha_firma` (`fecha_firma` al estilo del acto notarial), `cuotas_intereses`, `cuota_final_capital`, `total_financiamiento` |
+| Venta condicional | `cliente_nombre`, `cliente_cedula`, `cliente_direccion_transito`, `vehiculo_matricula`, `fecha_firma` (`fecha_firma` al estilo del acto notarial; `fecha_contrato` es opcional), `cuotas_intereses`, `cuota_final_capital`, `total_financiamiento` |
 | Pagaré auténtico | `cliente_nombre`, `cliente_cedula`, `cliente_cedula_letras`, `cliente_direccion`, `vehiculo_garantia`, `fecha_firma`, `parrafo_compromiso_pago`, `cantidad_cuotas`, `cantidad_cuotas_letras`, `cuotas_intereses`, `cuota_final_capital`, `total_financiamiento`, `total_financiamiento_letras`, `testigo_richard`, `testigo_usuario` |
 | Entrega voluntaria | `cliente_nombre`, `cliente_cedula`, `cliente_cedula_letras`, `vehiculo_garantia`, `fecha_firma` |
 | Acto de seguro | `cliente_nombre`, `vehiculo_garantia`, `cantidad_cuotas_seguro`, `fecha_firma`, `cuotas_seguro_numeros`, `cuotas_seguro_fechas`, `cuotas_seguro_montos`, `monto_total_seguro`, `monto_total_seguro_letras` |
