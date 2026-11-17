@@ -3,11 +3,11 @@ export const INSURANCE_COMPANY_NAME = "INVERSIONES MARTÍNEZ ROSARIO, S.R.L.";
 const customer = ["cliente_nombre", "cliente_cedula"] as const;
 const vehicle = ["vehiculo_garantia"] as const;
 const signature = ["fecha_firma"] as const;
-/** Identity block left blank on venta condicional / seguro so the client fills it by hand. */
+/** Name and address left blank on venta condicional so the client fills them by hand; the cédula is always printed. */
 export const conditionalSaleHandwrittenFields = [
-  "cliente_nombre", "cliente_nombre_firma", "cliente_cedula", "cliente_cedula_numeros", "cliente_cedula_letras",
+  "cliente_nombre", "cliente_nombre_firma",
   "cliente_direccion", "cliente_direccion_transito",
-  "nombre_completo_del_cliente", "cedula_del_cliente", "domicilio_del_cliente",
+  "nombre_completo_del_cliente", "domicilio_del_cliente",
 ] as const;
 export const insuranceScheduleFields = [
   "cuotas_seguro_numeros", "cuotas_seguro_fechas", "cuotas_seguro_montos", "monto_total_seguro", "monto_total_seguro_letras",

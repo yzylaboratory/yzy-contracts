@@ -165,7 +165,7 @@ test("sale totals use interest plus final principal and keep extraordinary payme
   assert.deepEqual(issues, []);
   assert.equal(values.total_financiamiento, "RD$52,345.68");
   assert.equal(values.cliente_nombre, "");
-  assert.equal(values.cliente_cedula, "");
+  assert.equal(values.cliente_cedula, "000-0000000-1");
   assert.equal(values.cliente_direccion, "");
   assert.equal(values.cliente_direccion_transito, "");
   assert.equal(values.fecha_contrato, operation.signature_date);
