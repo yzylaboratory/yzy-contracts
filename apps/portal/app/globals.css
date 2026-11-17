@@ -4,46 +4,47 @@
 
   /* Brand: Stone Gray · Ink Navy · Burgundy — no other chromatic accents */
   --brand-stone: #e7e3dc;
-  --brand-ink: #14213d;
-  --brand-burgundy: #7a1f2b;
-  --accent: var(--brand-burgundy);
-  --accent-strong: #5e1821;
-  --accent-hover: #621823;
+  --brand-ink: #1b1f57;
+  --brand-navy: #2a3084;
+  --brand-green: #00803e;
+  --accent: var(--brand-green);
+  --accent-strong: #00592b;
+  --accent-hover: #006a33;
   --accent-foreground: #ffffff;
-  --accent-subtle: color-mix(in oklab, var(--brand-burgundy) 12%, transparent);
-  --control-on: var(--brand-burgundy);
+  --accent-subtle: color-mix(in oklab, var(--brand-green) 12%, transparent);
+  --control-on: var(--brand-green);
   --control-glyph: #ffffff;
   --control-thumb-on: #ffffff;
-  --control-fill: var(--brand-burgundy);
+  --control-fill: var(--brand-green);
 
-  /* Semantic + chart tones stay inside the triad */
-  --danger: var(--brand-burgundy);
-  --warning: color-mix(in oklab, var(--brand-burgundy) 55%, var(--brand-stone));
-  --success: color-mix(in oklab, var(--brand-ink) 78%, var(--brand-stone));
-  --info: var(--brand-ink);
-  --tone-teal: var(--brand-ink);
-  --tone-sky: var(--brand-ink);
-  --tone-orchid: var(--brand-burgundy);
-  --tone-violet: var(--brand-burgundy);
-  --tone-rose: var(--brand-burgundy);
-  --tone-amber: color-mix(in oklab, var(--brand-burgundy) 70%, var(--brand-stone));
-  --tone-green: var(--brand-ink);
-  --series-1: var(--brand-burgundy);
-  --series-2: var(--brand-ink);
-  --series-3: color-mix(in oklab, var(--brand-ink) 45%, var(--brand-stone));
-  --series-4: color-mix(in oklab, var(--brand-burgundy) 55%, var(--brand-stone));
-  --arc-gradient-from: color-mix(in oklab, var(--brand-stone) 70%, var(--brand-burgundy));
+  /* Semantic + chart tones: green and navy from the logo; errors stay red */
+  --danger: #b3261e;
+  --warning: #9a5b00;
+  --success: var(--brand-green);
+  --info: var(--brand-navy);
+  --tone-teal: var(--brand-green);
+  --tone-sky: var(--brand-navy);
+  --tone-orchid: var(--brand-navy);
+  --tone-violet: var(--brand-navy);
+  --tone-rose: #b3261e;
+  --tone-amber: #9a5b00;
+  --tone-green: var(--brand-green);
+  --series-1: var(--brand-green);
+  --series-2: var(--brand-navy);
+  --series-3: color-mix(in oklab, var(--brand-navy) 45%, var(--brand-stone));
+  --series-4: color-mix(in oklab, var(--brand-green) 55%, var(--brand-stone));
+  --arc-gradient-from: color-mix(in oklab, var(--brand-stone) 70%, var(--brand-green));
   --arc-gradient-to: color-mix(in oklab, var(--brand-stone) 78%, var(--brand-ink));
   --arc-gradient-foreground: var(--brand-ink);
   --arc-gradient-soft: linear-gradient(135deg, var(--brand-stone), color-mix(in oklab, var(--brand-stone) 88%, var(--brand-ink)));
-  --arc-gradient-line: linear-gradient(100deg, color-mix(in oklab, var(--brand-burgundy) 35%, var(--brand-stone)), color-mix(in oklab, var(--brand-ink) 35%, var(--brand-stone)));
-  --arc-gradient-ink: linear-gradient(100deg, var(--brand-burgundy), var(--brand-ink));
+  --arc-gradient-line: linear-gradient(100deg, color-mix(in oklab, var(--brand-green) 35%, var(--brand-stone)), color-mix(in oklab, var(--brand-ink) 35%, var(--brand-stone)));
+  --arc-gradient-ink: linear-gradient(100deg, var(--brand-green), var(--brand-navy));
 
   /* Document format chips */
-  --format-pdf-surface: color-mix(in oklab, var(--brand-burgundy) 14%, var(--brand-stone));
-  --format-pdf-ink: var(--brand-burgundy);
-  --format-word-surface: color-mix(in oklab, var(--brand-ink) 12%, var(--brand-stone));
-  --format-word-ink: var(--brand-ink);
+  --format-pdf-surface: color-mix(in oklab, var(--brand-green) 14%, var(--brand-stone));
+  --format-pdf-ink: var(--brand-green);
+  --format-word-surface: color-mix(in oklab, var(--brand-navy) 12%, var(--brand-stone));
+  --format-word-ink: var(--brand-navy);
 }
 
 :root:not([data-theme="dark"]) {
@@ -60,41 +61,41 @@
 }
 
 :root[data-theme="dark"] {
-  --brand-ink: #0f182c;
-  --accent: #a33a48;
-  --accent-strong: #c45a66;
-  --accent-hover: #b34754;
-  --accent-foreground: #ffffff;
-  --accent-subtle: color-mix(in oklab, #a33a48 18%, transparent);
-  --control-on: #a33a48;
-  --control-glyph: #ffffff;
+  --brand-ink: #0d1033;
+  --accent: #2fb36a;
+  --accent-strong: #5fd08f;
+  --accent-hover: #3fc27a;
+  --accent-foreground: #04170c;
+  --accent-subtle: color-mix(in oklab, #2fb36a 18%, transparent);
+  --control-on: #2fb36a;
+  --control-glyph: #04170c;
   --control-thumb-on: #ffffff;
-  --control-fill: #a33a48;
-  --danger: #a33a48;
-  --warning: color-mix(in oklab, #a33a48 65%, var(--brand-stone));
-  --success: color-mix(in oklab, var(--brand-stone) 55%, #0f182c);
+  --control-fill: #2fb36a;
+  --danger: #f2706a;
+  --warning: #e8a33a;
+  --success: #2fb36a;
   --info: var(--brand-stone);
-  --tone-teal: color-mix(in oklab, var(--brand-stone) 70%, #0f182c);
-  --tone-sky: color-mix(in oklab, var(--brand-stone) 70%, #0f182c);
-  --tone-orchid: #a33a48;
-  --tone-violet: #a33a48;
-  --tone-rose: #a33a48;
-  --tone-amber: color-mix(in oklab, #a33a48 70%, var(--brand-stone));
-  --tone-green: color-mix(in oklab, var(--brand-stone) 70%, #0f182c);
-  --series-1: #a33a48;
+  --tone-teal: color-mix(in oklab, var(--brand-stone) 70%, #0d1033);
+  --tone-sky: color-mix(in oklab, var(--brand-stone) 70%, #0d1033);
+  --tone-orchid: #2fb36a;
+  --tone-violet: #2fb36a;
+  --tone-rose: #f2706a;
+  --tone-amber: #e8a33a;
+  --tone-green: #2fb36a;
+  --series-1: #2fb36a;
   --series-2: var(--brand-stone);
-  --series-3: color-mix(in oklab, var(--brand-stone) 45%, #0f182c);
-  --series-4: color-mix(in oklab, #a33a48 55%, var(--brand-stone));
-  --format-pdf-surface: color-mix(in oklab, #a33a48 22%, transparent);
-  --format-pdf-ink: #c45a66;
+  --series-3: color-mix(in oklab, var(--brand-stone) 45%, #0d1033);
+  --series-4: color-mix(in oklab, #2fb36a 55%, var(--brand-stone));
+  --format-pdf-surface: color-mix(in oklab, #2fb36a 22%, transparent);
+  --format-pdf-ink: #5fd08f;
   --format-word-surface: color-mix(in oklab, var(--brand-stone) 14%, transparent);
   --format-word-ink: var(--brand-stone);
-  --arc-gradient-from: color-mix(in oklab, #0f182c 70%, #a33a48);
-  --arc-gradient-to: color-mix(in oklab, #0f182c 78%, var(--brand-stone));
+  --arc-gradient-from: color-mix(in oklab, #0d1033 70%, #2fb36a);
+  --arc-gradient-to: color-mix(in oklab, #0d1033 78%, var(--brand-stone));
   --arc-gradient-foreground: var(--brand-stone);
-  --arc-gradient-soft: linear-gradient(135deg, #0f182c, color-mix(in oklab, #0f182c 88%, #a33a48));
-  --arc-gradient-line: linear-gradient(100deg, #a33a48, color-mix(in oklab, var(--brand-stone) 40%, #0f182c));
-  --arc-gradient-ink: linear-gradient(100deg, #c45a66, var(--brand-stone));
+  --arc-gradient-soft: linear-gradient(135deg, #0d1033, color-mix(in oklab, #0d1033 88%, #2fb36a));
+  --arc-gradient-line: linear-gradient(100deg, #2fb36a, color-mix(in oklab, var(--brand-stone) 40%, #0d1033));
+  --arc-gradient-ink: linear-gradient(100deg, #5fd08f, var(--brand-stone));
 }
 
 *,

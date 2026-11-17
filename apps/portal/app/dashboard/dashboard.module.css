@@ -46,11 +46,11 @@
   line-height: 18px;
 }
 
-/* Exactly three brand surfaces: burgundy · ink · stone */
-.burgundy {
-  --surface: var(--brand-burgundy);
+/* Exactly three brand surfaces: green · ink · stone */
+.green {
+  --surface: var(--brand-green);
   --foreground: #ffffff;
-  --text-secondary: color-mix(in oklab, #ffffff 82%, var(--brand-burgundy));
+  --text-secondary: color-mix(in oklab, #ffffff 82%, var(--brand-green));
 }
 
 .ink {
@@ -69,8 +69,8 @@
   border: 1px solid color-mix(in oklab, var(--brand-ink) 14%, var(--brand-stone));
 }
 
-:global(:root[data-theme="dark"]) .burgundy {
-  --surface: var(--brand-burgundy);
+:global(:root[data-theme="dark"]) .green {
+  --surface: var(--brand-green);
 }
 
 :global(:root[data-theme="dark"]) .stone {
@@ -212,7 +212,7 @@
 }
 
 .stageFillBurgundy {
-  background: var(--brand-burgundy);
+  background: var(--brand-green);
 }
 
 .stageFillInk {

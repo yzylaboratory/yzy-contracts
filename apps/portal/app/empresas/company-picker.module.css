@@ -154,7 +154,7 @@
 .failure { margin: 0; color: var(--danger); }
 
 .blockedCard:hover { border-color: var(--border); }
-.blockedCard .icon { background: color-mix(in oklab, var(--brand-burgundy) 12%, var(--brand-stone)); color: var(--brand-burgundy); }
+.blockedCard .icon { background: color-mix(in oklab, var(--brand-green) 12%, var(--brand-stone)); color: var(--brand-green); }
 .blockedStatus { color: var(--danger); font-size: 14px; font-weight: 650; }
 .billingLink {
   display: inline-flex;

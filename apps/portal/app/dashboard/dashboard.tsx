@@ -125,7 +125,7 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
       value: stats.unsigned_cases,
       suffix: undefined,
       context: `${stats.status_counts.solicitud} en solicitud · ${stats.status_counts.en_proceso} en proceso`,
-      tone: styles.burgundy,
+      tone: styles.green,
       href: "/clientes",
     },
     {

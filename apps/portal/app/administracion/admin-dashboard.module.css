@@ -86,7 +86,7 @@
 .chartGrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); }
 
 .chartCard {
-  --accent: color-mix(in oklab, var(--foreground) 40%, var(--brand-burgundy, #7a1f2b));
+  --accent: color-mix(in oklab, var(--foreground) 40%, var(--brand-green, #00803e));
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);

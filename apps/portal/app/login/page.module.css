@@ -7,11 +7,11 @@
   --text-muted: color-mix(in oklab, var(--brand-ink) 52%, var(--brand-stone));
   --border: color-mix(in oklab, var(--brand-ink) 12%, var(--brand-stone));
   --border-strong: color-mix(in oklab, var(--brand-ink) 36%, var(--brand-stone));
-  --accent: var(--brand-burgundy);
-  --accent-hover: #621823;
+  --accent: var(--brand-green);
+  --accent-hover: #006a33;
   --accent-foreground: #ffffff;
-  --accent-strong: #5e1821;
-  --accent-subtle: color-mix(in oklab, var(--brand-burgundy) 12%, var(--surface));
+  --accent-strong: #00592b;
+  --accent-subtle: color-mix(in oklab, var(--brand-green) 12%, var(--surface));
   --focus-outline: var(--foreground);
   --hero-text: color-mix(in oklab, var(--brand-stone) 72%, white);
   --hero-muted: color-mix(in oklab, var(--brand-stone) 55%, white);

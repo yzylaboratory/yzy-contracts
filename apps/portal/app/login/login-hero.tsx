@@ -333,9 +333,9 @@ export function LoginHero() {
             <rect x="96" y="20" width="280" height="230" rx="18" />
           </clipPath>
           <linearGradient id="login-scan-beam" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#7a1f2b" stopOpacity="0" />
-            <stop offset="50%" stopColor="#7a1f2b" stopOpacity="0.16" />
-            <stop offset="100%" stopColor="#7a1f2b" stopOpacity="0" />
+            <stop offset="0%" stopColor="#00803e" stopOpacity="0" />
+            <stop offset="50%" stopColor="#00803e" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#00803e" stopOpacity="0" />
           </linearGradient>
         </defs>
 

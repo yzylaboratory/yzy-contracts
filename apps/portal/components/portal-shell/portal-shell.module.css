@@ -2,7 +2,7 @@
   --sidebar-title: #fff;
   --sidebar-text: color-mix(in oklab, var(--brand-stone) 82%, white);
   --sidebar-hover: color-mix(in oklab, var(--brand-ink) 82%, white);
-  --avatar-surface: color-mix(in oklab, var(--brand-burgundy) 16%, var(--brand-stone));
+  --avatar-surface: color-mix(in oklab, var(--brand-green) 16%, var(--brand-stone));
 
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -343,10 +343,10 @@
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 28%, var(--brand-stone));
+  border: 1px solid color-mix(in oklab, var(--brand-green) 28%, var(--brand-stone));
   border-radius: 14px;
-  background: color-mix(in oklab, var(--brand-burgundy) 10%, var(--brand-stone));
-  color: var(--brand-burgundy);
+  background: color-mix(in oklab, var(--brand-green) 10%, var(--brand-stone));
+  color: var(--brand-green);
 }
 
 .membershipNotice > svg { flex: none; }
@@ -365,5 +365,5 @@
   font-weight: 650;
   text-decoration: none;
 }
-.membershipAction:hover { background: color-mix(in oklab, var(--brand-burgundy) 14%, var(--brand-stone)); }
+.membershipAction:hover { background: color-mix(in oklab, var(--brand-green) 14%, var(--brand-stone)); }
 .membershipAction:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

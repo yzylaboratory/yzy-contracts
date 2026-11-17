@@ -6,7 +6,7 @@
   border: 1px solid color-mix(in oklab, var(--brand-ink) 18%, var(--border));
   border-radius: 18px;
   background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--brand-burgundy) 9%, transparent) 0%, transparent 55%),
+    radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--brand-green) 9%, transparent) 0%, transparent 55%),
     radial-gradient(110% 90% at 100% 100%, color-mix(in oklab, var(--brand-ink) 11%, transparent) 0%, transparent 60%),
     var(--surface-raised);
   box-shadow:
@@ -55,8 +55,8 @@
   inline-size: fit-content;
   padding: 4px 11px;
   border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 28%, transparent);
-  background: color-mix(in oklab, var(--brand-burgundy) 10%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--brand-green) 28%, transparent);
+  background: color-mix(in oklab, var(--brand-green) 10%, var(--surface));
   color: var(--accent-strong);
   font-size: 12px;
   font-weight: 600;
@@ -186,7 +186,7 @@
   border-radius: 16px;
   border: 1px solid var(--border);
   background:
-    radial-gradient(circle at 50% 48%, color-mix(in oklab, var(--brand-burgundy) 9%, transparent) 0%, transparent 66%),
+    radial-gradient(circle at 50% 48%, color-mix(in oklab, var(--brand-green) 9%, transparent) 0%, transparent 66%),
     color-mix(in oklab, var(--surface) 88%, var(--surface-muted));
   overflow: hidden;
   perspective: 1100px;
@@ -208,8 +208,8 @@
 .orbitalInner {
   inline-size: 212px;
   block-size: 212px;
-  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 16%, transparent);
-  border-inline-start-color: color-mix(in oklab, var(--brand-burgundy) 55%, transparent);
+  border: 1px solid color-mix(in oklab, var(--brand-green) 16%, transparent);
+  border-inline-start-color: color-mix(in oklab, var(--brand-green) 55%, transparent);
 }
 
 .folioDeck {
@@ -330,7 +330,7 @@
 .clauseLineAccent {
   background: linear-gradient(
     90deg,
-    color-mix(in oklab, var(--brand-burgundy) 34%, var(--surface-muted)),
+    color-mix(in oklab, var(--brand-green) 34%, var(--surface-muted)),
     color-mix(in oklab, var(--brand-ink) 18%, var(--surface-muted))
   );
 }
@@ -342,11 +342,11 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    color-mix(in oklab, var(--brand-burgundy) 18%, transparent) 55%,
-    color-mix(in oklab, var(--brand-burgundy) 45%, transparent) 85%,
+    color-mix(in oklab, var(--brand-green) 18%, transparent) 55%,
+    color-mix(in oklab, var(--brand-green) 45%, transparent) 85%,
     transparent
   );
-  border-block-end: 1.5px solid color-mix(in oklab, var(--brand-burgundy) 65%, transparent);
+  border-block-end: 1.5px solid color-mix(in oklab, var(--brand-green) 65%, transparent);
   pointer-events: none;
   will-change: transform, opacity;
 }
@@ -380,7 +380,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 6px 14px -6px color-mix(in oklab, var(--brand-burgundy) 45%, transparent);
+  box-shadow: 0 6px 14px -6px color-mix(in oklab, var(--brand-green) 45%, transparent);
   opacity: 0;
   will-change: transform, opacity;
 }
@@ -401,7 +401,7 @@
   border-radius: 50%;
   background: var(--arc-gradient-ink);
   color: #ffffff;
-  box-shadow: 0 12px 26px -10px color-mix(in oklab, var(--brand-burgundy) 55%, transparent);
+  box-shadow: 0 12px 26px -10px color-mix(in oklab, var(--brand-green) 55%, transparent);
 }
 
 .ledger {
@@ -476,18 +476,18 @@
 
 .ledgerRowError {
   color: var(--danger);
-  background: color-mix(in oklab, var(--brand-burgundy) 8%, var(--surface));
-  border-color: color-mix(in oklab, var(--brand-burgundy) 28%, transparent);
+  background: color-mix(in oklab, var(--brand-green) 8%, var(--surface));
+  border-color: color-mix(in oklab, var(--brand-green) 28%, transparent);
 }
 
 .activeBackdrop {
   position: absolute;
   inset: 0;
   border-radius: 11px;
-  border: 1px solid color-mix(in oklab, var(--brand-burgundy) 36%, var(--border));
+  border: 1px solid color-mix(in oklab, var(--brand-green) 36%, var(--border));
   background: linear-gradient(
     90deg,
-    color-mix(in oklab, var(--brand-burgundy) 10%, var(--surface-raised)),
+    color-mix(in oklab, var(--brand-green) 10%, var(--surface-raised)),
     var(--surface-raised)
   );
   box-shadow: 0 8px 20px -12px color-mix(in oklab, var(--brand-ink) 35%, transparent);
@@ -518,7 +518,7 @@
 }
 
 .rowIconError {
-  background: color-mix(in oklab, var(--brand-burgundy) 18%, transparent);
+  background: color-mix(in oklab, var(--brand-green) 18%, transparent);
   color: var(--danger);
 }
 
