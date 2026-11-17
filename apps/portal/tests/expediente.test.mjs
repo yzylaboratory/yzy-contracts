@@ -534,7 +534,7 @@ test("the downloadable demonstration Word files contain all required markers", (
     const keys = Array.from(xml.matchAll(/\{\{([a-z_]+)\}\}/g), match => match[1]);
     assert.ok(hasDocumentTemplateFields(type, keys));
   }
-  assert.equal(DOCUMENT_TYPES.length, 16);
+  assert.equal(DOCUMENT_TYPES.length, 17);
   assert.equal(getDocumentType("desembolso"), undefined);
 });
 
@@ -551,7 +551,7 @@ test("initial expediente generation excludes post-closing document types and omi
     "acuerdo_seguro",
     "autorizacion_asegurar_vehiculo",
   ]);
-  assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.length, 13);
+  assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.length, 14);
   for (const excluded of POST_CLOSING_DOCUMENT_TYPES) {
     assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.includes(excluded), false);
   }
@@ -560,7 +560,7 @@ test("initial expediente generation excludes post-closing document types and omi
 
   assert.deepEqual(initialExpedienteDocumentTypes({ insurancePaid: false }), [...INITIAL_EXPEDIENTE_DOCUMENT_TYPES]);
   const paidTypes = initialExpedienteDocumentTypes({ insurancePaid: true });
-  assert.equal(paidTypes.length, 8);
+  assert.equal(paidTypes.length, 9);
   for (const excluded of INSURANCE_DOCUMENT_TYPES) {
     assert.equal(isInsuranceDocumentType(excluded), true);
     assert.equal(paidTypes.includes(excluded), false);
@@ -572,6 +572,7 @@ test("initial expediente generation excludes post-closing document types and omi
     "declaracion_jurada",
     "gps",
     "autorizacion_data",
+    "autorizacion_desembolso",
     "levantamiento_oposicion",
     "entrega_vehiculo",
   ]);
@@ -722,6 +723,23 @@ test("data authorization and GPS uppercase name, address and vehicle like the no
     assert.equal(usesNotarialDocumentStyle(type), true);
     assert.equal(notarialActDate(new Date("2026-10-13T00:00:00Z")), "TRECE (13) días del mes de OCTUBRE del año 2026");
   }
+});
+
+test("disbursement authorization uses the final principal, uppercase identity and vehicle, and a numeric signing date", () => {
+  const resolved = resolveExpedienteFields("autorizacion_desembolso", client, operation, {});
+  assert.deepEqual(resolved.issues, []);
+  assert.equal(resolved.values.monto_desembolso, "CINCUENTA MIL PESOS CON 00/100 CENTAVOS DOMINICANOS (RD$50,000.00)");
+  assert.equal(resolved.values.cliente_nombre_firma, "CLIENTE SINTÉTICO");
+  assert.equal(resolved.values.cliente_direccion_transito, "CALLE DE PRUEBA Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA");
+  assert.equal(resolved.values.vehiculo_garantia, "MARCA MARCA DEMO, MATRÍCULA MAT-DEMO");
+  assert.equal(isExpedienteField("distribucion_desembolso", "autorizacion_desembolso"), false);
+
+  const archive = unzipSync(readFileSync(new URL("../../contracts-demo/preparadas/autorizacion_desembolso.docx", root)));
+  const keys = Array.from(new TextDecoder().decode(archive["word/document.xml"]).matchAll(/\{\{([a-z0-9_]+)\}\}/g), match => match[1]);
+  assert.ok(hasDocumentTemplateFields("autorizacion_desembolso", keys));
+  assert.equal(matchDocumentTemplate("autorizacion_desembolso", "Autorización de desembolso", keys), "matching");
+  const { fields } = buildContractTemplateFields("", keys.map(key => ({ key })), "autorizacion_desembolso");
+  assert.equal(fields.find(field => field.key === "fecha_firma")?.dateStyle, "numeric");
 });
 
 test("all contract addresses are uppercased across expediente, company, notary, and manual template fields", async () => {

@@ -208,7 +208,7 @@ const baseFields = new Set([
   "numero_cuota_final_capital", "fecha_cuota_final_capital", "cuota_final_capital_monto", "cuota_final_capital_letras",
   "cuota_intereses_monto", "cuota_intereses_monto_letras",
   "fecha_primera_cuota_intereses_letras", "fecha_cuota_final_capital_letras",
-  "total_financiamiento", "total_financiamiento_letras",
+  "total_financiamiento", "total_financiamiento_letras", "monto_desembolso",
   "cantidad_cuotas", "cantidad_cuotas_letras", "cantidad_cuotas_intereses", "cantidad_cuotas_intereses_letras",
   "cantidad_cuotas_seguro", "cantidad_cuotas_seguro_letras",
   ...interestColumns,
@@ -435,6 +435,7 @@ const fieldMessages: Record<string, string> = {
   cuota_final_capital: "Completa el importe y la fecha de la cuota final de capital en la operación.",
   abonos_extraordinarios: "Revisa los abonos extraordinarios en el plan de pagos del expediente.",
   total_financiamiento: "Revisa los importes de las cuotas de intereses y el capital para calcular el total.",
+  monto_desembolso: "Completa el importe de la cuota final de capital en la operación.",
   total_financiamiento_letras: "Revisa los importes de las cuotas de intereses y el capital para calcular el total.",
   cantidad_cuotas: "Completa el calendario de cuotas en la operación.",
   cantidad_cuotas_letras: "Completa el calendario de cuotas en la operación.",
@@ -489,7 +490,7 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
   values.vehiculo_ano = values.vehiculo_anio;
   // Autorizaciones, GPS, levantamiento y actas de entrega describen el vehículo en mayúsculas, como en los modelos.
   if (
-    type === "autorizacion_asegurar_vehiculo" || type === "autorizacion_data" || type === "gps"
+    type === "autorizacion_asegurar_vehiculo" || type === "autorizacion_data" || type === "gps" || type === "autorizacion_desembolso"
     || type === "entrega_vehiculo" || type === "entrega_vehiculo_fines_saldo"
     || usesUppercaseDocumentData(type)
   ) {
@@ -498,8 +499,8 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     values.vehiculo_descripcion = values.vehiculo_garantia;
     values.vehiculo_ano = values.vehiculo_anio;
   }
-  // Autorización de datos y GPS llevan nombre y domicilio en mayúsculas.
-  if (type === "autorizacion_data" || type === "gps") {
+  // Autorización de datos, GPS y desembolso llevan nombre y domicilio en mayúsculas.
+  if (type === "autorizacion_data" || type === "gps" || type === "autorizacion_desembolso") {
     for (const key of ["cliente_nombre", "cliente_nombre_firma", "cliente_direccion", "cliente_direccion_transito"] as const) {
       if (values[key]) values[key] = values[key].toLocaleUpperCase("es");
     }
@@ -523,6 +524,10 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     values.cliente_cedula_letras = values.cliente_cedula_letras.toUpperCase();
   }
   if (operation.financing) addFinancing(values, operation.financing, usesNotarialPaymentProse(type));
+  // El monto desembolsado es el capital financiado: la cuota final de capital del plan.
+  if (operation.financing && validPayment(operation.financing.final_principal)) {
+    values.monto_desembolso = notarialMoney(operation.financing.final_principal.amount_minor);
+  }
   if (type === "venta_condicional" || type === "pagare_autentico") {
     const payments = expedienteExtraordinaryPayments(operation);
     for (const key of Object.keys(values)) if (isExtraordinaryPaymentField(key)) delete values[key];
@@ -540,7 +545,9 @@ export function resolveExpedienteFields(type: DocumentType, client: ClientWrite,
     key !== "testigo_richard" && key !== "testigo_usuario" &&
     !(usesSignatureAsContractDate(type) && key === "fecha_contrato") &&
     !(type === "venta_condicional_seguro" && !baseFields.has(key) && key !== "monto_de_cada_cuota") &&
-    !(type === "acto_seguro" && insuranceScheduleMarkers.has(key)));
+    !(type === "acto_seguro" && insuranceScheduleMarkers.has(key)) &&
+    // La distribución del desembolso se escribe a mano al generar.
+    !(type === "autorizacion_desembolso" && key === "distribucion_desembolso"));
   let insuranceIssues: { key: string; message: string }[] = [];
   if (definition.requiresInsuranceCompany) {
     const count = context.insuranceInstallmentCount ?? operation.financing?.insurance_installment_count ?? 10;

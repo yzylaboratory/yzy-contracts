@@ -51,6 +51,7 @@ export function buildContractTemplateFields(
         if (shortDate) return { ...field, kind: "date", dateStyle: "numeric" };
         if (type === "entrega_vehiculo" && key === "fecha_firma") return { ...field, kind: "date", dateStyle: "words" };
         if (type === "acuerdo_seguro") return { ...field, kind: "date", dateStyle: "words" };
+        if (type === "autorizacion_desembolso") return { ...field, kind: "date", dateStyle: "numeric" };
         if (type === "venta_condicional" && key === "fecha_firma") return { ...field, kind: "date", dateStyle: "notarialAct" };
         if (usesNotarialDocumentStyle(type)) {
           const actDate = key === "fecha_firma" || key === "fecha_contrato";
