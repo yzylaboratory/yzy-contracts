@@ -1,5 +1,6 @@
 "use client";
 
+import { canManageCompanyBilling, usePortalAccess } from "@/lib/portal-access";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { parseAmountMinor } from "@/app/clientes/amount-input";
@@ -33,6 +34,7 @@ export function useExpedienteContext(input: {
   errors: Record<string, string>;
   onChange: (key: string) => void;
 }) {
+  const { state: accessState } = usePortalAccess();
   const { expediente, contractId, accountId, companies, fieldKeys, errors, onChange } = input;
   const [balance, setBalance] = useState("");
   const [balanceDate, setBalanceDate] = useState("");
@@ -200,7 +202,7 @@ export function useExpedienteContext(input: {
         {type === "pagare_autentico" && <>
           {needsSourceChoice && templatesResult && "message" in templatesResult && <div>
             <p className={styles.failure} role="alert">{templatesResult.message}</p>
-            <Link className={styles.returnLink} href={`/contratos/nuevo?${new URLSearchParams({ company_id: expediente.operation.company_id })}`}>Cargar plantilla de venta</Link>
+            {canManageCompanyBilling(accessState.kind === "ready" ? accessState.identity : null, expediente.operation.company_id) && <Link className={styles.returnLink} href={`/contratos/nuevo?${new URLSearchParams({ company_id: expediente.operation.company_id })}`}>Cargar plantilla de venta</Link>}
             <Button type="button" variant="secondary" disabled={busy} onClick={() => setTemplatesAttempt(value => value + 1)}>Actualizar plantillas de venta</Button>
           </div>}
         </>}

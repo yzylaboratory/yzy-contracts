@@ -9,6 +9,7 @@ import { listGeneratedDocuments } from "@/app/contratos/generated-documents-api"
 import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
 import button from "@/components/arc/button/button.module.css";
+import { canManageCompanyBilling, usePortalAccess } from "@/lib/portal-access";
 import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import { generateFromOperationHref } from "./client-paths";
 import { clientErrorMessage, type Operation } from "./clients-api";
@@ -41,6 +42,9 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
   const loading = request && !currentFailure;
   const failureNotice = useRef<HTMLParagraphElement>(null);
   const companyId = operation.company_id;
+  const { state: accessState } = usePortalAccess();
+  // Only the company's billing admins may upload templates.
+  const canUploadTemplates = canManageCompanyBilling(accessState.kind === "ready" ? accessState.identity : null, companyId);
   const [history, setHistory] = useState<{ types: Set<DocumentType>; unavailable: boolean }>();
   const [historyAttempt, setHistoryAttempt] = useState(0);
 
@@ -103,7 +107,7 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
     {currentFailure && <div className={styles.stack}>
       <p ref={failureNotice} tabIndex={-1} className={styles.failure} role="alert">{currentFailure.message}</p>
       <div className={styles.actions}>
-        {currentFailure.kind === "missing" && <Link href={`/contratos/nuevo?${new URLSearchParams({ company_id: companyId })}`}>Cargar plantilla</Link>}
+        {currentFailure.kind === "missing" && canUploadTemplates && <Link href={`/contratos/nuevo?${new URLSearchParams({ company_id: companyId })}`}>Cargar plantilla</Link>}
         {currentFailure.kind === "ambiguous" && <Link href="/contratos">Ver plantillas</Link>}
         {demo && currentFailure.kind === "missing" && <a href={demo} download>Descargar Word de demostración</a>}
         <Button type="button" variant="secondary" onClick={() => setRequest({ type: currentFailure.request.type })}>Reintentar</Button>

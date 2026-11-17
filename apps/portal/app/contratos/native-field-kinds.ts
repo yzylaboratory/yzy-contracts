@@ -3,9 +3,10 @@ import { type TemplateField, type TemplateFieldType } from "./template-fields";
 
 /** Infers the data type of a Word variable from its name, so each one gets its own mask. */
 export function nativeFieldKind(key: string): TemplateFieldType {
+  // Las fechas en letras («fecha_..._letras») ya vienen escritas desde el plan de pagos.
+  if (key.endsWith("_letras")) return "text";
   if (/^fecha(?:_|$)/.test(key)) return "date";
   if (key === "numero_de_chasis_del_vehiculo" || key === "numero_de_serie_del_motor") return "text";
-  if (key.endsWith("_letras")) return "text";
   if (/cedula/.test(key)) return "identity";
   if (/telefono/.test(key)) return "phone";
   if (/correo|email/.test(key)) return "email";
