@@ -223,7 +223,7 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
             ))}
             {showMembership && <NavLink href="/facturacion" label="Membresía" icon="membership" collapsed={collapsed}
               current={billingPage ? "page" : undefined} onNavigate={navigate} />}
-            {showSettings && <NavLink href="/configuracion" label="Configuración" icon="settings" collapsed={collapsed}
+            {showSettings && !showCompanyMenu && <NavLink href="/configuracion" label="Configuración" icon="settings" collapsed={collapsed}
               current={pathname === "/configuracion" ? "page" : settingsPage ? "location" : undefined} onNavigate={navigate} />}
           </div>}
           <button type="button" className={styles.collapseToggle} aria-pressed={collapsed} onClick={toggleCollapsed}
