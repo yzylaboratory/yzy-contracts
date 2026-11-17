@@ -31,7 +31,7 @@ export function useCompanies(accountId: string, includeArchived = false, adminis
         const options = { expectedAccountId: accountId, signal };
         let next: CompanyList;
         if (administration) {
-          const { items, total } = await api<{ items: Company[]; total: number }>(`/admin/companies?page=${page}&per_page=${perPage}`, options);
+          const { items, total } = await api<{ items: Company[]; total: number }>(`/admin/companies?archived=false&page=${page}&per_page=${perPage}`, options);
           next = { kind: "ready", items, total };
         } else {
           const { items } = await listCompanies(accountId, includeArchived, signal);

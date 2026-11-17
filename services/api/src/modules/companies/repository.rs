@@ -21,7 +21,7 @@ pub(super) async fn list(
                 c.archived_at, c.created_at, c.updated_at
          FROM yzy_contracts.companies c
          WHERE (($2 AND $3) OR c.archived_at IS NULL)
-         ORDER BY archived_at IS NOT NULL, is_default DESC, lower(name), id",
+         ORDER BY c.archived_at IS NOT NULL, c.is_default DESC, lower(c.name), c.id",
     )
     .bind(user_id)
     .bind(include_archived)

@@ -93,7 +93,7 @@ pub async fn me(
     let companies: Vec<CompanyAccess> = if user.enabled {
         sqlx::query_as(
             "SELECT id, name FROM yzy_contracts.companies
-             WHERE archived_at IS NULL ORDER BY lower(name), id",
+             WHERE archived_at IS NULL ORDER BY is_default DESC, lower(name), id",
         )
         .fetch_all(&state.db)
         .await?
