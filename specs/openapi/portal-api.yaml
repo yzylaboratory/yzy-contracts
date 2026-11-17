@@ -4876,6 +4876,11 @@ components:
       - created_at
       - updated_at
       properties:
+        catalog_key:
+          type:
+          - string
+          - 'null'
+          description: Stable document type of an official template available to every active company.
         company_id:
           type:
           - string

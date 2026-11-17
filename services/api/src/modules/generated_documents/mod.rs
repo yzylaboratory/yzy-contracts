@@ -172,6 +172,9 @@ async fn persist(
             && let Some(source) =
                 contracts::repository::find_for_reader(&state.db, owner, body.contract_id).await?
         {
+            if source.catalog_key.is_some() && body.company.is_none() {
+                return Err(invalid("company"));
+            }
             if let Some(companies) = source.shared_company_ids
                 && body
                     .company

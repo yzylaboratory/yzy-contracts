@@ -50,6 +50,7 @@ export function useExpedienteContext(input: {
   const isInsuranceSale = type === "venta_condicional_seguro";
   const isInsuranceAct = type === "acto_seguro";
   const companyId = expediente?.operation.company_id;
+  const operationCompany = companies.kind === "ready" ? companies.items.find(company => company.id === companyId) : undefined;
   const savedSource = expediente?.operation.contract_id;
   const needsSourceChoice = type === "pagare_autentico" && !savedSource;
   const templatesKey = JSON.stringify([accountId, companyId, templatesAttempt]);
@@ -77,7 +78,7 @@ export function useExpedienteContext(input: {
   const sourceKey = JSON.stringify([accountId, companyId, sourceContractId]);
   const needsPercentageDate = fieldKeys.includes(percentageDateKey) ||
     type === "pagare_autentico" && sourceDateRequired?.key === sourceKey && sourceDateRequired.required;
-  const salesKey = JSON.stringify([accountId, companyId, sourceContractId, salesValues, attempt]);
+  const salesKey = JSON.stringify([accountId, companyId, operationCompany?.name, operationCompany?.values, sourceContractId, salesValues, attempt]);
   const salesParagraph = paragraph?.key === salesKey ? paragraph : undefined;
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export function useExpedienteContext(input: {
   }, [accountId, companyId, needsSourceChoice, templatesKey]);
 
   useEffect(() => {
-    if (!salesValues || !sourceContractId || !companyId) return;
+    if (!salesValues || !sourceContractId || !companyId || companies.kind === "loading") return;
     let active = true;
     getContract(sourceContractId, accountId).then(async contract => {
       if (!hasOperationCompanyScope(contract, companyId)) throw new NativeDocumentError("La plantilla base ya no está disponible para la empresa del expediente.");
@@ -108,14 +109,15 @@ export function useExpedienteContext(input: {
       setSourceDateRequired({ key: sourceKey, required: requiresDate });
       const values = JSON.parse(salesValues) as Record<string, string>;
       if (requiresDate && !values[percentageDateKey]) return "";
-      return readSalesCommitmentFromContract(sourceContractId, accountId, values);
+      if (contract.catalog_key && !operationCompany) throw new NativeDocumentError("La empresa de este expediente no está disponible.");
+      return readSalesCommitmentFromContract(sourceContractId, accountId, values, contract.catalog_key ? operationCompany : undefined);
     })
       .then(value => { if (active) setParagraph({ key: salesKey, value }); })
       .catch(error => {
         if (active) setParagraph({ key: salesKey, message: error instanceof NativeDocumentError ? error.message : "No se pudo leer la cláusula de la plantilla base del expediente." });
       });
     return () => { active = false; };
-  }, [accountId, companyId, salesKey, salesValues, sourceContractId, sourceKey]);
+  }, [accountId, companies.kind, companyId, operationCompany, salesKey, salesValues, sourceContractId, sourceKey]);
 
   useEffect(() => {
     if (!verifyLiteral) return;

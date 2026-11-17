@@ -269,10 +269,10 @@ export function EditContract({ contractId }: { contractId: string }) {
           <p role="alert">{detail.message}</p>
           <Button type="button" variant="secondary" onClick={reload}>Reintentar</Button>
         </div>
-      ) : detail.contract.owner_id !== accountId ? (
+      ) : detail.contract.catalog_key || detail.contract.owner_id !== accountId ? (
         <section className={styles.panel} aria-labelledby="shared-contract">
           <h2 id="shared-contract">{detail.contract.name}</h2>
-          <p>Esta plantilla está compartida con tu empresa. Su autor puede editarla.</p>
+          <p>{detail.contract.catalog_key ? "Esta plantilla forma parte del catálogo común de todas las empresas." : "Esta plantilla está compartida con tu empresa. Su autor puede editarla."}</p>
           {detail.template && <Link className={styles.cancel} href={`/contratos/${encodeURIComponent(contractId)}/generar`}>Generar documento</Link>}
           <Link className={styles.cancel} href="/contratos">Volver a contratos</Link>
         </section>

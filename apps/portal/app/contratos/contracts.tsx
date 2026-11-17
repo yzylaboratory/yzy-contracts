@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { LoadingContent } from "@/components/loading/loading-ui";
 import { ApiError, isActiveAccount } from "@/lib/api";
 import { usePortalAccess, type AccessCompany } from "@/lib/portal-access";
+import { listCompanies } from "@/app/configuracion/empresas/companies-api";
 import { checkGenerationAccess, contractStatusLabels, deleteContract, errorMessage, listContracts, type Contract } from "./contracts-api";
 import { ContractsSkeleton } from "./contracts-skeleton";
 import { localDate } from "./contracts-store";
@@ -127,8 +128,8 @@ export function Contracts() {
   }
 
   function choosePreviewScope(contract: Contract, trigger: HTMLButtonElement) {
-    const companies = identity?.companies.filter(company => contract.shared_company_ids?.includes(company.id)) ?? [];
-    if (activeCompany && contract.shared_company_ids?.length) {
+    const companies = identity?.companies.filter(company => contract.catalog_key || contract.shared_company_ids?.includes(company.id)) ?? [];
+    if (activeCompany && (contract.catalog_key || contract.shared_company_ids?.length)) {
       if (companies.some(company => company.id === activeCompany.id)) {
         void openPreview(contract, trigger, activeCompany.id);
       } else {
@@ -150,16 +151,22 @@ export function Contracts() {
     setPreviewing(contract.id);
     try {
       await checkGenerationAccess(contract.id, accountId, companyId);
+      const companyProfile = contract.catalog_key
+        ? (await listCompanies(accountId, false)).items.find(company => company.id === companyId)
+        : undefined;
+      if (contract.catalog_key && !companyProfile) throw new NativeDocumentError("Selecciona una empresa para abrir la vista previa.");
       const pdf = await prepareNativeDocument({
         accountId,
         contractId: contract.id,
         companyId,
+        companyProfile,
         sourceFormat: contract.original_file_name.toLowerCase().endsWith(".docx") ? "docx" : "pdf",
         output: "pdf",
         markdown: "",
         fields: [],
         values: {},
         nativeVariables: null,
+        allowIncomplete: true,
       });
       if (await isActiveAccount(accountId) && trigger.isConnected) {
         setPreview({ url: URL.createObjectURL(pdf), name: contract.name, trigger });
@@ -234,6 +241,7 @@ export function Contracts() {
                     <th scope="row">
                       <span className={styles.contractName}>{contract.name}</span>
                       <span className={styles.contractId}>{contract.original_file_name}</span>
+                      {contract.catalog_key && <span className={styles.contractId}>Todas las empresas</span>}
                       {contract.company_id && <span className={styles.contractId}>{companyNames.get(contract.company_id) ?? "Empresa no disponible"}</span>}
                       {!!contract.shared_company_ids?.length && <span className={styles.contractId}>
                         {sharedNames.length ? `Compartida con ${sharedNames.join(", ")}` : "Compartida con otras empresas"}
@@ -258,7 +266,7 @@ export function Contracts() {
                             <Eye size={18} aria-hidden="true" />
                           </Button>
                         </Tooltip>
-                        {contract.owner_id === accountId && <Tooltip content="Editar">
+                        {!contract.catalog_key && contract.owner_id === accountId && <Tooltip content="Editar">
                           <Link
                             href={`/contratos/${encodeURIComponent(contract.id)}/editar`}
                             className={styles.rowAction}
@@ -278,7 +286,7 @@ export function Contracts() {
                             </Link>
                           </Tooltip>
                         )}
-                        {contract.owner_id === accountId && <Tooltip content="Eliminar">
+                        {!contract.catalog_key && contract.owner_id === accountId && <Tooltip content="Eliminar">
                           <Button
                             type="button"
                             variant="ghost"

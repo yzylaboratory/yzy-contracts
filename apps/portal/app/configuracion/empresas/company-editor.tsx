@@ -5,7 +5,7 @@ import { Textarea } from "@/components/arc/textarea/textarea";
 import { formatCedula, handleMaskedBackspace } from "@/app/clientes/client-masks";
 import { cedulaWords } from "@/app/contratos/expediente-fields";
 import type { Company } from "./companies-api";
-import { companyClauseDefaults, companyFieldGroups, companyFieldLimit, companyNameAlias, companyNameKey, companyProfileLimit, companyValueLimit, companyValuesSize, companyWitnessIdentityKeys, isReservedCompanyField } from "./company-fields";
+import { companyDraftDefaults, companyFieldGroups, companyFieldLimit, companyNameAlias, companyNameKey, companyProfileLimit, companyValueLimit, companyValuesSize, companyWitnessIdentityKeys, isReservedCompanyField } from "./company-fields";
 import shared from "../settings.module.css";
 import styles from "./company-settings.module.css";
 
@@ -17,20 +17,17 @@ export function companyDraft(company?: Company): CompanyDraft {
     if (key === companyNameAlias) continue;
     if (isReservedCompanyField(key)) values[key] = value;
   }
-  for (const [key, value] of Object.entries(companyClauseDefaults)) {
-    if (!values[key]?.trim()) values[key] = value;
-  }
   const representanteCedula = values.empresa_representante_cedula?.trim();
   const representanteLetras = cedulaWords(representanteCedula);
   if (representanteLetras) values.empresa_representante_cedula_letras = representanteLetras;
-  return { name: company?.name ?? "", values };
+  return withCompanyClauseDefaults({ name: company?.name ?? "", values });
 }
 
 /** Re-applies model clause defaults onto an existing draft without wiping user edits. */
 export function withCompanyClauseDefaults(draft: CompanyDraft): CompanyDraft {
   const values = { ...draft.values };
   let changed = false;
-  for (const [key, value] of Object.entries(companyClauseDefaults)) {
+  for (const [key, value] of Object.entries(companyDraftDefaults)) {
     if (!values[key]?.trim()) {
       values[key] = value;
       changed = true;

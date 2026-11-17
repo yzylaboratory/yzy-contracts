@@ -13,7 +13,8 @@ export function documentTypeFromName(name: string) {
     normalizeDocumentName(document.label) === normalized || normalizeDocumentName(document.id) === normalized);
 }
 
-export function matchDocumentTemplate(type: DocumentType, name: string, keys: readonly string[]) {
+export function matchDocumentTemplate(type: DocumentType, name: string, keys: readonly string[], catalogKey?: string | null) {
+  if (catalogKey) return catalogKey === type && hasDocumentTemplateFields(type, keys) ? "matching" : undefined;
   const namedType = documentTypeFromName(name);
   if (namedType && namedType.id !== type) return;
   if (!hasDocumentTemplateFields(type, keys)) return;

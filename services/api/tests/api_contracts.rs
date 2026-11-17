@@ -596,3 +596,80 @@ async fn deletion_removes_the_template_jobs_and_finally_the_file() {
         assert_eq!(rows, 0, "{table}");
     }
 }
+
+#[tokio::test]
+async fn catalog_contract_is_reused_for_new_companies_without_exposing_private_contracts() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let reader = app.pending_user().await;
+    let first = app.legacy_company(admin, "Empresa inicial").await;
+    let source = app.create_contract(admin, "Modelo sintético").await;
+    let private = app.create_contract(admin, "Privado sintético").await;
+    let catalog_id = source["id"].as_str().unwrap();
+    sqlx::query(
+        "UPDATE yzy_contracts.contracts SET catalog_key = 'venta_condicional' WHERE id = $1",
+    )
+    .bind(Uuid::parse_str(catalog_id).unwrap())
+    .execute(&app.admin)
+    .await
+    .unwrap();
+
+    let uri = format!("{CONTRACTS}/{catalog_id}");
+    assert_eq!(app.get(reader, &uri).await.0, StatusCode::FORBIDDEN);
+    let access = format!("/api/v1/admin/users/{}/access", reader.id);
+    assert_eq!(
+        app.put(admin, &access, json!({"enabled":true})).await.0,
+        StatusCode::OK
+    );
+    let listed = app.get(reader, CONTRACTS).await.1;
+    assert_eq!(listed["total"], 1);
+    assert_eq!(listed["items"][0]["catalog_key"], "venta_condicional");
+    assert_eq!(listed["items"][0]["id"], source["id"]);
+    assert_eq!(
+        app.get(
+            reader,
+            &format!("{CONTRACTS}/{}", private["id"].as_str().unwrap())
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.get(reader, &format!("{uri}/download-url")).await.0,
+        StatusCode::OK
+    );
+
+    let (status, created) = app
+        .post(
+            admin,
+            "/api/v1/companies",
+            json!({
+                "name":"Empresa nueva","values":{"empresa_razon_social":"Empresa nueva"}
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let next = created["id"].as_str().unwrap();
+    let generation = format!("{uri}/generation-access");
+    for company in [first.to_string(), next.to_owned()] {
+        assert_eq!(
+            app.get(reader, &format!("{generation}?company_id={company}"))
+                .await
+                .0,
+            StatusCode::NO_CONTENT
+        );
+    }
+    assert_eq!(
+        app.get(reader, &generation).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert_eq!(
+        app.get(reader, CONTRACTS).await.1["items"][0]["id"],
+        source["id"]
+    );
+    assert_eq!(
+        app.patch(admin, &uri, json!({"company_id":first})).await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(app.delete(admin, &uri).await.0, StatusCode::NOT_FOUND);
+}

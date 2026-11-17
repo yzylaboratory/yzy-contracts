@@ -20,7 +20,7 @@ export type CompanyAction = "default" | "archive" | "restore";
 const path = "/companies";
 const companyPath = (id: string) => `${path}/${encodeURIComponent(id)}`;
 
-export function listCompanies(accountId: string, includeArchived: boolean, signal: AbortSignal, administration = false) {
+export function listCompanies(accountId: string, includeArchived: boolean, signal?: AbortSignal, administration = false) {
   const endpoint = administration ? "/admin/companies" : includeArchived ? `${path}?include_archived=true` : path;
   return api<{ items: Company[] }>(endpoint, { expectedAccountId: accountId, signal });
 }

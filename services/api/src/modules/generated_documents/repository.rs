@@ -28,7 +28,8 @@ pub async fn insert(
            SELECT CASE WHEN $8::text IS NOT NULL THEN $8 ELSE (
              SELECT name FROM yzy_contracts.contracts
              WHERE id = $3 AND deleted_at IS NULL
-               AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids)
+               AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
+               AND (catalog_key IS NULL OR $14 IS NOT NULL)
                AND (company_id IS NULL OR company_id = $14)
                AND (shared_company_ids IS NULL OR $14 = ANY(shared_company_ids))
                AND ($11::text IS NULL OR mime_type = $11

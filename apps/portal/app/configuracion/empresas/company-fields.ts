@@ -50,6 +50,10 @@ export const companyClauseDefaults: Record<string, string> = {
   empresa_notario_domicilio: "Calle Avenida República de Colombia, Edificio número 26, Arroyo Hondo, Santo Domingo, Distrito Nacional",
 };
 
+// Profiles share the model clauses and third-party defaults. The creditor's identity is entered per company.
+export const companyDraftDefaults = Object.fromEntries(Object.entries(companyClauseDefaults)
+  .filter(([key]) => key !== "empresa_direccion" && !key.startsWith("empresa_representante_")));
+
 /** Fixed financing / jurisdiction clauses from the model contracts. Always come from the seller company. */
 export const companyContractClauseKeys = [
   "empresa_mora_diaria_porcentaje",

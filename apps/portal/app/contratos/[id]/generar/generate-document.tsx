@@ -65,7 +65,7 @@ export function GenerateDocument({ contractId, selection, invalidSelection }: {
   selection: OperationSelection | null;
   invalidSelection: boolean;
 }) {
-  const { session, state } = usePortalAccess();
+  const { session, state, activeCompany } = usePortalAccess();
   const accountId = state.kind === "ready" && state.identity.role === "member" && state.identity.access === "active" ? state.identity.id : undefined;
   const operation = useOperationContext(selection, invalidSelection, accountId);
   const expediente = operation.kind === "ready" ? operation.data : undefined;
@@ -77,7 +77,7 @@ export function GenerateDocument({ contractId, selection, invalidSelection }: {
     !hasOperationCompanyScope(contract, expediente.operation.company_id) ||
     !contract.original_file_name.toLowerCase().endsWith(".docx") ||
     !template.native_variables ||
-    !matchDocumentTemplate(expediente.type, contract.name, template.native_variables.map(field => field.key))
+    !matchDocumentTemplate(expediente.type, contract.name, template.native_variables.map(field => field.key), contract.catalog_key)
   ));
   const typeLabel = getDocumentType(selection?.type)?.label;
   const documentPicker = selection && expedienteDocumentsHref(selection.clientId, selection.operationId);
@@ -112,18 +112,19 @@ export function GenerateDocument({ contractId, selection, invalidSelection }: {
         </LoadingContent>
       ) : contract && template ? (
         <DocumentForm
-          key={`${accountId}:${contract.id}:${expediente?.operation.id ?? "manual"}:${expediente?.type ?? ""}`}
+          key={`${accountId}:${contract.id}:${expediente?.operation.id ?? activeCompany?.id ?? "manual"}:${expediente?.type ?? ""}`}
           accountId={accountId}
           expediente={expediente}
           companyScope={contract.company_id ?? null}
           sharedCompanyIds={contract.shared_company_ids ?? null}
+          catalogKey={contract.catalog_key}
           contractId={contract.id}
           sourceFormat={contract.original_file_name.toLowerCase().endsWith(".docx") ? "docx" : "pdf"}
           needsSourceConfirmation={!template.native_variables && (!template.created_at || template.created_at !== template.updated_at)}
           title={contract.name}
           content={template.content_markdown}
           nativeVariables={template.native_variables ?? null}
-          editHref={contract.owner_id === accountId ? `/contratos/${contract.id}/editar` : undefined}
+          editHref={!contract.catalog_key && contract.owner_id === accountId ? `/contratos/${contract.id}/editar` : undefined}
           defaultOutput={preferences.defaultFormat}
           copyEmail={preferences.sendCopy ? session?.user.email?.trim() ?? "" : ""}
         />
@@ -138,11 +139,12 @@ export function GenerateDocument({ contractId, selection, invalidSelection }: {
   );
 }
 
-function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, contractId, sourceFormat, needsSourceConfirmation, title, content, nativeVariables, editHref, defaultOutput, copyEmail }: {
+function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, catalogKey, contractId, sourceFormat, needsSourceConfirmation, title, content, nativeVariables, editHref, defaultOutput, copyEmail }: {
   accountId: string;
   expediente?: OperationContext;
   companyScope: string | null;
   sharedCompanyIds: string[] | null;
+  catalogKey?: string | null;
   contractId: string;
   sourceFormat: DocumentFormat;
   needsSourceConfirmation: boolean;
@@ -189,7 +191,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   );
   const clauseFields = fields.filter(field => companyContractClauseField(field.key));
   const witnessFields = fields.filter(field => companyWitnessField(field.key));
-  const companyRequired = Boolean(allowedCompanyIds) || companyFields.length > 0 || clauseFields.length > 0 || witnessFields.length > 0;
+  const companyRequired = Boolean(catalogKey || allowedCompanyIds) || companyFields.length > 0 || clauseFields.length > 0 || witnessFields.length > 0;
   const [companyId, setCompanyId] = useState<string | null>(null);
   const available = companies.kind === "ready" ? companies.items : [];
   const selectedCompany = effectiveCompanyScope
@@ -468,11 +470,13 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
       if (company && (Object.keys(company.values).length > companyFieldLimit || companyValuesSize(company.values) > companyProfileLimit)) {
         throw new NativeDocumentError("Los valores de empresa de este documento superan el tamaño permitido. Reduce los campos más largos.");
       }
-      const artifactKey = JSON.stringify([nativeFormat, values, company, operationId]);
+      if (catalogKey && !selectedCompany) throw new NativeDocumentError("Selecciona una empresa para preparar el documento.");
+      const companyProfile = catalogKey && selectedCompany ? { name: selectedCompany.name, values: selectedCompany.values } : undefined;
+      const artifactKey = JSON.stringify([nativeFormat, values, company, companyProfile, operationId]);
       await checkGenerationAccess(contractId, accountId, company?.id, operationId);
       const docType = expediente?.type ?? documentTypeFromName(title)?.id;
       const boldPagareDate = usesBoldNotarialDate(docType) || /^\s*pagar[eé]\b/i.test(title);
-      const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale, uppercase: uppercaseValues, boldPagareDate, vehicle: expediente?.operation.vehicle });
+      const prepare = () => prepareNativeDocument({ accountId, contractId, companyId: company?.id, companyProfile, operationId, sourceFormat, output: nativeFormat, markdown, fields, values, nativeVariables, allowIncomplete: output === "preview", conditionalSale: expediente?.type === "venta_condicional" || isInsuranceSale, uppercase: uppercaseValues, boldPagareDate, vehicle: expediente?.operation.vehicle });
       if (output === "preview") {
         const artifact = previewArtifact.current?.key === artifactKey ? previewArtifact.current.artifact : await prepare();
         if (!await isActiveAccount(accountId) || !mounted.current) return;

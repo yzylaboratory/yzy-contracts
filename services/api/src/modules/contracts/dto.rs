@@ -149,6 +149,8 @@ pub struct ContractResponse {
     pub id: Uuid,
     pub owner_id: Uuid,
     pub company_id: Option<Uuid>,
+    /// Stable document type of an official template available to every active company.
+    pub catalog_key: Option<String>,
     /// The saved company snapshot for the owner, or its active intersection with the reader's memberships.
     pub shared_company_ids: Option<Vec<Uuid>>,
     #[schema(example = "Contrato de arrendamiento")]

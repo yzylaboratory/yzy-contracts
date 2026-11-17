@@ -34,8 +34,10 @@ const { clientHref, clientsHref, expedienteHref, generateFromOperationHref } = a
 const { displayClientIdentity, displayClientPhone } = await import("../app/clientes/client-masks.ts");
 const { supabase } = await import("../lib/supabase.ts");
 const { matchDocumentTemplate } = await import("../app/clientes/document-template-match.ts");
+const { hasOperationCompanyScope, resolveDocumentTemplate } = await import("../app/clientes/operation-templates.ts");
 const {
   companyClauseDefaults,
+  companyDraftDefaults,
   companyContractClauseKeys,
   companyFieldGroups,
   companyProfileValue,
@@ -546,6 +548,38 @@ test("company contract clauses keep the model defaults for the seller company", 
     "empresa_periodo_revision_tasa_meses",
     "empresa_dias_aviso_revision_tasa",
   ]);
+});
+
+test("new company profiles start with shared clauses and witnesses and need their own creditor identity", () => {
+  assert.equal(companyDraftDefaults.empresa_direccion, undefined);
+  assert.equal(Object.keys(companyDraftDefaults).some(key => key.startsWith("empresa_representante_")), false);
+  assert.equal(companyDraftDefaults.empresa_notario_nombre, companyClauseDefaults.empresa_notario_nombre);
+  assert.equal(companyDraftDefaults.empresa_testigo_usuario, companyClauseDefaults.empresa_testigo_usuario);
+  for (const key of companyContractClauseKeys) assert.equal(companyDraftDefaults[key], companyClauseDefaults[key]);
+});
+
+test("existing and future companies select the same catalog contract ahead of local or remembered copies", () => {
+  const type = "venta_condicional";
+  const official = { id: "official", catalog_key: type, company_id: null, shared_company_ids: null };
+  const local = { id: "local", company_id: "existing" };
+  const shared = { id: "shared", company_id: null, shared_company_ids: ["existing"] };
+  const privateContract = { id: "private", company_id: null };
+  const keys = getDocumentType(type).requiredFields;
+  assert.equal(matchDocumentTemplate(type, "Modelo común", keys, type), "matching");
+  assert.equal(matchDocumentTemplate(type, "Venta condicional", keys, "pagare_seguro"), undefined);
+  const previousWindow = globalThis.window;
+  globalThis.window = { localStorage: { getItem: () => local.id } };
+  try {
+    for (const companyId of ["existing", "future"]) {
+      const candidates = [local, shared, official, privateContract].filter(c => hasOperationCompanyScope(c, companyId));
+      assert.deepEqual(candidates.map(c => c.id), companyId === "existing" ? ["local", "shared", "official"] : ["official"]);
+      assert.equal(resolveDocumentTemplate({ matching: candidates, compatible: [] }, "member", companyId, type).contract.id, official.id);
+    }
+    assert.equal(resolveDocumentTemplate({ matching: [local, shared], compatible: [] }, "member", "existing", type).contract.id, local.id);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
 });
 
 test("the insurance sale selects its own template and uses the signature and insurance amount", () => {

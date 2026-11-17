@@ -1,9 +1,11 @@
+import { companyReferenceRanges } from "./company-reference-ranges";
+import { companyFieldLabel } from "../configuracion/empresas/company-fields";
 import type { Vehicle } from "../clientes/clients-api";
 import { identifyReferenceWord, referenceWordValue, reviewedVehicleDescription } from "./reference-word";
 import { ApiError } from "@/lib/api";
 import { getContractDownload, renderContractPdf, type NativeVariable } from "./contracts-api";
 import { hasInsuranceCompanyNameInText } from "./document-catalog";
-import { documentClauseCase, isContractAddressKey, multilinePaymentFields } from "./expediente-fields";
+import { cedulaWords, documentClauseCase, isContractAddressKey, multilinePaymentFields } from "./expediente-fields";
 import type { DocumentFormat } from "./generated-documents-api";
 import { countTemplateFields, fieldToken, formatTemplateValue, type TemplateField } from "./template-fields";
 
@@ -564,6 +566,68 @@ function parseWordPart(bytes: Uint8Array) {
   return part;
 }
 
+type CompanyProfile = { name: string; values: Record<string, string> };
+
+function companyReferenceValue(profile: CompanyProfile, key: string, source: string, preview: boolean) {
+  const values = profile.values;
+  let value = values[key]?.trim();
+  if (key === "empresa_representante_cedula_letras") value = cedulaWords(values.empresa_representante_cedula) || value;
+  if (key === "empresa_representante_nombre_firma") value ||= values.empresa_representante_nombre?.trim();
+  if (!value) {
+    const label = companyFieldLabel(key);
+    if (preview) return `[${label}]`;
+    throw new NativeDocumentError(`Completa «${label}» en el perfil de ${profile.name} para generar este documento.`);
+  }
+  if (source !== source.toLowerCase() && source === source.toUpperCase()) return value.toLocaleUpperCase("es");
+  if (["empresa_tipo_cuenta", "empresa_representante_cargo", "empresa_representante_nacionalidad",
+    "empresa_representante_estado_civil", "empresa_representante_ocupacion"].includes(key)) {
+    const lower = value.toLocaleLowerCase("es");
+    return /^\p{Lu}/u.test(source) ? lower[0].toLocaleUpperCase("es") + lower.slice(1) : lower;
+  }
+  return value;
+}
+
+// Resolve reviewed paragraph offsets against the untouched Word text. Company and
+// expediente edits then run together, so inserted text is never treated as a marker.
+function addCompanyEdits(doc: Document, model: string, profile: CompanyProfile, preview: boolean,
+  segments: Segment[], edits: Map<Segment, Replacement[]>) {
+  const ranges = companyReferenceRanges[model];
+  if (!ranges?.length) return;
+  const ns = doc.documentElement.namespaceURI;
+  const paragraphs = doc.getElementsByTagNameNS(ns, "p");
+  const locations = new Map(segments.flatMap(segment =>
+    segment.nodes.map(node => [node.node, { segment, start: node.start }] as const)));
+  for (const range of ranges) {
+    const paragraph = paragraphs.item(range.paragraph);
+    const nodes = paragraph && Array.from(paragraph.getElementsByTagNameNS(ns, "t"));
+    let offset = 0;
+    let matched = false;
+    for (const node of nodes ?? []) {
+      const end = offset + (node.textContent?.length ?? 0);
+      if (range.start >= offset && range.start < end) {
+        const location = locations.get(node);
+        if (!location) break;
+        const { segment } = location;
+        const start = location.start + range.start - offset;
+        const stop = start + range.end - range.start;
+        if (stop > segment.text.length) break;
+        const literal = segment.text.slice(start, stop);
+        const value = companyReferenceValue(profile, range.key, literal, preview);
+        if (value !== literal) {
+          const list = edits.get(segment) ?? [];
+          list.push({ segment, start, end: stop, value });
+          edits.set(segment, list);
+        }
+        matched = true;
+        break;
+      }
+      offset = end;
+    }
+    if (!matched) throw new NativeDocumentError("El modelo compartido no coincide con el formato revisado.");
+  }
+  for (const list of edits.values()) list.sort((left, right) => right.start - left.start);
+}
+
 export async function fillOriginalWord(
   original: Blob, markdown: string, fields: TemplateField[], values: Record<string, string>,
   nativeVariables: NativeVariable[] | null = null,
@@ -572,9 +636,10 @@ export async function fillOriginalWord(
   uppercase = false,
   boldPagareDate = false,
   vehicle?: Vehicle,
+  companyProfile?: CompanyProfile,
 ) {
   if (original.size > fileLimit) throw new NativeDocumentError("El archivo supera el tamaño máximo de generación.");
-  if (!nativeVariables && !fields.length) return new Blob([original], { type: wordMime });
+  if (!nativeVariables && !fields.length && !companyProfile) return new Blob([original], { type: wordMime });
 
   const files = await unpackOriginalWord(original);
   const parts = new Map<string, Document>();
@@ -585,13 +650,15 @@ export async function fillOriginalWord(
     parts.set(name, part);
     segments.push(...wordSegments(part, name, nativeVariables !== null));
   }
-  const reference = nativeVariables ? await identifyReferenceWord(files["word/document.xml"]) : undefined;
+  const reference = nativeVariables || companyProfile ? await identifyReferenceWord(files["word/document.xml"]) : undefined;
+  if (companyProfile && !reference) throw new NativeDocumentError("El modelo compartido no coincide con la versión revisada.");
   const referenceValues = reference && vehicle && values.vehiculo_garantia
     ? { ...values, vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia) }
     : values;
   const replacements = nativeVariables
     ? resolveNativeTargets(segments, nativeVariables, fields, referenceValues, allowIncomplete, reference ? false : uppercase, !reference && boldPagareDate, reference)
     : resolveTargets(segments, markdown, fields, values, uppercase, boldPagareDate);
+  if (companyProfile && reference) addCompanyEdits(parts.get("word/document.xml")!, reference, companyProfile, allowIncomplete, segments, replacements);
   const changed = new Set<string>();
   const expandPayments = conditionalSale || reference === "venta_condicional" || reference === "acto_seguro";
   const paymentPart = expandPayments && expandSalePaymentRows(replacements, conditionalSale === "pdf",
@@ -644,12 +711,25 @@ async function downloadOriginal(contractId: string, accountId: string) {
   return new Blob(parts, { type: response.headers.get("content-type") ?? "" });
 }
 
-async function readContractText(contractId: string, accountId: string) {
+async function readContractText(contractId: string, accountId: string, companyProfile?: CompanyProfile) {
   const part = "word/document.xml";
   const files = await unpackOriginalWord(await downloadOriginal(contractId, accountId));
+  const doc = parseWordPart(files[part]);
+  const segments = wordSegments(doc, part, false);
+  if (companyProfile) {
+    const reference = await identifyReferenceWord(files[part]);
+    if (!reference) throw new NativeDocumentError("El modelo compartido no coincide con la versión revisada.");
+    const edits = new Map<Segment, Replacement[]>();
+    addCompanyEdits(doc, reference, companyProfile, true, segments, edits);
+    for (const [segment, changes] of edits) {
+      for (const { start, end, value } of changes) {
+        segment.text = segment.text.slice(0, start) + value + segment.text.slice(end);
+      }
+    }
+  }
   return {
     body: files[part],
-    paragraphs: wordSegments(parseWordPart(files[part]), part, false).map(segment => segment.text),
+    paragraphs: segments.map(segment => segment.text),
   };
 }
 
@@ -677,8 +757,8 @@ export function extractSalesCommitment(paragraphs: readonly string[], values: Re
   });
 }
 
-export async function readSalesCommitmentFromContract(contractId: string, accountId: string, values: Record<string, string>) {
-  const { body, paragraphs } = await readContractText(contractId, accountId);
+export async function readSalesCommitmentFromContract(contractId: string, accountId: string, values: Record<string, string>, companyProfile?: CompanyProfile) {
+  const { body, paragraphs } = await readContractText(contractId, accountId, companyProfile);
   return extractSalesCommitment(paragraphs, values, await identifyReferenceWord(body) === "venta_condicional");
 }
 
@@ -694,6 +774,7 @@ export async function prepareNativeDocument(input: {
   uppercase?: boolean;
   boldPagareDate?: boolean;
   vehicle?: Vehicle;
+  companyProfile?: CompanyProfile;
 }) {
   const { accountId, contractId, sourceFormat, output, markdown, fields, values, nativeVariables } = input;
   if (sourceFormat === "pdf") {
@@ -705,7 +786,7 @@ export async function prepareNativeDocument(input: {
   }
 
   const original = await downloadOriginal(contractId, accountId);
-  const word = await fillOriginalWord(original, markdown, fields, values, nativeVariables, input.allowIncomplete, input.conditionalSale ? output : undefined, input.uppercase, input.boldPagareDate, input.vehicle);
+  const word = await fillOriginalWord(original, markdown, fields, values, nativeVariables, input.allowIncomplete, input.conditionalSale ? output : undefined, input.uppercase, input.boldPagareDate, input.vehicle, input.companyProfile);
   if (output === "docx") return word;
   const pdf = await renderContractPdf(contractId, accountId, word, input.companyId, input.operationId);
   if (pdf.type !== "application/pdf" || !pdf.size) throw new ApiError(502, "INVALID_RENDERED_PDF", "The renderer did not return a PDF");

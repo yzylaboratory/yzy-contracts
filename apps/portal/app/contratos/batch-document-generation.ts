@@ -83,7 +83,7 @@ function resolveTemplateEntry(
     byId.set(entry.contract.id, entry);
     const keys = entry.template.native_variables?.map(field => field.key);
     if (!keys) continue;
-    const match = matchDocumentTemplate(type, entry.contract.name, keys);
+    const match = matchDocumentTemplate(type, entry.contract.name, keys, entry.contract.catalog_key);
     if (match === "matching") matching.push(entry.contract);
     if (match === "compatible") compatible.push(entry.contract);
   }
@@ -189,7 +189,8 @@ export async function generateInitialExpedienteDocuments(input: {
     }
 
     try {
-      cachedSalesParagraph = await readSalesCommitmentFromContract(salesEntry.contract.id, accountId, salesValues);
+      cachedSalesParagraph = await readSalesCommitmentFromContract(salesEntry.contract.id, accountId, salesValues,
+        salesEntry.contract.catalog_key ? selectedCompany : undefined);
       return cachedSalesParagraph;
     } catch (error) {
       salesParagraphError = error instanceof NativeDocumentError
@@ -343,6 +344,7 @@ export async function generateInitialExpedienteDocuments(input: {
         accountId,
         contractId: contract.id,
         companyId: companySnapshot?.id,
+        companyProfile: contract.catalog_key ? selectedCompany : undefined,
         operationId: operation.id,
         sourceFormat,
         output: effectiveOutput,

@@ -172,7 +172,7 @@ impl Snapshot {
         let names: Vec<(Uuid, String)> = sqlx::query_as(
             "SELECT id, name FROM yzy_contracts.contracts
              WHERE id = ANY($1) AND deleted_at IS NULL
-               AND (company_id = $2 OR $2 = ANY(shared_company_ids))",
+               AND (catalog_key IS NOT NULL OR company_id = $2 OR $2 = ANY(shared_company_ids))",
         )
         .bind(&ids)
         .bind(self.company_id)

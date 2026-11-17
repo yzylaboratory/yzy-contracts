@@ -9,7 +9,7 @@ use super::dto::{ContractResponse, ContractSort, ListContractsQuery, SortOrder};
 // Mutation also requires original authorship.
 macro_rules! contract_select {
     () => {
-        "SELECT c.id, c.owner_id, c.company_id,
+        "SELECT c.id, c.owner_id, c.company_id, c.catalog_key,
                 CASE WHEN c.owner_id = $1 OR c.shared_company_ids IS NULL THEN c.shared_company_ids
                      ELSE ARRAY(
                        SELECT company_id FROM unnest(c.shared_company_ids) WITH ORDINALITY AS shared(company_id, position)
@@ -35,7 +35,7 @@ pub async fn find_for_reader(
 ) -> sqlx::Result<Option<ContractResponse>> {
     sqlx::query_as(concat!(
         contract_select!(),
-        "AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids) AND c.id = $2"
+        "AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key) AND c.id = $2"
     ))
     .bind(owner_id)
     .bind(id)
@@ -86,7 +86,7 @@ fn push_filters(
     builder
         .push(" AND yzy_contracts.can_read_contract(")
         .push_bind(owner_id)
-        .push(", c.owner_id, c.company_id, c.shared_company_ids)");
+        .push(", c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key)");
     if let Some(pattern) = pattern {
         builder
             .push(" AND c.name ILIKE ")
@@ -108,6 +108,7 @@ fn like_pattern(text: &str) -> String {
 
 #[derive(sqlx::FromRow)]
 pub struct StoredContractScope {
+    pub catalog_key: Option<String>,
     pub company_id: Option<Uuid>,
     pub shared_company_ids: Option<Vec<Uuid>>,
 }
@@ -118,9 +119,9 @@ pub async fn scope_for_reader(
     contract_id: Uuid,
 ) -> sqlx::Result<Option<StoredContractScope>> {
     sqlx::query_as(
-        "SELECT company_id, shared_company_ids FROM yzy_contracts.contracts
+        "SELECT company_id, shared_company_ids, catalog_key FROM yzy_contracts.contracts
          WHERE id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids)",
+           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
     )
     .bind(actor)
     .bind(contract_id)
@@ -254,8 +255,8 @@ pub async fn update_for_owner(
              description = CASE WHEN $4 THEN $5 ELSE description END,
              company_id = CASE WHEN $6 THEN $7 ELSE company_id END,
              shared_company_ids = CASE WHEN $6 THEN $8 ELSE shared_company_ids END
-         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids)",
+         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL
+           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
     )
     .bind(author.id)
     .bind(id)
@@ -278,8 +279,8 @@ pub async fn soft_delete_for_owner(db: &PgPool, owner_id: Uuid, id: Uuid) -> sql
     let mut tx = db.begin().await?;
     let locked: Option<Uuid> = sqlx::query_scalar(
         "SELECT id FROM yzy_contracts.contracts
-         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids)
+         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL
+           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
          FOR UPDATE",
     )
     .bind(owner_id)
@@ -327,7 +328,7 @@ pub async fn stored_object_for_reader(
     sqlx::query_as(
         "SELECT object_key, original_file_name, mime_type FROM yzy_contracts.contracts
          WHERE id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids)",
+           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
     )
     .bind(owner_id)
     .bind(id)

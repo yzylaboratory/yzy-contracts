@@ -24,7 +24,7 @@ pub async fn find_for_reader(
         job_columns!(),
         " FROM yzy_contracts.conversion_jobs j WHERE id = $2
            AND EXISTS (SELECT 1 FROM yzy_contracts.contracts c WHERE c.id = j.contract_id
-             AND c.deleted_at IS NULL AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids))"
+             AND c.deleted_at IS NULL AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key))"
     ))
     .bind(owner_id)
     .bind(id)
@@ -43,8 +43,8 @@ pub async fn enqueue(
     let mut tx = db.begin().await?;
     let locked: Option<Uuid> = sqlx::query_scalar(
         "SELECT id FROM yzy_contracts.contracts
-         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids)
+         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL
+           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
          FOR UPDATE",
     )
     .bind(owner_id)
@@ -173,7 +173,7 @@ pub async fn load_source(db: &PgPool, job: &ClaimedJob) -> sqlx::Result<Option<J
     sqlx::query_as(
         "SELECT name, original_file_name, mime_type, size_bytes, object_key, object_etag
          FROM yzy_contracts.contracts
-         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL",
+         WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL",
     )
     .bind(job.owner_id)
     .bind(job.contract_id)

@@ -452,9 +452,10 @@ async fn check_generation_scope(
     if let Some(company) = company {
         require_company_membership(db, owner, company).await?;
     }
-    if source
-        .company_id
-        .is_some_and(|fixed| Some(fixed) != company)
+    if (source.catalog_key.is_some() && company.is_none())
+        || source
+            .company_id
+            .is_some_and(|fixed| Some(fixed) != company)
         || source
             .shared_company_ids
             .as_ref()
@@ -490,8 +491,10 @@ pub async fn require_legacy_import_access(
     selected_company: Option<Uuid>,
 ) -> Result<(), ApiError> {
     if let Some(source) = contracts::repository::scope_for_reader(db, owner, contract_id).await? {
-        // The readable source already confirms at least one active company.
-        if selected_company.is_none() && source.shared_company_ids.is_some() {
+        // Older browser history can predate company snapshots and catalog promotion.
+        if selected_company.is_none()
+            && (source.shared_company_ids.is_some() || source.catalog_key.is_some())
+        {
             return Ok(());
         }
         return check_generation_scope(db, owner, source, selected_company).await;

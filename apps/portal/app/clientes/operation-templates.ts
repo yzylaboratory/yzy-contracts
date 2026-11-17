@@ -5,6 +5,8 @@ import { matchDocumentTemplate } from "./document-template-match";
 
 export function resolveDocumentTemplate(templates: { matching: Contract[]; compatible: Contract[] }, accountId: string, companyId: string, type: DocumentType) {
   const { matching, compatible } = templates;
+  const official = matching.find(contract => contract.catalog_key === type);
+  if (official) return { kind: "ready" as const, contract: official };
   const candidates = [...matching, ...compatible];
   let remembered: string | null = null;
   try { remembered = window.localStorage.getItem(`yzy-contracts:document-template:${accountId}:${companyId}:${type}`); } catch { /* Storage can be unavailable. */ }
@@ -17,8 +19,9 @@ export function resolveDocumentTemplate(templates: { matching: Contract[]; compa
   return { kind: candidates.length ? "ambiguous" as const : "missing" as const };
 }
 
-export function hasOperationCompanyScope(contract: Pick<Contract, "company_id" | "shared_company_ids">, companyId: string) {
-  return contract.company_id === companyId || (!contract.company_id && contract.shared_company_ids?.includes(companyId) === true);
+export function hasOperationCompanyScope(contract: Pick<Contract, "catalog_key" | "company_id" | "shared_company_ids">, companyId: string) {
+  return Boolean(contract.catalog_key) || contract.company_id === companyId ||
+    (!contract.company_id && contract.shared_company_ids?.includes(companyId) === true);
 }
 
 async function listOperationContracts(accountId: string, companyId: string, signal: AbortSignal) {
@@ -65,7 +68,7 @@ export async function listDocumentTemplates(accountId: string, companyId: string
   for (const { contract, template } of entries) {
     const keys = template.native_variables?.map(field => field.key);
     if (!keys) continue;
-    const match = matchDocumentTemplate(type, contract.name, keys);
+    const match = matchDocumentTemplate(type, contract.name, keys, contract.catalog_key);
     if (match === "matching") matching.push(contract);
     if (match === "compatible") compatible.push(contract);
   }

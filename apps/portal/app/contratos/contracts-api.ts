@@ -15,6 +15,7 @@ export type Contract = {
   name: string;
   owner_id: string;
   company_id: string | null;
+  catalog_key?: string | null;
   shared_company_ids?: string[] | null;
   original_file_name: string;
   status: ContractStatus;
