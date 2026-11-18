@@ -1,0 +1,64 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  isolation: isolate;
+  overflow: hidden;
+  display: none;
+  place-items: center;
+  color: #f7f8fb;
+}
+
+.left,
+.right {
+  position: absolute;
+  inset-block: 0;
+  inline-size: calc(50% + 1px);
+  z-index: -1;
+}
+
+.left {
+  inset-inline-start: 0;
+  background: radial-gradient(ellipse at right, #26366b 0%, #121638 73%);
+}
+
+.right {
+  inset-inline-end: 0;
+  background: radial-gradient(ellipse at left, #193a50 0%, #111635 73%);
+}
+
+.line {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 1px;
+  background: linear-gradient(90deg, transparent, #62eaac, transparent);
+  box-shadow: 0 0 1.5rem 0.2rem #53d7a340;
+}
+
+.scene {
+  display: grid;
+  justify-items: center;
+  gap: 1.15rem;
+  padding: 1rem;
+  font-family: var(--font-display, system-ui, sans-serif);
+  font-size: clamp(1.75rem, 6vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.mark {
+  inline-size: clamp(5.5rem, 18vw, 8rem);
+  border-radius: 22%;
+  box-shadow: 0 0 0 1px #a7f9ce55, 0 0 4rem #6adca943;
+}
+
+.mark svg {
+  display: block;
+  inline-size: 100%;
+}
+
+.content {
+  display: grid;
+  justify-items: center;
+  inline-size: 100%;
+}

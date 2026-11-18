@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 export default function ProspectoLayout({ children }: LayoutProps<"/prospecto">) {
   return (
     <main className={styles.page}>
-      <ProspectWelcome />
-      {children}
+      <h1 className={styles.srOnly}>Completa tus datos</h1>
+      <ProspectWelcome>{children}</ProspectWelcome>
     </main>
   );
 }
