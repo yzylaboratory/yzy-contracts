@@ -3,16 +3,6 @@ name: Deploy production
 on:
   push:
     branches: [main]
-    paths:
-      - .github/workflows/deploy.yml
-      - services/api/**
-      - apps/portal/**
-      - supabase/migrations/**
-      - package.json
-      - pnpm-lock.yaml
-      - docker-compose.yml
-      - ops/**
-      - scripts/**
   workflow_dispatch:
 
 permissions:
@@ -135,7 +125,7 @@ jobs:
 
   notify-build-failure:
     name: Notify build failure
-    needs: [build-dev, build-production]
+    needs: build-production
     if: failure() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
