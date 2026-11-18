@@ -1,8 +1,7 @@
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'yzy_contracts_dev')
-     OR EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'yzy_contracts') THEN
-    RAISE EXCEPTION 'Expected the dedicated DEV database';
+  IF to_regclass('yzy_contracts_dev.client_operations') IS NULL THEN
+    RAISE EXCEPTION 'Expected a migrated DEV schema';
   END IF;
   IF EXISTS (SELECT 1 FROM yzy_contracts_dev.companies)
      OR EXISTS (SELECT 1 FROM yzy_contracts_dev.clients)

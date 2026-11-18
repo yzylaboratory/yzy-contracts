@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { connection } from "next/server";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/inter";
 import "@/components/arc/foundation.css";
@@ -32,7 +33,8 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  await connection();
   return (
     <html lang="es" suppressHydrationWarning>
       <head>

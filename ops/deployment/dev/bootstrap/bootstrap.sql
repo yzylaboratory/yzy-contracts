@@ -1,18 +1,5 @@
--- Isolated DEV database prerequisites for YZY Contracts (yzy_contracts_dev).
--- Never run this against production. Idempotent and safe to re-run.
-
-DO $$
-DECLARE
-  role_name text;
-BEGIN
-  FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
-      EXECUTE format('CREATE ROLE %I NOLOGIN NOINHERIT', role_name);
-    END IF;
-  END LOOP;
-END $$;
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Prerequisites for the private DEV schema on the shared Supabase database.
+-- The registry and Auth schema are managed by the shared Supabase deployment.
 
 CREATE SCHEMA IF NOT EXISTS yzy_contracts_dev;
 ALTER SCHEMA yzy_contracts_dev OWNER TO postgres;

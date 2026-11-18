@@ -1,0 +1,20 @@
+name: yzy-contracts-dev-supabase-link
+
+services:
+  jwks:
+    image: nginx:1.30.5-alpine
+    restart: unless-stopped
+    environment:
+      DEV_PEER_IP: ${DEV_PEER_IP:?Set the private DEV node address}
+      NGINX_ENVSUBST_FILTER: "^DEV_PEER_IP$$"
+    ports:
+      - "${SUPABASE_PRIVATE_BIND:?Set the Supabase host private address}:58888:8080"
+    volumes:
+      - ./jwks.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - supabase
+
+networks:
+  supabase:
+    name: yzylabs-supabase_default
+    external: true
