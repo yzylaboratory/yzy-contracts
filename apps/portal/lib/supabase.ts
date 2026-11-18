@@ -10,7 +10,10 @@ if (!url || !anonKey) {
 export const supabase = createClient(url, anonKey, {
   auth: {
     flowType: "pkce",
-    storageKey: "yzy-contracts-auth",
+    // DEV used a different issuer previously. Keep those sessions out of shared Auth.
+    storageKey: typeof window !== "undefined" && window.location.hostname === "yzycontracts.yzylabs.dev"
+      ? "yzy-contracts-shared-auth"
+      : "yzy-contracts-auth",
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,

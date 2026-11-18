@@ -156,7 +156,7 @@ export function PortalAccessProvider({ children }: { children: ReactNode }) {
       })
       .catch((error: unknown) => {
         if (request.signal.aborted) return;
-        if (error instanceof ApiError && error.code === "ADMIN_REQUIRED") {
+        if (error instanceof ApiError && (error.code === "ADMIN_REQUIRED" || error.code === "ACCESS_NOT_ALLOWED")) {
           setResult({ accountId, attempt, value: { kind: "error", message: "Esta cuenta no puede entrar al portal. Inicia sesión con tu cuenta habilitada.", denied: true } });
           return;
         }
