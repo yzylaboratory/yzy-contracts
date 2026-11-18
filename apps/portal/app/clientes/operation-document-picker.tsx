@@ -12,13 +12,15 @@ import { Button } from "@/components/arc/button/button";
 import button from "@/components/arc/button/button.module.css";
 import { isActiveAccount } from "@/lib/api";
 import { canManageCompanyBilling, usePortalAccess } from "@/lib/portal-access";
-import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
+import { LoadingContent } from "@/components/loading/loading-ui";
 import { generateFromOperationHref } from "./client-paths";
 import { clientErrorMessage, getClient, getLoanApplicationDocument, loanApplicationFilename, type Operation } from "./clients-api";
 import { documentTypeFromName } from "./document-template-match";
 import { loanApplicationDocumentState } from "./loan-application-download";
 import { listDocumentTemplates, resolveDocumentTemplate } from "./operation-templates";
 import { expedienteDocumentLabel } from "./expediente-document-label";
+import { DocumentsRowsSkeleton } from "./clients-skeleton";
+import { ExpedienteDocumentAccordion } from "./expediente-document-accordion";
 import { expedienteDocumentGroups } from "./expediente-document-groups";
 import styles from "./clients.module.css";
 
@@ -36,12 +38,7 @@ const demos: Partial<Record<DocumentType, string>> = {
 };
 
 export function DocumentOptionsSkeleton() {
-  return <div className={styles.documentGroups}>{expedienteDocumentGroups.map(({ title, types }) => (
-    <div key={title} className={styles.documentGroup}>
-      <LoadingBlock width={180} />
-      <div className={styles.documentGrid}>{types.map(id => <LoadingBlock key={id} height={144} />)}</div>
-    </div>
-  ))}</div>;
+  return <DocumentsRowsSkeleton />;
 }
 
 export function OperationDocumentPicker({ accountId, operation }: { accountId: string; operation: Operation }) {
@@ -170,10 +167,12 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
     </div>}
     {loanFailure && <p className={styles.failure} role="alert">{loanFailure}</p>}
     <span className={styles.loanGenerationStatus} role="status">{loanBusy ? "Generando solicitud de préstamo…" : ""}</span>
-    <div className={styles.documentGroups} data-tour="document-type">
-      {expedienteDocumentGroups.map(({ title, types }) => <section key={title} className={styles.documentGroup}>
-        <h3>{title}</h3>
-        <div className={styles.documentGrid}>
+    <ExpedienteDocumentAccordion tour="document-type"
+      defaultOpen={currentFailure ? expedienteDocumentGroups.findIndex(group => group.types.includes(currentFailure.request.type)) : 0}
+      items={expedienteDocumentGroups.map(({ title, types }) => ({
+        title,
+        count: types.length,
+        content: <div className={`${styles.documentGrid} ${styles.documentStageChoices}`}>
           {types.map(id => {
             if (id === "solicitud_prestamo") return (
               <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button"
@@ -198,9 +197,8 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
               </span>
             </button>;
           })}
-        </div>
-      </section>)}
-    </div>
+        </div>,
+      }))} />
     <dialog ref={loanFormatSheet} className={styles.formatSheet} aria-labelledby={loanFormatTitle}
       onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }}>
       <div className={styles.formatSheetBody}>

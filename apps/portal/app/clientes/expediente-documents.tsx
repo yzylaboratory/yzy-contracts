@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import gsap from "gsap";
-import { useReducedMotion } from "motion/react";
-import { ClipboardList, Download, Eye, FileText, FolderArchive, HandCoins, KeyRound, ShieldCheck, Signature } from "lucide-react";
-import { Accordion } from "@/components/arc/accordion/accordion";
+import { Download, Eye } from "lucide-react";
+import { ExpedienteDocumentAccordion } from "./expediente-document-accordion";
 import { Button } from "@/components/arc/button/button";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { LoadingContent } from "@/components/loading/loading-ui";
@@ -24,7 +22,6 @@ import { DocumentsRowsSkeleton } from "./clients-skeleton";
 import { LoanApplicationDownload, LoanApplicationIncompleteActions } from "./loan-application-download";
 import styles from "./clients.module.css";
 
-const stageIcons = [ClipboardList, Signature, ShieldCheck, HandCoins, KeyRound, FolderArchive];
 const pageSize = 20;
 const dateFormat = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeZone: "America/Santo_Domingo" });
 const formatLabel = { pdf: "PDF", docx: "Word", email: "Correo" } as const;
@@ -58,8 +55,6 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
   const [actionError, setActionError] = useState("");
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const section = useRef<HTMLElement>(null);
-  const documentIndex = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
   const previewTrigger = useRef<HTMLButtonElement | null>(null);
   const pending = useRef(false);
   const current = result?.attempt === attempt ? result : undefined;
@@ -70,12 +65,11 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
   const hasRows = showLoan || items.length > 0;
   const groups = expedienteDocumentGroups.map((group, index) => ({
     title: group.title,
-    icon: stageIcons[index],
     showLoan: index === 0 && showLoan,
     items: items.filter(record => group.types.some(type => expedienteDocumentPosition(type) === position(record))),
   }));
   const otherItems = items.filter(record => position(record) === expedienteDocumentPosition(undefined));
-  if (otherItems.length) groups.push({ title: "Otros documentos", icon: FileText, showLoan: false, items: otherItems });
+  if (otherItems.length) groups.push({ title: "Otros documentos", showLoan: false, items: otherItems });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,17 +99,6 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
     if (!preview) return;
     return () => URL.revokeObjectURL(preview.url);
   }, [preview]);
-
-  useEffect(() => {
-    const root = documentIndex.current;
-    if (!root || !loaded || reducedMotion !== false) return;
-    const context = gsap.context(() => {
-      gsap.from("[data-document-stage-icon]", {
-        scale: 0.76, y: 4, duration: 0.42, stagger: 0.055, ease: "back.out(1.6)",
-      });
-    }, root);
-    return () => context.revert();
-  }, [loaded, page, reducedMotion]);
 
   function isBusy(id: string, action: DocumentAction) {
     return busy?.id === id && busy.action === action;
@@ -184,14 +167,10 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
     </div>
     {loan && <LoanApplicationIncompleteActions client={loan.client} operation={loan.operation}
       onCompleteClient={loan.onCompleteClient} onCompleteApplication={loan.onCompleteApplication} />}
-    {hasRows && <div ref={documentIndex} data-tour={items.length > 0 ? "expediente-documents-ready" : undefined}>
-      <Accordion variant="cards" items={groups.filter(group => group.showLoan || group.items.length > 0).map(group => {
-        const Icon = group.icon;
-        const count = group.items.length + Number(group.showLoan);
-        return {
+    {hasRows && <ExpedienteDocumentAccordion tour={items.length > 0 ? "expediente-documents-ready" : undefined}
+      items={groups.filter(group => group.showLoan || group.items.length > 0).map(group => ({
           title: group.title,
-          meta: `${count} ${count === 1 ? "documento" : "documentos"}`,
-          leading: <span className={styles.documentStageIcon} data-document-stage-icon aria-hidden="true"><Icon size={21} /></span>,
+          count: group.items.length + Number(group.showLoan),
           content: <ul className={styles.documentStageList}>
             {group.showLoan && loan && <li className={styles.documentStageEntry}>
               <div>
@@ -237,9 +216,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
               </div>
             </li>)}
           </ul>,
-        };
-      })} />
-    </div>}
+      }))} />}
     {!current ? <LoadingContent label="Cargando documentos…"><DocumentsRowsSkeleton /></LoadingContent> : "error" in current ? (
       <div className={styles.header}>
         <p className={styles.failure} role="alert">{current.error}</p>
