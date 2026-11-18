@@ -1901,7 +1901,8 @@ async fn workspace_dashboard_summarizes_company_cases_and_clients() {
                 "vehicle": {"make": "Honda"},
                 "financing": {
                     "interest_installments": [{"date": "2026-02-28", "amount_minor": 100000}],
-                    "final_principal": {"date": "2027-01-31", "amount_minor": 3000000}
+                    "final_principal": {"date": "2027-01-31", "amount_minor": 3000000},
+                    "extraordinary_payments": []
                 }
             }),
         )
@@ -1930,11 +1931,31 @@ async fn workspace_dashboard_summarizes_company_cases_and_clients() {
     let (status, updated) = app
         .patch(
             admin,
-            &format!("{CLIENTS}/{first_id}/operations/{with_plan_id}"),
+            &operation_detail(company, first_id, with_plan_id),
             json!({"status": "desembolso"}),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{updated}");
+
+    let member = app.pending_user().await;
+    for owner in [admin, member] {
+        sqlx::query(
+            "INSERT INTO yzy_contracts.generated_documents
+                (owner_id, id, operation_id, operation_company_id, company, contract_id,
+                 contract_name, format, filename, markdown, imported_from_session, artifact)
+             VALUES ($1, $2, $3::uuid, $4, jsonb_build_object('id', $4::text), $5,
+                     'Contrato sintético', 'pdf', 'sintetico.pdf', '', false, $6)",
+        )
+        .bind(owner.id)
+        .bind(Uuid::new_v4())
+        .bind(with_plan_id)
+        .bind(company)
+        .bind(Uuid::new_v4())
+        .bind(common::PDF_BYTES)
+        .execute(&app.admin)
+        .await
+        .unwrap();
+    }
 
     let (status, dashboard) = app
         .get(admin, &format!("/api/v1/dashboard?company_id={company}"))
@@ -1948,21 +1969,28 @@ async fn workspace_dashboard_summarizes_company_cases_and_clients() {
     assert_eq!(dashboard["pending_disbursement_cases"], 1);
     assert_eq!(dashboard["disbursed_cases"], 1);
     assert_eq!(dashboard["disbursed_this_month"], 1);
+    assert_eq!(dashboard["documents_total"], 2);
+    assert_eq!(dashboard["user_documents_total"], 1);
     assert_eq!(dashboard["time_saved_minutes"], 30);
-    assert_eq!(dashboard["user_time_saved_minutes"], 30);
+    assert_eq!(dashboard["user_time_saved_minutes"], 25);
     assert_eq!(dashboard["user_disbursements_total"], 1);
     assert_eq!(dashboard["status_counts"]["solicitud"], 1);
     assert_eq!(dashboard["status_counts"]["desembolso"], 1);
-    assert!(dashboard["user_stats"].as_array().unwrap().is_empty());
+    let user_stats = dashboard["user_stats"].as_array().unwrap();
+    assert_eq!(user_stats.len(), 1);
+    assert_eq!(user_stats[0]["user_id"], json!(member.id));
+    assert_eq!(user_stats[0]["documents_total"], 1);
+    assert_eq!(user_stats[0]["time_saved_minutes"], 5);
     assert_eq!(dashboard["recent_cases"].as_array().unwrap().len(), 2);
     assert_eq!(dashboard["months"].as_array().unwrap().len(), 6);
-    assert_eq!(dashboard["formats"]["pdf"], 0);
+    assert_eq!(dashboard["formats"]["pdf"], 2);
     assert_eq!(dashboard["recent_cases"][0]["has_payment_plan"], false);
     assert_eq!(dashboard["recent_cases"][1]["has_payment_plan"], true);
 
-    let stranger = app.user().await;
+    let stranger = app.pending_user().await;
     let (status, denied) = app
         .get(stranger, &format!("/api/v1/dashboard?company_id={company}"))
         .await;
-    assert_eq!(status, StatusCode::NOT_FOUND, "{denied}");
+    assert_eq!(status, StatusCode::FORBIDDEN, "{denied}");
+    assert_eq!(error_code(&denied), "ACCESS_PENDING");
 }

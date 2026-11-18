@@ -15,6 +15,9 @@ use crate::{
 
 use super::dto::OperationStatus;
 
+const ESTIMATED_MINUTES_PER_DOCUMENT: i64 = 5;
+const ESTIMATED_MINUTES_PER_CASE: i64 = 10;
+
 #[derive(Debug, Deserialize, Validate, IntoParams)]
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
@@ -283,7 +286,7 @@ pub(super) async fn summary(
              pending_disbursement_cases,
              cases_total,
              documents_total,
-             (documents_total * 25 + cases_total * 15) AS time_saved_minutes
+             (documents_total * $4 + cases_total * $5) AS time_saved_minutes
            FROM user_metrics
            WHERE ($3::uuid IS NULL OR user_metrics.user_id IS DISTINCT FROM $3)
              AND lower(user_metrics.user_name) <> 'admin@yzylabs.com'
@@ -324,8 +327,8 @@ pub(super) async fn summary(
               WHERE created_at >= (clock.month AT TIME ZONE 'America/Santo_Domingo')
                 AND created_at < ((clock.month + interval '1 month') AT TIME ZONE 'America/Santo_Domingo')
              ) AS documents_this_month,
-             ((SELECT count(*) FROM company_docs) * 25 + (SELECT count(*) FROM company_cases) * 15) AS time_saved_minutes,
-             COALESCE((SELECT (documents_total * 25 + cases_total * 15) FROM user_metrics WHERE is_current_user LIMIT 1), 0) AS user_time_saved_minutes,
+             ((SELECT count(*) FROM company_docs) * $4 + (SELECT count(*) FROM company_cases) * $5) AS time_saved_minutes,
+             COALESCE((SELECT (documents_total * $4 + cases_total * $5) FROM user_metrics WHERE is_current_user LIMIT 1), 0) AS user_time_saved_minutes,
              COALESCE((SELECT disbursements_total FROM user_metrics WHERE is_current_user LIMIT 1), 0) AS user_disbursements_total,
              COALESCE((SELECT documents_total FROM user_metrics WHERE is_current_user LIMIT 1), 0) AS user_documents_total,
              (SELECT count(*) FROM company_docs WHERE format = 'pdf') AS pdf,
@@ -363,6 +366,8 @@ pub(super) async fn summary(
     .bind(query.company_id)
     .bind(user.id)
     .bind(state.config.superadmin_id)
+    .bind(ESTIMATED_MINUTES_PER_DOCUMENT)
+    .bind(ESTIMATED_MINUTES_PER_CASE)
     .fetch_one(&state.db)
     .await?;
 

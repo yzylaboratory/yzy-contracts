@@ -133,7 +133,6 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
     <div className={styles.header}>
       <h2 id="expediente-documents-title">Documentos y contratos</h2>
       <div className={styles.actions}>
-        {action}
         <ExpedienteDocumentRegeneration accountId={accountId} clientId={clientId} operationId={operationId}
           hasLoan={Boolean(loan)} disabled={lastPage === 1 && current !== undefined && "data" in current && !current.data.total && !loan}
           onRefreshed={() => {
@@ -141,6 +140,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
             setAttempt(value => value + 1);
             onRegenerated();
           }} />
+        {action}
       </div>
     </div>
     {loan && <LoanApplicationIncompleteActions client={loan.client} operation={loan.operation}
