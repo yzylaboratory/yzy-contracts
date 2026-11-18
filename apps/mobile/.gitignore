@@ -1,0 +1,5 @@
+.expo/
+dist/
+ios/
+android/
+build-android.log
