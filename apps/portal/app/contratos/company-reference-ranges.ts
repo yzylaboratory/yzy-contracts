@@ -115,6 +115,10 @@ export const companyReferenceRanges: Partial<Record<string, readonly CompanyRefe
     { paragraph: 4, start: 2749, end: 2760, key: "empresa_representante_ocupacion" },
     { paragraph: 4, start: 2828, end: 2841, key: "empresa_representante_cedula" },
     { paragraph: 4, start: 2856, end: 2924, key: "empresa_representante_direccion" },
+    { paragraph: 4, start: 3814, end: 3840, key: "empresa_testigo_usuario" },
+    { paragraph: 4, start: 3926, end: 3954, key: "empresa_testigo_richard" },
+    { paragraph: 20, start: 0, end: 26, key: "empresa_testigo_usuario" },
+    { paragraph: 21, start: 0, end: 29, key: "empresa_testigo_richard" },
   ],
   gps: [
     { paragraph: 2, start: 65, end: 101, key: "empresa_razon_social" },

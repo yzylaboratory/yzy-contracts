@@ -1269,3 +1269,139 @@ test("the declaration keeps the witness's full name in the body and abbreviates 
   assert.equal(declaracionJuradaWitnessValue({ ...profile, [key]: "SOFÍA REYES VEGA" }, key), "SOFÍA REYES VEGA");
   assert.equal(declaracionJuradaWitnessValue(profile, "empresa_razon_social"), undefined);
 });
+
+function parseWordXml(xml) {
+  const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+  const makeElement = (tagName) => {
+    const colon = tagName.indexOf(":");
+    const localName = colon === -1 ? tagName : tagName.slice(colon + 1);
+    const el = {
+      tagName,
+      localName,
+      namespaceURI: ns,
+      children: [],
+      _text: "",
+      get textContent() {
+        return this.children.length ? this.children.map(child => child.textContent).join("") : this._text;
+      },
+      set textContent(value) {
+        this.children = [];
+        this._text = String(value ?? "");
+      },
+      getElementsByTagNameNS(targetNs, name) {
+        const matches = [];
+        const walk = (node) => {
+          for (const child of node.children) {
+            if ((targetNs === "*" || child.namespaceURI === targetNs) && (name === "*" || child.localName === name)) {
+              matches.push(child);
+            }
+            walk(child);
+          }
+        };
+        walk(this);
+        return matches;
+      },
+    };
+    return el;
+  };
+  const stack = [makeElement("#root")];
+  const tokens = xml.replace(/^<\?xml[^?]*\?>\s*/u, "").matchAll(/<([^>]+)>|([^<]+)/gu);
+  for (const [, tag, text] of tokens) {
+    const current = stack.at(-1);
+    if (text !== undefined) {
+      if (current.localName === "t") current._text += text;
+      continue;
+    }
+    if (tag.startsWith("/")) {
+      stack.pop();
+    } else if (tag.endsWith("/")) {
+      current.children.push(makeElement(tag.slice(0, -1).trim().split(/\s+/u)[0]));
+    } else {
+      const el = makeElement(tag.trim().split(/\s+/u)[0]);
+      current.children.push(el);
+      stack.push(el);
+    }
+  }
+  return {
+    documentElement: stack[0].children[0],
+    getElementsByTagNameNS: (targetNs, name) => stack[0].getElementsByTagNameNS(targetNs, name),
+  };
+}
+
+test("entrega voluntaria keeps both witnesses' full names in the body, abbreviates both footer signatures, and keeps the manual date", async () => {
+  const { companyReferenceRanges } = await import("../app/contratos/company-reference-ranges.ts");
+  const { identifyReviewedWordBody } = await import("../app/contratos/reference-word.ts");
+  const { declaracionJuradaWitnessValue } = await import("../app/contratos/word-declaracion-jurada.ts");
+  const { formatEntregaVoluntaria } = await import("../app/contratos/word-entrega-voluntaria.ts");
+
+  const archive = unzipSync(readFileSync(new URL("../../contracts-demo/preparadas/entrega_voluntaria.docx", root)));
+  const xmlBytes = archive["word/document.xml"];
+  assert.equal(await identifyReviewedWordBody(xmlBytes), "entrega_voluntaria");
+
+  const xml = new TextDecoder().decode(xmlBytes);
+  const ranges = companyReferenceRanges.entrega_voluntaria;
+  assert.ok(ranges?.length);
+  const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
+  const renderWithProfile = (profile) => {
+    const doc = parseWordXml(xml);
+    const paragraphs = doc.getElementsByTagNameNS(ns, "p");
+    const edits = [];
+    for (const range of ranges) {
+      if (range.key !== "empresa_testigo_usuario" && range.key !== "empresa_testigo_richard") continue;
+      const nodes = paragraphs[range.paragraph].getElementsByTagNameNS(ns, "t");
+      let offset = 0;
+      let matched = false;
+      for (const node of nodes) {
+        const len = node.textContent.length;
+        const end = offset + len;
+        if (range.start >= offset && range.start < end) {
+          assert.equal(range.start, offset);
+          assert.equal(range.end, end);
+          const value = declaracionJuradaWitnessValue(profile, range.key);
+          assert.ok(value);
+          edits.push([node, value.toLocaleUpperCase("es")]);
+          matched = true;
+          break;
+        }
+        offset = end;
+      }
+      assert.ok(matched, `Expected witness range ${range.paragraph}:${range.start}-${range.end} to match a text run`);
+    }
+    for (const [node, value] of edits) node.textContent = value;
+    formatEntregaVoluntaria(doc);
+    return doc;
+  };
+
+  const fullDoc = renderWithProfile({
+    empresa_testigo_usuario: "ELENA M. REYES VEGA",
+    empresa_testigo_usuario_nombre_declaracion: "ELENA MARÍA REYES VEGA",
+    empresa_testigo_richard: "CARLOS ARTURO GÓMEZ RUIZ",
+  });
+  const fullBodyText = fullDoc.getElementsByTagNameNS(ns, "p")[4].textContent;
+  assert.match(fullBodyText, /Dominicana, a los\s+\(\s+\) días del mes de\(\s+\)del AÑO DOS MIL_+ \(\s+\)/);
+  assert.match(fullBodyText, /delante los señores ELENA MARÍA REYES VEGA,.*y CARLOS ARTURO GÓMEZ RUIZ,/);
+  assert.doesNotMatch(fullBodyText, /ELENA M\. REYES VEGA/);
+  assert.doesNotMatch(fullBodyText, /CARLOS A\. GÓMEZ RUIZ/);
+
+  const fullTables = fullDoc.getElementsByTagNameNS(ns, "tbl");
+  assert.equal(fullTables.length, 1);
+  const fullRows = fullTables[0].children.filter(child => child.localName === "tr");
+  assert.equal(fullRows.length, 3);
+  const fullSigCells = fullRows[1].children.filter(child => child.localName === "tc");
+  assert.deepEqual(fullSigCells.map(cell => cell.textContent.trim()), ["ELENA M. REYES VEGA", "CARLOS A. GÓMEZ RUIZ"]);
+  const fullLabelCells = fullRows[2].children.filter(child => child.localName === "tc");
+  assert.deepEqual(fullLabelCells.map(cell => cell.textContent.trim()), ["TESTIGO", "TESTIGO"]);
+
+  // Historical profiles that only store abbreviated initials keep them safely in both body and footer signatures.
+  const fallbackDoc = renderWithProfile({
+    empresa_testigo_usuario: "ELENA M. REYES VEGA",
+    empresa_testigo_richard: "CARLOS A. GÓMEZ RUIZ",
+  });
+  const fallbackBodyText = fallbackDoc.getElementsByTagNameNS(ns, "p")[4].textContent;
+  assert.match(fallbackBodyText, /delante los señores ELENA M\. REYES VEGA,.*y CARLOS A\. GÓMEZ RUIZ,/);
+  const fallbackSigCells = fallbackDoc.getElementsByTagNameNS(ns, "tbl")[0]
+    .children.filter(child => child.localName === "tr")[1]
+    .children.filter(child => child.localName === "tc");
+  assert.deepEqual(fallbackSigCells.map(cell => cell.textContent.trim()), ["ELENA M. REYES VEGA", "CARLOS A. GÓMEZ RUIZ"]);
+});

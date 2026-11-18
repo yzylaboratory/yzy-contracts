@@ -642,7 +642,9 @@ function addCompanyEdits(doc: Document, model: string, profile: CompanyProfile, 
         const stop = start + range.end - range.start;
         if (stop > segment.text.length) break;
         const literal = segment.text.slice(start, stop);
-        const witness = model === "declaracion_jurada" ? declaracionJuradaWitnessValue(profile.values, range.key) : undefined;
+        const witness = model === "declaracion_jurada" || model === "entrega_voluntaria"
+          ? declaracionJuradaWitnessValue(profile.values, range.key)
+          : undefined;
         const value = witness === undefined
           ? companyReferenceValue(profile, range.key, literal, preview)
           : witness.toLocaleUpperCase("es");
