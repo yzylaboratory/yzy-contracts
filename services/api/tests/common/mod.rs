@@ -352,6 +352,7 @@ impl TestApp {
             cors_allowed_origins: vec!["http://localhost:3000".to_owned()],
             r2: R2Config {
                 endpoint: "https://storage.test".to_owned(),
+                internal_endpoint: None,
                 bucket: "contracts".to_owned(),
                 access_key_id: "synthetic".to_owned(),
                 secret_access_key: "synthetic".to_owned(),

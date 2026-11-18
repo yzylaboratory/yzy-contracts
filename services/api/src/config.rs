@@ -48,6 +48,7 @@ pub struct JwtConfig {
 #[derive(Clone)]
 pub struct R2Config {
     pub endpoint: String,
+    pub internal_endpoint: Option<String>,
     pub bucket: String,
     pub access_key_id: String,
     pub secret_access_key: String,
@@ -106,6 +107,9 @@ impl Config {
             cors_allowed_origins,
             r2: R2Config {
                 endpoint: required("R2_ENDPOINT")?,
+                internal_endpoint: env::var("R2_INTERNAL_ENDPOINT")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty()),
                 bucket: required("R2_BUCKET")?,
                 access_key_id: required("R2_ACCESS_KEY_ID")?,
                 secret_access_key: required("R2_SECRET_ACCESS_KEY")?,

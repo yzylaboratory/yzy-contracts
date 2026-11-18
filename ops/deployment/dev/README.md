@@ -50,7 +50,7 @@ Nginx uses Docker's embedded DNS (`resolver 127.0.0.11 valid=10s ipv6=off`) with
 
 - **`renderer`** communicates exclusively with `api` on the internal `renderer` network (`http://renderer:8080/v1/render/pdf`). It has no external dependencies and works identically in DEV.
 - **`doc-extractor`** (`doc-extractor-api/app/services/document_downloader.py`) strictly enforces `https://` on port `443`, exact hostname matching `R2_ALLOWED_HOSTS`, and non-private/non-loopback DNS resolution. In addition, the portal uploads files directly from the browser to the presigned `R2_ENDPOINT` URL.
-  - The included SeaweedFS bucket uses signed HTTPS URLs at `https://yzycontracts.yzylabs.dev/yzy-contracts-dev/<object>`. Nginx preserves the signed Host and disables caching. The bucket uses credentials created exclusively for DEV.
+  - The included SeaweedFS bucket uses signed HTTPS URLs at `https://yzycontracts.yzylabs.dev/yzy-contracts-dev/<object>`. The API reads, inspects and deletes objects directly on the private network through `R2_INTERNAL_ENDPOINT`. Nginx preserves the signed Host and disables caching.
 
 ## 5. Exact Host & DNS Bootstrap Sequence (Root / Operator)
 

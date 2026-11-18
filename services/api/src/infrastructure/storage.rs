@@ -61,6 +61,7 @@ pub trait ObjectStorage: Send + Sync {
 
 pub struct R2Storage {
     client: Client,
+    signing_client: Client,
     bucket: String,
 }
 
@@ -77,15 +78,20 @@ impl R2Storage {
             .behavior_version_latest()
             // R2 requires a region value and ignores it.
             .region(Region::new("auto"))
-            .endpoint_url(&config.endpoint)
             .credentials_provider(credentials)
             .force_path_style(config.force_path_style)
             // Otherwise the SDK adds checksum parameters that a browser PUT cannot satisfy.
             .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
-            .response_checksum_validation(ResponseChecksumValidation::WhenRequired)
-            .build();
+            .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
+        let signing_client =
+            Client::from_conf(s3_config.clone().endpoint_url(&config.endpoint).build());
+        let client = match &config.internal_endpoint {
+            Some(endpoint) => Client::from_conf(s3_config.endpoint_url(endpoint).build()),
+            None => signing_client.clone(),
+        };
         Self {
-            client: Client::from_conf(s3_config),
+            client,
+            signing_client,
             bucket: config.bucket.clone(),
         }
     }
@@ -101,7 +107,7 @@ impl ObjectStorage for R2Storage {
         ttl: Duration,
     ) -> anyhow::Result<PresignedRequest> {
         let request = self
-            .client
+            .signing_client
             .put_object()
             .bucket(&self.bucket)
             .key(key)
@@ -125,7 +131,11 @@ impl ObjectStorage for R2Storage {
         attachment_file_name: Option<&str>,
         ttl: Duration,
     ) -> anyhow::Result<String> {
-        let mut request = self.client.get_object().bucket(&self.bucket).key(key);
+        let mut request = self
+            .signing_client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(key);
         if let Some(file_name) = attachment_file_name {
             request = request.response_content_disposition(content_disposition(file_name));
         }
@@ -275,6 +285,7 @@ mod tests {
     fn storage() -> R2Storage {
         R2Storage::new(&R2Config {
             endpoint: "https://account.r2.cloudflarestorage.test".to_owned(),
+            internal_endpoint: Some("http://storage:9000".to_owned()),
             bucket: "contracts".to_owned(),
             access_key_id: "synthetic-access-key".to_owned(),
             secret_access_key: "synthetic-secret-key".to_owned(),
@@ -294,7 +305,9 @@ mod tests {
             .await
             .expect("presign");
 
-        assert!(request.url.contains("/contracts/users/u/uploads/f.pdf?"));
+        assert!(request.url.starts_with(
+            "https://account.r2.cloudflarestorage.test/contracts/users/u/uploads/f.pdf?"
+        ));
         assert!(request.url.contains("X-Amz-Signature="));
         assert!(request.url.contains("X-Amz-Expires=300"));
         assert!(!request.url.contains("synthetic-secret-key"));
