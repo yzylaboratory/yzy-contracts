@@ -22,9 +22,9 @@ pub async fn find_for_reader(
     sqlx::query_as(concat!(
         "SELECT ",
         job_columns!(),
-        " FROM yzy_contracts.conversion_jobs j WHERE id = $2
-           AND EXISTS (SELECT 1 FROM yzy_contracts.contracts c WHERE c.id = j.contract_id
-             AND c.deleted_at IS NULL AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key))"
+        " FROM conversion_jobs j WHERE id = $2
+           AND EXISTS (SELECT 1 FROM contracts c WHERE c.id = j.contract_id
+             AND c.deleted_at IS NULL AND can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key))"
     ))
     .bind(owner_id)
     .bind(id)
@@ -42,9 +42,9 @@ pub async fn enqueue(
 ) -> Result<ConversionResponse, ApiError> {
     let mut tx = db.begin().await?;
     let locked: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM yzy_contracts.contracts
+        "SELECT id FROM contracts
          WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
+           AND can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
          FOR UPDATE",
     )
     .bind(owner_id)
@@ -55,12 +55,11 @@ pub async fn enqueue(
         return Err(ApiError::ContractNotFound);
     }
 
-    let has_template: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM yzy_contracts.templates WHERE contract_id = $1)",
-    )
-    .bind(contract_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let has_template: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM templates WHERE contract_id = $1)")
+            .bind(contract_id)
+            .fetch_one(&mut *tx)
+            .await?;
     if has_template {
         return Err(ApiError::ContractAlreadyConverted);
     }
@@ -68,7 +67,7 @@ pub async fn enqueue(
     let active: Option<ConversionResponse> = sqlx::query_as(concat!(
         "SELECT ",
         job_columns!(),
-        " FROM yzy_contracts.conversion_jobs
+        " FROM conversion_jobs
           WHERE contract_id = $1 AND status IN ('pending', 'processing')"
     ))
     .bind(contract_id)
@@ -79,7 +78,7 @@ pub async fn enqueue(
     }
 
     let job: ConversionResponse = sqlx::query_as(concat!(
-        "INSERT INTO yzy_contracts.conversion_jobs (contract_id, owner_id, max_attempts)
+        "INSERT INTO conversion_jobs (contract_id, owner_id, max_attempts)
          VALUES ($1, $2, $3) RETURNING ",
         job_columns!()
     ))
@@ -88,7 +87,7 @@ pub async fn enqueue(
     .bind(max_attempts)
     .fetch_one(&mut *tx)
     .await?;
-    sqlx::query("UPDATE yzy_contracts.contracts SET status = 'converting' WHERE id = $1")
+    sqlx::query("UPDATE contracts SET status = 'converting' WHERE id = $1")
         .bind(contract_id)
         .execute(&mut *tx)
         .await?;
@@ -114,7 +113,7 @@ pub async fn claim_next(
     lease: Duration,
 ) -> sqlx::Result<Option<ClaimedJob>> {
     sqlx::query_as(
-        "UPDATE yzy_contracts.conversion_jobs
+        "UPDATE conversion_jobs
          SET status = 'processing',
              attempts = attempts + 1,
              locked_by = $1,
@@ -123,7 +122,7 @@ pub async fn claim_next(
              error_code = NULL,
              error_message = NULL
          WHERE id = (
-           SELECT id FROM yzy_contracts.conversion_jobs
+           SELECT id FROM conversion_jobs
            WHERE attempts < max_attempts
              AND ((status = 'pending' AND next_attempt_at <= now())
                   OR (status = 'processing' AND locked_until < now()))
@@ -143,13 +142,13 @@ pub async fn claim_next(
 pub async fn fail_exhausted_leases(db: &PgPool, error_message: &str) -> sqlx::Result<u64> {
     let result = sqlx::query(
         "WITH failed AS (
-           UPDATE yzy_contracts.conversion_jobs
+           UPDATE conversion_jobs
            SET status = 'failed', locked_by = NULL, locked_until = NULL,
                error_code = 'WORKER_LEASE_EXPIRED', error_message = $1, completed_at = now()
            WHERE status = 'processing' AND locked_until < now() AND attempts >= max_attempts
            RETURNING contract_id
          )
-         UPDATE yzy_contracts.contracts c
+         UPDATE contracts c
          SET status = 'conversion_failed'
          FROM failed WHERE c.id = failed.contract_id AND c.deleted_at IS NULL",
     )
@@ -172,7 +171,7 @@ pub struct JobSource {
 pub async fn load_source(db: &PgPool, job: &ClaimedJob) -> sqlx::Result<Option<JobSource>> {
     sqlx::query_as(
         "SELECT name, original_file_name, mime_type, size_bytes, object_key, object_etag
-         FROM yzy_contracts.contracts
+         FROM contracts
          WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL",
     )
     .bind(job.owner_id)
@@ -194,8 +193,8 @@ pub async fn complete(
 ) -> sqlx::Result<bool> {
     let mut tx = db.begin().await?;
     let held: Option<Uuid> = sqlx::query_scalar(
-        "SELECT j.id FROM yzy_contracts.conversion_jobs j
-         JOIN yzy_contracts.contracts c ON c.id = j.contract_id AND c.deleted_at IS NULL
+        "SELECT j.id FROM conversion_jobs j
+         JOIN contracts c ON c.id = j.contract_id AND c.deleted_at IS NULL
          WHERE j.id = $1 AND j.status = 'processing' AND j.locked_by = $2 AND j.attempts = $3
          FOR UPDATE OF j, c",
     )
@@ -209,7 +208,7 @@ pub async fn complete(
     }
 
     let template_id: Uuid = sqlx::query_scalar(
-        "INSERT INTO yzy_contracts.templates (contract_id, owner_id, name, content_markdown)
+        "INSERT INTO templates (contract_id, owner_id, name, content_markdown)
          VALUES ($1, $2, $3, $4)
          RETURNING id",
     )
@@ -221,7 +220,7 @@ pub async fn complete(
     .await?;
 
     sqlx::query(
-        "UPDATE yzy_contracts.conversion_jobs
+        "UPDATE conversion_jobs
          SET status = 'completed', locked_by = NULL, locked_until = NULL, template_id = $2,
              page_count = $3, warnings = $4, completed_at = now()
          WHERE id = $1",
@@ -232,7 +231,7 @@ pub async fn complete(
     .bind(sqlx::types::Json(warnings))
     .execute(&mut *tx)
     .await?;
-    sqlx::query("UPDATE yzy_contracts.contracts SET status = 'converted' WHERE id = $1")
+    sqlx::query("UPDATE contracts SET status = 'converted' WHERE id = $1")
         .bind(job.contract_id)
         .execute(&mut *tx)
         .await?;
@@ -249,7 +248,7 @@ pub async fn schedule_retry(
     error_message: &str,
 ) -> sqlx::Result<()> {
     sqlx::query(
-        "UPDATE yzy_contracts.conversion_jobs
+        "UPDATE conversion_jobs
          SET status = 'pending', locked_by = NULL, locked_until = NULL,
              next_attempt_at = now() + make_interval(secs => $4),
              error_code = $5, error_message = $6
@@ -275,7 +274,7 @@ pub async fn mark_failed(
 ) -> sqlx::Result<()> {
     let mut tx = db.begin().await?;
     let updated = sqlx::query(
-        "UPDATE yzy_contracts.conversion_jobs
+        "UPDATE conversion_jobs
          SET status = 'failed', locked_by = NULL, locked_until = NULL,
              error_code = $4, error_message = $5, completed_at = now()
          WHERE id = $1 AND status = 'processing' AND locked_by = $2 AND attempts = $3",
@@ -289,7 +288,7 @@ pub async fn mark_failed(
     .await?;
     if updated.rows_affected() == 1 {
         sqlx::query(
-            "UPDATE yzy_contracts.contracts SET status = 'conversion_failed'
+            "UPDATE contracts SET status = 'conversion_failed'
              WHERE id = $1 AND deleted_at IS NULL",
         )
         .bind(job.contract_id)
@@ -308,7 +307,7 @@ pub struct PendingPurge {
 
 pub async fn contracts_pending_purge(db: &PgPool, limit: i64) -> sqlx::Result<Vec<PendingPurge>> {
     sqlx::query_as(
-        "SELECT id, upload_id, object_key FROM yzy_contracts.contracts
+        "SELECT id, upload_id, object_key FROM contracts
          WHERE deleted_at IS NOT NULL ORDER BY deleted_at LIMIT $1",
     )
     .bind(limit)
@@ -319,11 +318,11 @@ pub async fn contracts_pending_purge(db: &PgPool, limit: i64) -> sqlx::Result<Ve
 /// Runs only after the object is gone from storage.
 pub async fn hard_delete_contract(db: &PgPool, purge: &PendingPurge) -> sqlx::Result<()> {
     let mut tx = db.begin().await?;
-    sqlx::query("DELETE FROM yzy_contracts.contracts WHERE id = $1 AND deleted_at IS NOT NULL")
+    sqlx::query("DELETE FROM contracts WHERE id = $1 AND deleted_at IS NOT NULL")
         .bind(purge.id)
         .execute(&mut *tx)
         .await?;
-    sqlx::query("DELETE FROM yzy_contracts.file_uploads WHERE id = $1")
+    sqlx::query("DELETE FROM file_uploads WHERE id = $1")
         .bind(purge.upload_id)
         .execute(&mut *tx)
         .await?;
@@ -338,7 +337,7 @@ pub struct ExpiredUpload {
 
 pub async fn expired_uploads(db: &PgPool, limit: i64) -> sqlx::Result<Vec<ExpiredUpload>> {
     sqlx::query_as(
-        "SELECT id, object_key FROM yzy_contracts.file_uploads
+        "SELECT id, object_key FROM file_uploads
          WHERE consumed_at IS NULL AND register_before < now()
          ORDER BY register_before LIMIT $1",
     )
@@ -349,7 +348,7 @@ pub async fn expired_uploads(db: &PgPool, limit: i64) -> sqlx::Result<Vec<Expire
 
 pub async fn delete_expired_upload(db: &PgPool, id: Uuid) -> sqlx::Result<()> {
     sqlx::query(
-        "DELETE FROM yzy_contracts.file_uploads
+        "DELETE FROM file_uploads
          WHERE id = $1 AND consumed_at IS NULL AND register_before < now()",
     )
     .bind(id)

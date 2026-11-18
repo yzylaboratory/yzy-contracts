@@ -146,7 +146,7 @@ pub(super) async fn summary(
     Extension(user): Extension<AuthUser>,
     ApiQuery(query): ApiQuery<DashboardQuery>,
 ) -> Result<Json<WorkspaceDashboard>, ApiError> {
-    let allowed: bool = sqlx::query_scalar("SELECT yzy_contracts.has_company_membership($1, $2)")
+    let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
         .bind(user.id)
         .bind(query.company_id)
         .fetch_one(&state.db)
@@ -164,7 +164,7 @@ pub(super) async fn summary(
                   COALESCE(
                     (
                       SELECT h.actor_id
-                      FROM yzy_contracts.client_case_history h
+                      FROM client_case_history h
                       WHERE h.operation_id = o.id
                         AND h.actor_id IS NOT NULL
                         AND h.kind = 'operation_created'
@@ -173,7 +173,7 @@ pub(super) async fn summary(
                     ),
                     (
                       SELECT h.actor_id
-                      FROM yzy_contracts.client_case_history h
+                      FROM client_case_history h
                       WHERE h.operation_id = o.id
                         AND h.actor_id IS NOT NULL
                       ORDER BY h.occurred_at ASC
@@ -181,7 +181,7 @@ pub(super) async fn summary(
                     ),
                     (
                       SELECT d.owner_id
-                      FROM yzy_contracts.generated_documents d
+                      FROM generated_documents d
                       WHERE d.operation_company_id = $1
                         AND d.operation_id = o.id
                       ORDER BY d.created_at ASC
@@ -192,7 +192,7 @@ pub(super) async fn summary(
                     WHEN o.status IN ('desembolso', 'cerrado') THEN COALESCE(
                       (
                         SELECT h.actor_id
-                        FROM yzy_contracts.client_case_history h
+                        FROM client_case_history h
                         WHERE h.operation_id = o.id
                           AND h.actor_id IS NOT NULL
                           AND h.kind = 'operation_updated'
@@ -206,7 +206,7 @@ pub(super) async fn summary(
                       ),
                       (
                         SELECT h.actor_id
-                        FROM yzy_contracts.client_case_history h
+                        FROM client_case_history h
                         WHERE h.operation_id = o.id
                           AND h.actor_id IS NOT NULL
                         ORDER BY h.occurred_at DESC
@@ -214,7 +214,7 @@ pub(super) async fn summary(
                       ),
                       (
                         SELECT d.owner_id
-                        FROM yzy_contracts.generated_documents d
+                        FROM generated_documents d
                         WHERE d.operation_company_id = $1
                           AND d.operation_id = o.id
                         ORDER BY d.created_at DESC
@@ -227,7 +227,7 @@ pub(super) async fn summary(
                     WHEN o.status IN ('desembolso', 'cerrado') THEN COALESCE(
                       (
                         SELECT h.occurred_at
-                        FROM yzy_contracts.client_case_history h
+                        FROM client_case_history h
                         WHERE h.operation_id = o.id
                           AND h.kind = 'operation_updated'
                           AND EXISTS (
@@ -242,16 +242,16 @@ pub(super) async fn summary(
                     )
                     ELSE NULL
                   END AS disbursed_at
-           FROM yzy_contracts.client_operations o
-           JOIN yzy_contracts.clients c ON c.id = o.client_id
+           FROM client_operations o
+           JOIN clients c ON c.id = o.client_id
            WHERE o.deleted_at IS NULL AND o.company_id = $1
          ), company_docs AS NOT MATERIALIZED (
            SELECT owner_id, format, created_at
-           FROM yzy_contracts.generated_documents
+           FROM generated_documents
            WHERE operation_company_id = $1
               OR company->>'id' = $1::text
          ), company_users AS (
-           SELECT user_id FROM yzy_contracts.company_memberships WHERE company_id = $1
+           SELECT user_id FROM company_memberships WHERE company_id = $1
            UNION
            SELECT owner_user_id AS user_id FROM company_cases WHERE owner_user_id IS NOT NULL
            UNION
@@ -264,9 +264,9 @@ pub(super) async fn summary(
            SELECT
              u.user_id,
              COALESCE(
-               (SELECT NULLIF(btrim(ai.name), '') FROM yzy_contracts.access_identities ai WHERE ai.user_id = u.user_id),
-               (SELECT NULLIF(btrim(h.actor_name), '') FROM yzy_contracts.client_case_history h WHERE h.actor_id = u.user_id AND h.actor_name IS NOT NULL ORDER BY h.occurred_at DESC LIMIT 1),
-               yzy_contracts.confirmed_identity_email(u.user_id),
+               (SELECT NULLIF(btrim(ai.name), '') FROM access_identities ai WHERE ai.user_id = u.user_id),
+               (SELECT NULLIF(btrim(h.actor_name), '') FROM client_case_history h WHERE h.actor_id = u.user_id AND h.actor_name IS NOT NULL ORDER BY h.occurred_at DESC LIMIT 1),
+               confirmed_identity_email(u.user_id),
                'Usuario'
              ) AS user_name,
              (u.user_id = $2) AS is_current_user,
@@ -296,13 +296,13 @@ pub(super) async fn summary(
                OR cases_total > 0
                OR documents_total > 0
                OR EXISTS (
-                 SELECT 1 FROM yzy_contracts.company_memberships m
+                 SELECT 1 FROM company_memberships m
                  WHERE m.company_id = $1 AND m.user_id = user_metrics.user_id
                )
              )
          ), totals AS (
            SELECT
-             (SELECT count(*) FROM yzy_contracts.clients) AS clients_total,
+             (SELECT count(*) FROM clients) AS clients_total,
              (SELECT count(*) FROM company_cases) AS cases_total,
              (SELECT count(*) FROM company_cases, clock
               WHERE created_at >= (clock.month AT TIME ZONE 'America/Santo_Domingo')

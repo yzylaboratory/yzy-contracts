@@ -170,7 +170,7 @@ impl Snapshot {
             .filter_map(|value| value.as_str().and_then(|id| id.parse::<Uuid>().ok()))
             .collect();
         let names: Vec<(Uuid, String)> = sqlx::query_as(
-            "SELECT id, name FROM yzy_contracts.contracts
+            "SELECT id, name FROM contracts
              WHERE id = ANY($1) AND deleted_at IS NULL
                AND (catalog_key IS NOT NULL OR company_id = $2 OR $2 = ANY(shared_company_ids))",
         )
@@ -198,15 +198,15 @@ impl Snapshot {
         changes: &[TimelineChange],
     ) -> sqlx::Result<()> {
         sqlx::query(
-            "INSERT INTO yzy_contracts.client_case_history
+            "INSERT INTO client_case_history
                 (company_id, client_id, operation_id, kind, occurred_at, actor_id, actor_name, operation_label, changes)
              SELECT $1, $2, $3, $4, $5, $6,
                     COALESCE(
-                        (SELECT NULLIF(btrim(name), '') FROM yzy_contracts.access_identities WHERE user_id = $6),
-                        yzy_contracts.confirmed_identity_email($6), ($6::uuid)::text
+                        (SELECT NULLIF(btrim(name), '') FROM access_identities WHERE user_id = $6),
+                        confirmed_identity_email($6), ($6::uuid)::text
                     ), $7, $8
              WHERE $6 IS NOT NULL OR NOT EXISTS (
-                SELECT 1 FROM yzy_contracts.client_case_history
+                SELECT 1 FROM client_case_history
                 WHERE company_id IS NOT DISTINCT FROM $1 AND client_id = $2 AND operation_id IS NOT DISTINCT FROM $3
                   AND kind = $4 AND occurred_at = $5
              )",

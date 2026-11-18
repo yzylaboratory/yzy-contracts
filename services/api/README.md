@@ -34,6 +34,7 @@ flowchart LR
 | Tema | Decisión |
 | --- | --- |
 | Base de datos | Schema `yzy_contracts` en el Supabase compartido. `public` queda reservado y ninguna clave foránea usa `CASCADE`, porque el script de `yzy-infra` aborta si encuentra una. |
+| Entornos | Un solo binario para PROD y DEV. `CONTRACTS_DATABASE_SCHEMA` elige el esquema (`yzy_contracts` o `yzy_contracts_dev`) y el rol debe coincidir (`yzy_contracts_app` o `yzy_contracts_dev_app`); si no coincide, el arranque falla. Cada conexión tiene `search_path` solo en su esquema, así que las consultas no llevan calificador y DEV no puede leer PROD. Las migraciones se incrustan una vez; DEV aplica el renombrado a su copia y registra checksums en su propio `_sqlx_migrations`. |
 | Autorización | La API se conecta como `yzy_contracts_app`, sin DDL. El portal de negocio requiere una membresía activa. Los contratos privados y el historial se filtran por propietario. Los contratos compartidos requieren membresía en la empresa correspondiente y su edición también exige ser el autor. |
 | RLS | Activo en todas las tablas. `anon` y `authenticated` no tienen permisos: el portal solo habla con esta API. |
 | JWT | ES256 o RS256 verificados con JWKS. Se rechazan HS256, los tokens `anon` y `service_role`, y la API falla cerrada si no puede obtener las claves. |
@@ -60,6 +61,7 @@ Las variables son obligatorias salvo las marcadas como opcionales. [`.env.exampl
 | Servidor | `HTTP_BIND_ADDR`, `CORS_ALLOWED_ORIGINS`, `REQUEST_TIMEOUT_SECS`, `RUST_LOG` |
 | Base de datos | `DATABASE_URL`, `DATABASE_MAX_CONNECTIONS`, `MIGRATION_DATABASE_URL` (solo `migrate`) |
 | Auth | `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, `SUPABASE_JWT_AUDIENCE` |
+| Esquema y acceso | `CONTRACTS_DATABASE_SCHEMA` (opcional, por defecto `yzy_contracts`; o `yzy_contracts_dev`), `CONTRACTS_ALLOWED_USER_IDS` (UUID separados por coma). DEV exige la lista y debe incluir al superadministrador. Quien no esté en la lista recibe 403 `ACCESS_NOT_ALLOWED` en cualquier ruta privada, `/me` incluida, antes de crear filas. |
 | Superadmin (obligatorio para `serve`) | `CONTRACTS_SUPERADMIN_ID` y `CONTRACTS_SUPERADMIN_EMAIL`, UUID y correo de la misma cuenta confirmada |
 | R2 | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_FORCE_PATH_STYLE` |
 | Límites | `UPLOAD_MAX_BYTES`, `TEMPLATE_MAX_BYTES`, `PRESIGN_UPLOAD_TTL_SECS`, `PRESIGN_DOWNLOAD_TTL_SECS` |

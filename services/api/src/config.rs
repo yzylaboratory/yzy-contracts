@@ -1,8 +1,10 @@
-use std::{env, fmt, net::SocketAddr, str::FromStr, time::Duration};
+use std::{collections::BTreeSet, env, fmt, net::SocketAddr, str::FromStr, time::Duration};
 
 use anyhow::{Context, bail};
 
-use crate::modules::billing::dto::BankAccount;
+use uuid::Uuid;
+
+use crate::{infrastructure::schema::DatabaseSchema, modules::billing::dto::BankAccount};
 
 /// Required values stop startup if missing. Optional features are explicitly
 /// disabled until their configuration is provided.
@@ -11,6 +13,10 @@ pub struct Config {
     pub http_bind_addr: SocketAddr,
     pub database_url: String,
     pub database_max_connections: u32,
+    /// Product schema and runtime role, from CONTRACTS_DATABASE_SCHEMA.
+    pub database_schema: DatabaseSchema,
+    /// From CONTRACTS_ALLOWED_USER_IDS. When set, only these accounts may reach the API.
+    pub allowed_user_ids: Option<BTreeSet<Uuid>>,
     pub jwt: JwtConfig,
     pub superadmin_id: Option<uuid::Uuid>,
     pub superadmin_email: Option<String>,
@@ -84,21 +90,28 @@ impl Config {
             bail!("CORS_ALLOWED_ORIGINS must list explicit origins, not *");
         }
 
+        let database_schema = DatabaseSchema::from_env()?;
+        let allowed_user_ids = allowed_user_ids()?;
+        let superadmin_id: Option<Uuid> = env::var("CONTRACTS_SUPERADMIN_ID")
+            .ok()
+            .filter(|value| !value.is_empty())
+            .map(|value| value.parse())
+            .transpose()
+            .context("CONTRACTS_SUPERADMIN_ID must be a UUID")?;
+        check_access_policy(database_schema, superadmin_id, allowed_user_ids.as_ref())?;
+
         Ok(Self {
             http_bind_addr: parse("HTTP_BIND_ADDR")?,
             database_url: required("DATABASE_URL")?,
             database_max_connections: parse("DATABASE_MAX_CONNECTIONS")?,
+            database_schema,
+            allowed_user_ids,
             jwt: JwtConfig {
                 jwks_url: required("SUPABASE_JWKS_URL")?,
                 issuer: required("SUPABASE_JWT_ISSUER")?,
                 audience: required("SUPABASE_JWT_AUDIENCE")?,
             },
-            superadmin_id: env::var("CONTRACTS_SUPERADMIN_ID")
-                .ok()
-                .filter(|value| !value.is_empty())
-                .map(|value| value.parse())
-                .transpose()
-                .context("CONTRACTS_SUPERADMIN_ID must be a UUID")?,
+            superadmin_id,
             superadmin_email: env::var("CONTRACTS_SUPERADMIN_EMAIL")
                 .ok()
                 .map(|value| value.trim().to_owned())
@@ -130,6 +143,54 @@ impl Config {
             billing_mail: billing_mail_config()?,
         })
     }
+}
+
+/// DEV must name its accounts. The superadministrator must be one of them, or
+/// the environment could not be administered.
+fn check_access_policy(
+    schema: DatabaseSchema,
+    superadmin_id: Option<Uuid>,
+    allowed: Option<&BTreeSet<Uuid>>,
+) -> anyhow::Result<()> {
+    match (schema, allowed) {
+        (DatabaseSchema::Development, None) => bail!(
+            "CONTRACTS_ALLOWED_USER_IDS is required when CONTRACTS_DATABASE_SCHEMA is {}",
+            schema.name()
+        ),
+        (_, Some(allowed)) => {
+            if let Some(superadmin) = superadmin_id.filter(|id| !allowed.contains(id)) {
+                bail!(
+                    "CONTRACTS_ALLOWED_USER_IDS must include the superadministrator {superadmin}"
+                );
+            }
+            Ok(())
+        }
+        (DatabaseSchema::Production, None) => Ok(()),
+    }
+}
+
+/// Unset means no allowlist. Set but empty is an error, never allow-all.
+fn allowed_user_ids() -> anyhow::Result<Option<BTreeSet<Uuid>>> {
+    match env::var("CONTRACTS_ALLOWED_USER_IDS") {
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(error.into()),
+        Ok(value) => parse_allowed_user_ids(&value).map(Some),
+    }
+}
+
+fn parse_allowed_user_ids(value: &str) -> anyhow::Result<BTreeSet<Uuid>> {
+    let mut ids = BTreeSet::new();
+    for entry in value.split(',') {
+        let id: Uuid = entry
+            .trim()
+            .parse()
+            .context("CONTRACTS_ALLOWED_USER_IDS must be a comma-separated list of UUIDs")?;
+        ids.insert(id);
+    }
+    if ids.is_empty() {
+        bail!("CONTRACTS_ALLOWED_USER_IDS must list at least one UUID");
+    }
+    Ok(ids)
 }
 
 fn billing_mail_config() -> anyhow::Result<Option<BillingMailConfig>> {
@@ -171,6 +232,11 @@ impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Config")
             .field("http_bind_addr", &self.http_bind_addr)
+            .field("database_schema", &self.database_schema.name())
+            .field(
+                "allowed_users",
+                &self.allowed_user_ids.as_ref().map(BTreeSet::len),
+            )
             .field("jwks_url", &self.jwt.jwks_url)
             .field("r2_bucket", &self.r2.bucket)
             .field("extractor_url", &self.extractor.url)
@@ -234,4 +300,68 @@ fn seconds(name: &str) -> anyhow::Result<Duration> {
         bail!("{name} must be positive");
     }
     Ok(Duration::from_secs(value))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SUPERADMIN: &str = "11000000-0000-0000-0000-000000000001";
+    const OTHER: &str = "22000000-0000-0000-0000-000000000002";
+
+    fn uuid(value: &str) -> Uuid {
+        value.parse().expect("uuid")
+    }
+
+    #[test]
+    fn allowlist_accepts_a_list_and_rejects_empty_or_invalid_values() {
+        let parsed = parse_allowed_user_ids(&format!(" {SUPERADMIN} , {OTHER}")).unwrap();
+        assert_eq!(parsed.len(), 2);
+        // Malformed entries are errors, not silently dropped.
+        assert!(parse_allowed_user_ids(&format!("{OTHER},")).is_err());
+        assert!(parse_allowed_user_ids("").is_err());
+        assert!(parse_allowed_user_ids(" , ").is_err());
+        assert!(parse_allowed_user_ids("not-a-uuid").is_err());
+    }
+
+    #[test]
+    fn development_requires_an_allowlist_that_includes_the_superadministrator() {
+        let superadmin = Some(uuid(SUPERADMIN));
+        assert!(
+            check_access_policy(DatabaseSchema::Development, superadmin, None).is_err(),
+            "DEV without allowlist must fail closed"
+        );
+        let without_superadmin = parse_allowed_user_ids(OTHER).unwrap();
+        assert!(
+            check_access_policy(
+                DatabaseSchema::Development,
+                superadmin,
+                Some(&without_superadmin)
+            )
+            .is_err()
+        );
+        let with_superadmin = parse_allowed_user_ids(&format!("{SUPERADMIN},{OTHER}")).unwrap();
+        assert!(
+            check_access_policy(
+                DatabaseSchema::Development,
+                superadmin,
+                Some(&with_superadmin)
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn production_runs_without_an_allowlist_unless_one_is_given() {
+        assert!(check_access_policy(DatabaseSchema::Production, None, None).is_ok());
+        let only_other = parse_allowed_user_ids(OTHER).unwrap();
+        assert!(
+            check_access_policy(
+                DatabaseSchema::Production,
+                Some(uuid(SUPERADMIN)),
+                Some(&only_other)
+            )
+            .is_err()
+        );
+    }
 }

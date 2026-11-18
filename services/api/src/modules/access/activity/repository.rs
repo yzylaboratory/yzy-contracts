@@ -15,10 +15,10 @@ const EVENT_ORDER: &str = "occurred_at DESC, source, stable_id, event, step";
 
 pub(super) async fn observe_portal_access(db: &PgPool, user_id: Uuid) -> sqlx::Result<()> {
     sqlx::query(
-        "INSERT INTO yzy_contracts.portal_access_observations (user_id)
+        "INSERT INTO portal_access_observations (user_id)
          SELECT $1
          WHERE NOT EXISTS (
-             SELECT 1 FROM yzy_contracts.portal_access_observations
+             SELECT 1 FROM portal_access_observations
              WHERE user_id = $1 AND last_portal_access_at > statement_timestamp() - interval '5 minutes'
          )
          ON CONFLICT (user_id) DO UPDATE SET last_portal_access_at = EXCLUDED.last_portal_access_at
@@ -48,25 +48,25 @@ pub(super) async fn record_tour_event(
         "WITH admission AS (
             SELECT CASE
                 WHEN NOT EXISTS (
-                    SELECT 1 FROM yzy_contracts.companies c
-                    WHERE c.archived_at IS NULL AND yzy_contracts.has_enabled_access($1)
+                    SELECT 1 FROM companies c
+                    WHERE c.archived_at IS NULL AND has_enabled_access($1)
                 ) THEN 'ineligible'
                 WHEN EXISTS (
-                    SELECT 1 FROM yzy_contracts.tour_events
+                    SELECT 1 FROM tour_events
                     WHERE user_id = $1 AND run_id = $2 AND (
                         (event = $3 AND (step = $4 OR event = 'opened'))
                         OR (event IN ('completed', 'skipped') AND $3 IN ('completed', 'skipped'))
                     )
                 ) THEN 'duplicate'
                 WHEN EXISTS (
-                    SELECT 1 FROM yzy_contracts.tour_events
+                    SELECT 1 FROM tour_events
                     WHERE user_id = $1 AND observed_at > statement_timestamp() - interval '1 hour'
                     OFFSET $5 LIMIT 1
                 ) THEN 'limited'
                 ELSE 'accepted'
             END AS result
          ), inserted AS (
-            INSERT INTO yzy_contracts.tour_events (user_id, run_id, event, step)
+            INSERT INTO tour_events (user_id, run_id, event, step)
             SELECT $1, $2, $3, $4 FROM admission WHERE result = 'accepted'
             ON CONFLICT DO NOTHING
          )
@@ -108,11 +108,11 @@ pub(super) async fn record_event(
         "WITH admission AS (
             SELECT CASE
                 WHEN EXISTS (
-                    SELECT 1 FROM yzy_contracts.portal_activity_events
+                    SELECT 1 FROM portal_activity_events
                     WHERE user_id = $1 AND client_event_id = $2
                 ) THEN 'duplicate'
                 WHEN EXISTS (
-                    SELECT 1 FROM yzy_contracts.portal_activity_events
+                    SELECT 1 FROM portal_activity_events
                     WHERE user_id = $1 AND occurred_at > statement_timestamp() - interval '1 hour'
                       AND (client_event_id IS NULL) = ($2::uuid IS NULL)
                     OFFSET $6 LIMIT 1
@@ -120,7 +120,7 @@ pub(super) async fn record_event(
                 ELSE 'accepted'
             END AS result
          ), inserted AS (
-            INSERT INTO yzy_contracts.portal_activity_events (user_id, client_event_id, event, screen, result)
+            INSERT INTO portal_activity_events (user_id, client_event_id, event, screen, result)
             SELECT $1, $2, $3, $4, $5 FROM admission WHERE result = 'accepted'
             ON CONFLICT (user_id, client_event_id) DO NOTHING
          )
@@ -143,27 +143,27 @@ pub(super) async fn record_event(
 fn timeline_sql(user_id: &str) -> String {
     format!(
         "SELECT event, screen, result, occurred_at, NULL::text AS step, 1 AS source, id::text AS stable_id
-         FROM yzy_contracts.portal_activity_events WHERE user_id = {user_id}
+         FROM portal_activity_events WHERE user_id = {user_id}
          UNION ALL
          SELECT 'portal_access', NULL, 'observed', first_portal_access_at, NULL, 2, 'first'
-         FROM yzy_contracts.portal_access_observations WHERE user_id = {user_id}
+         FROM portal_access_observations WHERE user_id = {user_id}
          UNION ALL
          SELECT 'portal_access', NULL, 'observed', last_portal_access_at, NULL, 2, 'last'
-         FROM yzy_contracts.portal_access_observations
+         FROM portal_access_observations
          WHERE user_id = {user_id} AND last_portal_access_at > first_portal_access_at
          UNION ALL
          SELECT 'tour_' || event, NULL, 'observed', observed_at, step, 3, run_id::text
-         FROM yzy_contracts.tour_events WHERE user_id = {user_id}
+         FROM tour_events WHERE user_id = {user_id}
          UNION ALL
          SELECT 'document_generated', NULL, 'success', created_at, NULL, 4, id::text
-         FROM yzy_contracts.generated_documents WHERE owner_id = {user_id} AND NOT imported_from_session
+         FROM generated_documents WHERE owner_id = {user_id} AND NOT imported_from_session
          UNION ALL
          SELECT 'invitation_registered', NULL, 'observed', created_at, NULL, 5, email
-         FROM yzy_contracts.access_invitations WHERE accepted_by = {user_id}
+         FROM access_invitations WHERE accepted_by = {user_id}
          UNION ALL
          SELECT 'invitation_sent', NULL, 'success', m.sent_at, NULL, 5, v.email
-         FROM yzy_contracts.access_invitations v
-         JOIN yzy_contracts.access_mail m ON m.kind = 'invitation' AND m.reference = v.email
+         FROM access_invitations v
+         JOIN access_mail m ON m.kind = 'invitation' AND m.reference = v.email
          WHERE v.accepted_by = {user_id} AND m.sent_at IS NOT NULL"
     )
 }
@@ -189,7 +189,7 @@ pub(super) async fn list_events(
                  SELECT jsonb_agg(to_jsonb(paged) - 'source' - 'stable_id' ORDER BY {EVENT_ORDER})
                  FROM paged
              ), '[]'::jsonb) AS items
-         FROM yzy_contracts.profiles WHERE user_id = $1"
+         FROM profiles WHERE user_id = $1"
     );
     let row: Option<EventPageRow> = sqlx::query_as(sqlx::AssertSqlSafe(sql))
         .bind(user_id)
@@ -250,16 +250,16 @@ pub(super) async fn list(
             FROM paged p
             LEFT JOIN LATERAL (
                 SELECT v.email, v.created_at, v.accepted_by
-                FROM yzy_contracts.access_invitations v
+                FROM access_invitations v
                 WHERE v.accepted_by = p.id
                    OR (p.id IS NULL AND v.email = p.email AND v.accepted_by IS NULL)
                 ORDER BY v.created_at DESC, v.email
                 LIMIT 1
             ) invite ON true
-            LEFT JOIN yzy_contracts.access_mail mail
+            LEFT JOIN access_mail mail
               ON mail.kind = 'invitation' AND mail.reference = invite.email
-            LEFT JOIN yzy_contracts.portal_access_observations observed ON observed.user_id = p.id
-            LEFT JOIN yzy_contracts.onboarding_completions onboarding ON onboarding.user_id = p.id
+            LEFT JOIN portal_access_observations observed ON observed.user_id = p.id
+            LEFT JOIN onboarding_completions onboarding ON onboarding.user_id = p.id
             LEFT JOIN LATERAL (
                 SELECT jsonb_build_object(
                     'opened_at', opening.observed_at,
@@ -270,14 +270,14 @@ pub(super) async fn list(
                 ) AS last_tour
                 FROM (
                     SELECT e.run_id, e.observed_at
-                    FROM yzy_contracts.tour_events e
+                    FROM tour_events e
                     WHERE e.user_id = p.id AND e.event = 'opened'
                     ORDER BY e.observed_at DESC, e.run_id DESC
                     LIMIT 1
                 ) opening
                 JOIN LATERAL (
                     SELECT e.step, e.observed_at
-                    FROM yzy_contracts.tour_events e
+                    FROM tour_events e
                     WHERE e.user_id = p.id AND e.run_id = opening.run_id
                       AND e.event IN ('opened', 'step_viewed')
                     ORDER BY e.observed_at DESC, e.event DESC, e.step
@@ -285,14 +285,14 @@ pub(super) async fn list(
                 ) latest ON true
                 LEFT JOIN LATERAL (
                     SELECT e.step, e.observed_at, e.event
-                    FROM yzy_contracts.tour_events e
+                    FROM tour_events e
                     WHERE e.user_id = p.id AND e.run_id = opening.run_id
                       AND e.event IN ('completed', 'skipped')
                 ) outcome ON true
             ) tour ON true
             CROSS JOIN LATERAL (
                 SELECT count(*) AS documents_generated, max(d.created_at) AS last_document_generated_at
-                FROM yzy_contracts.generated_documents d
+                FROM generated_documents d
                 WHERE d.owner_id = p.id AND NOT d.imported_from_session
             ) docs
             LEFT JOIN LATERAL (

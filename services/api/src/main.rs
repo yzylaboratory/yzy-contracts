@@ -9,7 +9,7 @@ use yzy_contracts_api::{
     config::Config,
     infrastructure::{
         database, document_renderer::DocumentRenderer, extractor::ExtractorClient,
-        openrouter::DocumentReader, storage::R2Storage,
+        openrouter::DocumentReader, schema::DatabaseSchema, storage::R2Storage,
     },
     modules::auth::jwt::JwtVerifier,
     workers::{billing::BillingWorker, conversion::ConversionWorker},
@@ -117,14 +117,15 @@ async fn migrate() -> anyhow::Result<()> {
     init_logging()?;
     let url =
         std::env::var("MIGRATION_DATABASE_URL").context("MIGRATION_DATABASE_URL is required")?;
+    let schema = DatabaseSchema::from_env()?;
     let superadmin_id = std::env::var("CONTRACTS_SUPERADMIN_ID")
         .ok()
         .filter(|id| !id.trim().is_empty())
         .map(|id| id.parse())
         .transpose()
         .context("CONTRACTS_SUPERADMIN_ID must be a UUID")?;
-    database::run_migrations(&url, superadmin_id).await?;
-    tracing::info!("migrations applied");
+    database::run_migrations(&url, schema, superadmin_id).await?;
+    tracing::info!(schema = schema.name(), "migrations applied");
     Ok(())
 }
 

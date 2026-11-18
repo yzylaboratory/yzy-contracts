@@ -37,12 +37,10 @@ pub enum Notice {
 
 pub async fn confirmed_email(db: &PgPool, user: Uuid) -> Result<Option<String>, ApiError> {
     Ok(
-        sqlx::query_scalar::<_, Option<String>>(
-            "SELECT yzy_contracts.confirmed_identity_email($1)",
-        )
-        .bind(user)
-        .fetch_one(db)
-        .await?,
+        sqlx::query_scalar::<_, Option<String>>("SELECT confirmed_identity_email($1)")
+            .bind(user)
+            .fetch_one(db)
+            .await?,
     )
 }
 
@@ -70,11 +68,11 @@ pub async fn complete_onboarding(db: &PgPool, actor: Uuid) -> Result<(), ApiErro
     // Recheck eligibility in the write's snapshot in case access changed after the guard.
     let eligible: bool = sqlx::query_scalar(
         "WITH eligible AS (
-            SELECT p.user_id FROM yzy_contracts.profiles p
+            SELECT p.user_id FROM profiles p
             WHERE p.user_id = $1 AND p.account_status = 'active'
-              AND yzy_contracts.has_enabled_access($1)
+              AND has_enabled_access($1)
          ), completion AS (
-            INSERT INTO yzy_contracts.onboarding_completions (user_id)
+            INSERT INTO onboarding_completions (user_id)
             SELECT user_id FROM eligible ON CONFLICT (user_id) DO NOTHING
          )
          SELECT EXISTS (SELECT 1 FROM eligible)",

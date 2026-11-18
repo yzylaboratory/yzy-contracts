@@ -84,8 +84,8 @@ async fn filled_application(
         .await?
         .ok_or(ApiError::ClientOperationNotFound)?;
     let company: String = sqlx::query_scalar(
-        "SELECT name FROM yzy_contracts.companies
-         WHERE id = $2 AND yzy_contracts.has_company_membership($1, $2)",
+        "SELECT name FROM companies
+         WHERE id = $2 AND has_company_membership($1, $2)",
     )
     .bind(user.id)
     .bind(operation.company_id)

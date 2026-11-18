@@ -32,15 +32,15 @@ pub(super) async fn insert_in_transaction(
 ) -> sqlx::Result<Option<DocumentMetadata>> {
     // Fresh documents inherit access to their source and company.
     let saved: Option<DocumentMetadata> = sqlx::query_as(
-        "INSERT INTO yzy_contracts.generated_documents
+        "INSERT INTO generated_documents
             (owner_id, id, contract_id, contract_name, format, filename, markdown,
              email, imported_from_session, created_at, artifact, company, operation_id, operation_company_id, document_type)
          SELECT $1, $2, $3, source.name, $4, $5, $6, $7, $8::text IS NOT NULL, COALESCE($9, now()), $10, $13, $15, CASE WHEN $15 IS NOT NULL THEN $14 END, $16
          FROM (
            SELECT CASE WHEN $8::text IS NOT NULL THEN $8 ELSE (
-             SELECT name FROM yzy_contracts.contracts
+             SELECT name FROM contracts
              WHERE id = $3 AND deleted_at IS NULL
-               AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
+               AND can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
                AND (catalog_key IS NULL OR $14 IS NOT NULL)
                AND (company_id IS NULL OR company_id = $14)
                AND (shared_company_ids IS NULL OR $14 = ANY(shared_company_ids))
@@ -49,13 +49,13 @@ pub(super) async fn insert_in_transaction(
            ) END AS name
          ) source
          WHERE source.name IS NOT NULL
-           AND ($14::uuid IS NULL OR yzy_contracts.has_company_membership($1, $14))
+           AND ($14::uuid IS NULL OR has_company_membership($1, $14))
            AND ($15::uuid IS NULL OR (
-             yzy_contracts.can_use_client_contract($1, $3, $14)
+             can_use_client_contract($1, $3, $14)
              AND EXISTS (
-               SELECT 1 FROM yzy_contracts.client_operations o
+               SELECT 1 FROM client_operations o
                WHERE o.id = $15 AND o.company_id = $14
-                 AND (o.contract_id IS NULL OR yzy_contracts.can_use_client_contract($1, o.contract_id, $14))
+                 AND (o.contract_id IS NULL OR can_use_client_contract($1, o.contract_id, $14))
              )
            ))
          ON CONFLICT (id) DO NOTHING
@@ -85,7 +85,7 @@ pub(super) async fn insert_in_transaction(
         && saved.operation_id.is_some()
     {
         sqlx::query(
-            "DELETE FROM yzy_contracts.generated_documents
+            "DELETE FROM generated_documents
              WHERE operation_id = $1 AND operation_company_id = $2
                AND contract_id = $3 AND format = $4 AND id <> $5",
         )
@@ -104,7 +104,7 @@ pub async fn find(db: &PgPool, owner: Uuid, id: Uuid) -> sqlx::Result<Option<Sto
     sqlx::query_as(
         "SELECT id, contract_id, contract_name, format, filename, created_at, artifact IS NOT NULL AS has_artifact,
                 markdown, email, imported_from_session, company, operation_id, document_type
-         FROM yzy_contracts.generated_documents WHERE id = $2
+         FROM generated_documents WHERE id = $2
            AND (owner_id = $1 OR operation_company_id IS NOT NULL OR company->>'id' IS NOT NULL)",
     )
     .bind(owner)
@@ -121,7 +121,7 @@ pub(super) async fn find_for_owner(
     sqlx::query_as(
         "SELECT id, contract_id, contract_name, format, filename, created_at, artifact IS NOT NULL AS has_artifact,
                 markdown, email, imported_from_session, company, operation_id, document_type
-         FROM yzy_contracts.generated_documents WHERE owner_id = $1 AND id = $2",
+         FROM generated_documents WHERE owner_id = $1 AND id = $2",
     )
     .bind(owner)
     .bind(id)
@@ -130,12 +130,10 @@ pub(super) async fn find_for_owner(
 }
 
 pub(super) async fn id_is_used(db: &PgPool, id: Uuid) -> sqlx::Result<bool> {
-    sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM yzy_contracts.generated_documents WHERE id = $1)",
-    )
-    .bind(id)
-    .fetch_one(db)
-    .await
+    sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM generated_documents WHERE id = $1)")
+        .bind(id)
+        .fetch_one(db)
+        .await
 }
 
 pub(super) async fn artifact_matches(
@@ -145,7 +143,7 @@ pub(super) async fn artifact_matches(
     bytes: &[u8],
 ) -> sqlx::Result<bool> {
     let same = sqlx::query_scalar::<_, bool>(
-        "SELECT artifact = $3 FROM yzy_contracts.generated_documents
+        "SELECT artifact = $3 FROM generated_documents
          WHERE owner_id = $1 AND id = $2
            AND artifact IS NOT NULL",
     )
@@ -164,7 +162,7 @@ pub(super) async fn find_artifact(
 ) -> sqlx::Result<Option<StoredArtifact>> {
     sqlx::query_as(
         "SELECT filename, format, email->>'attachment_format' AS attachment_format, artifact
-         FROM yzy_contracts.generated_documents
+         FROM generated_documents
          WHERE id = $2 AND (owner_id = $1 OR operation_company_id IS NOT NULL OR company->>'id' IS NOT NULL)
            AND artifact IS NOT NULL",
     )
@@ -198,7 +196,7 @@ pub async fn list(db: &PgPool, owner: Uuid, query: &ListDocuments) -> sqlx::Resu
            FROM clock
          ), filtered AS NOT MATERIALIZED (
            SELECT id, contract_id, contract_name, format, filename, created_at, artifact IS NOT NULL AS has_artifact, company, operation_id, document_type
-           FROM yzy_contracts.generated_documents AS d, bounds
+           FROM generated_documents AS d, bounds
            WHERE (owner_id = $1 OR operation_company_id IS NOT NULL OR company->>'id' IS NOT NULL)
              AND ($2::text IS NULL
                OR strpos(translate(lower(contract_name), 'áéíóúüñ', 'aeiouun'),
@@ -211,7 +209,7 @@ pub async fn list(db: &PgPool, owner: Uuid, query: &ListDocuments) -> sqlx::Resu
                (d.document_type IS NOT DISTINCT FROM 'venta_condicional_seguro'
                 OR d.contract_id = '8046c129-4b5f-5345-b744-6f6d0ec4b27a'::uuid)
                AND EXISTS (
-                 SELECT 1 FROM yzy_contracts.generated_documents AS current_sale
+                 SELECT 1 FROM generated_documents AS current_sale
                  WHERE current_sale.operation_company_id = d.operation_company_id
                    AND current_sale.operation_id = d.operation_id
                    AND current_sale.document_type = 'acto_seguro'
@@ -259,7 +257,7 @@ pub async fn stats(db: &PgPool, owner: Uuid) -> sqlx::Result<DocumentStats> {
         "WITH clock AS (
            SELECT date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo') AS month
          ), visible AS NOT MATERIALIZED (
-           SELECT format, created_at FROM yzy_contracts.generated_documents
+           SELECT format, created_at FROM generated_documents
            WHERE (owner_id = $1 OR operation_company_id IS NOT NULL OR company->>'id' IS NOT NULL)
          ), totals AS (
            SELECT count(*) AS total,

@@ -229,7 +229,7 @@ pub(super) async fn admin_companies(
         "WITH matching AS (
             SELECT id, name, variable_values AS values, is_default, true AS can_manage,
                 archived_at, created_at, updated_at
-            FROM yzy_contracts.companies
+            FROM companies
             WHERE $1::boolean IS NULL OR (archived_at IS NOT NULL) = $1
          ), paged AS (
             SELECT * FROM matching ORDER BY archived_at IS NOT NULL, is_default DESC, lower(name), id

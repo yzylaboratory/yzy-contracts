@@ -18,9 +18,9 @@ pub(super) async fn list_cases(db: &PgPool, query: &ListCases) -> sqlx::Result<C
            SELECT o.id, o.client_id, c.name AS client_name, c.identity AS client_identity,
                   o.company_id, co.name AS company_name, o.reference, o.contract_date, o.status,
                   o.vehicle, o.created_at
-           FROM yzy_contracts.client_operations o
-           JOIN yzy_contracts.clients c ON c.id = o.client_id
-           JOIN yzy_contracts.companies co ON co.id = o.company_id
+           FROM client_operations o
+           JOIN clients c ON c.id = o.client_id
+           JOIN companies co ON co.id = o.company_id
            CROSS JOIN search
            WHERE o.deleted_at IS NULL AND o.company_id = $1 AND (search.text IS NULL
              OR strpos(translate(lower(concat_ws(' ', o.reference, c.name,
@@ -54,7 +54,7 @@ pub(super) async fn list_cases(db: &PgPool, query: &ListCases) -> sqlx::Result<C
 pub(super) async fn list_clients(db: &PgPool, query: &ListClients) -> sqlx::Result<ClientPage> {
     let (items, total): (Json<Vec<Client>>, i64) = sqlx::query_as(
         "WITH filtered AS NOT MATERIALIZED (
-           SELECT * FROM yzy_contracts.clients
+           SELECT * FROM clients
            WHERE $1::text IS NULL
              OR strpos(translate(lower(name), 'áéíóúüñ', 'aeiouun'),
                        translate(lower($1), 'áéíóúüñ', 'aeiouun')) > 0
@@ -92,7 +92,7 @@ pub(super) async fn create_client(
 ) -> Result<Client, ApiError> {
     let mut tx = db.begin().await?;
     let saved: Client = sqlx::query_as(
-        "INSERT INTO yzy_contracts.clients (name, identity, address, phone, email, income_source, profile)
+        "INSERT INTO clients (name, identity, address, phone, email, income_source, profile)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *",
     )
@@ -114,16 +114,14 @@ pub(super) async fn create_client(
 }
 
 pub(super) async fn find_client(db: &PgPool, client: Uuid) -> sqlx::Result<Option<Client>> {
-    sqlx::query_as(
-        "SELECT * FROM yzy_contracts.clients WHERE id = yzy_contracts.resolve_client_id($1)",
-    )
-    .bind(client)
-    .fetch_optional(db)
-    .await
+    sqlx::query_as("SELECT * FROM clients WHERE id = resolve_client_id($1)")
+        .bind(client)
+        .fetch_optional(db)
+        .await
 }
 
 pub(super) async fn delete_client(db: &PgPool, client: Uuid) -> Result<(), ApiError> {
-    let deleted: bool = sqlx::query_scalar("SELECT yzy_contracts.delete_client($1)")
+    let deleted: bool = sqlx::query_scalar("SELECT delete_client($1)")
         .bind(client)
         .fetch_one(db)
         .await
@@ -161,8 +159,8 @@ pub(super) async fn list_timeline(
 ) -> sqlx::Result<Option<ClientTimelinePage>> {
     let row: Option<(Json<Vec<ClientTimelineEvent>>, i64)> = sqlx::query_as(
         "WITH client AS MATERIALIZED (
-           SELECT id, created_at, updated_at FROM yzy_contracts.clients
-           WHERE id = yzy_contracts.resolve_client_id($1)
+           SELECT id, created_at, updated_at FROM clients
+           WHERE id = resolve_client_id($1)
          ), operations AS MATERIALIZED (
            SELECT o.id, o.company_id, o.created_at, o.updated_at,
                   COALESCE(NULLIF(btrim(o.reference), ''), NULLIF(concat_ws(' · ',
@@ -171,12 +169,12 @@ pub(super) async fn list_timeline(
                     COALESCE(NULLIF(btrim(o.vehicle->>'plate'), ''),
                              NULLIF(btrim(o.vehicle->>'registration_number'), ''))
                   ), '')) AS label
-           FROM yzy_contracts.client_operations o
+           FROM client_operations o
            JOIN client c ON c.id = o.client_id
            WHERE o.deleted_at IS NULL AND ($4::uuid IS NULL OR o.id = $4)
          ), recorded AS (
            SELECT h.id, h.operation_id, h.kind, h.occurred_at, h.operation_label, h.actor_name, h.changes
-           FROM yzy_contracts.client_case_history h
+           FROM client_case_history h
            JOIN client c ON c.id = h.client_id
            WHERE ($4 IS NULL AND h.operation_id IS NULL)
               OR EXISTS (SELECT 1 FROM operations o WHERE o.id = h.operation_id)
@@ -204,12 +202,12 @@ pub(super) async fn list_timeline(
            )
            UNION ALL
            SELECT d.id, 'document_generated', d.created_at, o.label, d.contract_name,
-                  COALESCE(NULLIF(btrim(i.name), ''), yzy_contracts.confirmed_identity_email(d.owner_id), d.owner_id::text),
+                  COALESCE(NULLIF(btrim(i.name), ''), confirmed_identity_email(d.owner_id), d.owner_id::text),
                   '[]'::jsonb
            FROM operations o
-           JOIN yzy_contracts.generated_documents d
+           JOIN generated_documents d
              ON d.operation_company_id = o.company_id AND d.operation_id = o.id
-           LEFT JOIN yzy_contracts.access_identities i ON i.user_id = d.owner_id
+           LEFT JOIN access_identities i ON i.user_id = d.owner_id
            WHERE NOT d.imported_from_session
          )
          SELECT COALESCE(
@@ -244,8 +242,8 @@ pub(super) async fn update_client(
 ) -> Result<Option<Client>, ApiError> {
     let mut tx = db.begin().await?;
     let previous: Option<Client> = sqlx::query_as(
-        "SELECT * FROM yzy_contracts.clients
-         WHERE id = yzy_contracts.resolve_client_id($1)
+        "SELECT * FROM clients
+         WHERE id = resolve_client_id($1)
          FOR UPDATE",
     )
     .bind(client)
@@ -255,7 +253,7 @@ pub(super) async fn update_client(
         return Ok(None);
     };
     let saved: Option<Client> = sqlx::query_as(
-        "UPDATE yzy_contracts.clients SET name = COALESCE($2, name),
+        "UPDATE clients SET name = COALESCE($2, name),
            identity = CASE WHEN $3 THEN $4 ELSE identity END,
            address = CASE WHEN $5 THEN $6 ELSE address END,
            phone = CASE WHEN $7 THEN $8 ELSE phone END,
@@ -263,7 +261,7 @@ pub(super) async fn update_client(
            income_source = CASE WHEN $11 THEN $12 ELSE income_source END,
            profile = CASE WHEN $13 THEN $14 ELSE profile END,
            updated_at = statement_timestamp()
-         WHERE id = yzy_contracts.resolve_client_id($1)
+         WHERE id = resolve_client_id($1)
          RETURNING *",
     )
     .bind(previous.id)
@@ -304,10 +302,10 @@ pub(super) async fn list_operations(
     let row: Option<Json<Vec<Operation>>> = sqlx::query_scalar(
         "SELECT COALESCE(
            (SELECT jsonb_agg(to_jsonb(o) ORDER BY o.created_at DESC, o.id DESC)
-            FROM yzy_contracts.client_operations o WHERE o.client_id = c.id AND o.deleted_at IS NULL),
+            FROM client_operations o WHERE o.client_id = c.id AND o.deleted_at IS NULL),
            '[]'::jsonb
          )
-         FROM yzy_contracts.clients c WHERE c.id = yzy_contracts.resolve_client_id($1)",
+         FROM clients c WHERE c.id = resolve_client_id($1)",
     )
     .bind(client)
     .fetch_optional(db)
@@ -318,7 +316,7 @@ pub(super) async fn list_operations(
 pub(super) async fn active_company(db: &PgPool, company: Uuid) -> sqlx::Result<bool> {
     sqlx::query_scalar(
         "SELECT EXISTS (
-            SELECT 1 FROM yzy_contracts.companies WHERE id = $1 AND archived_at IS NULL
+            SELECT 1 FROM companies WHERE id = $1 AND archived_at IS NULL
         )",
     )
     .bind(company)
@@ -349,12 +347,12 @@ pub(super) async fn create_operation(
     }
     let mut tx = db.begin().await?;
     let saved: Option<Operation> = sqlx::query_as(
-        "INSERT INTO yzy_contracts.client_operations
+        "INSERT INTO client_operations
             (company_id, client_id, contract_id, reference, contract_date, vehicle, financing, application, signature_date, status, insurance_installment_minor, insurance_paid)
-         SELECT $2, yzy_contracts.resolve_client_id($3), $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'solicitud'), $12, COALESCE($13, false)
-         WHERE yzy_contracts.has_company_membership($1, $2)
-           AND ($4::uuid IS NULL OR yzy_contracts.can_use_client_contract($1, $4, $2))
-           AND EXISTS (SELECT 1 FROM yzy_contracts.clients WHERE id = yzy_contracts.resolve_client_id($3))
+         SELECT $2, resolve_client_id($3), $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'solicitud'), $12, COALESCE($13, false)
+         WHERE has_company_membership($1, $2)
+           AND ($4::uuid IS NULL OR can_use_client_contract($1, $4, $2))
+           AND EXISTS (SELECT 1 FROM clients WHERE id = resolve_client_id($3))
          RETURNING *",
     )
     .bind(actor)
@@ -404,8 +402,8 @@ pub(super) async fn find_operation(
     operation: Uuid,
 ) -> sqlx::Result<Option<Operation>> {
     sqlx::query_as(
-        "SELECT * FROM yzy_contracts.client_operations
-         WHERE company_id = $1 AND client_id = yzy_contracts.resolve_client_id($2) AND id = $3
+        "SELECT * FROM client_operations
+         WHERE company_id = $1 AND client_id = resolve_client_id($2) AND id = $3
            AND deleted_at IS NULL",
     )
     .bind(company)
@@ -416,12 +414,10 @@ pub(super) async fn find_operation(
 }
 
 pub(super) async fn find_case(db: &PgPool, id: Uuid) -> sqlx::Result<Option<Operation>> {
-    sqlx::query_as(
-        "SELECT * FROM yzy_contracts.client_operations WHERE id = $1 AND deleted_at IS NULL",
-    )
-    .bind(id)
-    .fetch_optional(db)
-    .await
+    sqlx::query_as("SELECT * FROM client_operations WHERE id = $1 AND deleted_at IS NULL")
+        .bind(id)
+        .fetch_optional(db)
+        .await
 }
 
 pub(super) async fn update_operation(
@@ -449,9 +445,9 @@ pub(super) async fn update_operation_in_transaction(
 ) -> Result<Option<Operation>, ApiError> {
     let mut tx = sqlx::Acquire::begin(tx).await?;
     let previous: Option<Operation> = sqlx::query_as(
-        "SELECT * FROM yzy_contracts.client_operations
-         WHERE company_id = $2 AND client_id = yzy_contracts.resolve_client_id($3) AND id = $4
-           AND deleted_at IS NULL AND yzy_contracts.has_company_membership($1, $2)
+        "SELECT * FROM client_operations
+         WHERE company_id = $2 AND client_id = resolve_client_id($3) AND id = $4
+           AND deleted_at IS NULL AND has_company_membership($1, $2)
          FOR UPDATE",
     )
     .bind(actor)
@@ -503,7 +499,7 @@ pub(super) async fn update_operation_in_transaction(
         ));
     }
     let saved: Option<Operation> = sqlx::query_as(
-        "UPDATE yzy_contracts.client_operations SET contract_id = CASE WHEN $13 THEN $5 ELSE contract_id END,
+        "UPDATE client_operations SET contract_id = CASE WHEN $13 THEN $5 ELSE contract_id END,
            reference = CASE WHEN $6 THEN $7 ELSE reference END,
            contract_date = CASE WHEN $8 THEN $9 ELSE contract_date END,
            vehicle = COALESCE($10, vehicle),
@@ -514,9 +510,9 @@ pub(super) async fn update_operation_in_transaction(
            insurance_installment_minor = CASE WHEN $20 THEN $21 ELSE insurance_installment_minor END,
            insurance_paid = CASE WHEN $22 THEN $23 ELSE insurance_paid END,
            updated_at = statement_timestamp()
-         WHERE company_id = $2 AND client_id = yzy_contracts.resolve_client_id($3) AND id = $4
-           AND deleted_at IS NULL AND yzy_contracts.has_company_membership($1, $2)
-           AND ($5::uuid IS NULL OR yzy_contracts.can_use_client_contract($1, $5, $2))
+         WHERE company_id = $2 AND client_id = resolve_client_id($3) AND id = $4
+           AND deleted_at IS NULL AND has_company_membership($1, $2)
+           AND ($5::uuid IS NULL OR can_use_client_contract($1, $5, $2))
          RETURNING *",
     )
     .bind(actor)
@@ -567,10 +563,10 @@ pub(super) async fn operation_source_allowed(
 ) -> sqlx::Result<bool> {
     sqlx::query_scalar(
         "SELECT EXISTS (
-           SELECT 1 FROM yzy_contracts.client_operations o
+           SELECT 1 FROM client_operations o
            WHERE o.company_id = $2 AND o.id = $3 AND o.deleted_at IS NULL
-             AND yzy_contracts.has_company_membership($1, $2)
-             AND (o.contract_id IS NULL OR yzy_contracts.can_use_client_contract($1, o.contract_id, $2))
+             AND has_company_membership($1, $2)
+             AND (o.contract_id IS NULL OR can_use_client_contract($1, o.contract_id, $2))
          )",
     )
     .bind(actor)
@@ -586,7 +582,7 @@ pub(super) async fn contract_allowed(
     company: Uuid,
     contract: Uuid,
 ) -> sqlx::Result<bool> {
-    sqlx::query_scalar("SELECT yzy_contracts.can_use_client_contract($1, $2, $3)")
+    sqlx::query_scalar("SELECT can_use_client_contract($1, $2, $3)")
         .bind(actor)
         .bind(contract)
         .bind(company)
@@ -605,11 +601,11 @@ pub(super) async fn delete_operation(
     operation: Uuid,
 ) -> sqlx::Result<bool> {
     let deleted = sqlx::query(
-        "UPDATE yzy_contracts.client_operations
+        "UPDATE client_operations
          SET deleted_at = statement_timestamp(), deleted_by = $1
-         WHERE company_id = $3 AND client_id = yzy_contracts.resolve_client_id($4) AND id = $5
+         WHERE company_id = $3 AND client_id = resolve_client_id($4) AND id = $5
            AND deleted_at IS NULL
-           AND ($2 OR $3 IN (SELECT yzy_contracts.billing_companies_for($1)))",
+           AND ($2 OR $3 IN (SELECT billing_companies_for($1)))",
     )
     .bind(actor)
     .bind(superadmin)

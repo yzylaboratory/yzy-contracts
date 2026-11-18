@@ -30,6 +30,15 @@ pub async fn require_auth(
         JwtError::Invalid => ApiError::Unauthenticated,
         JwtError::KeysUnavailable => ApiError::AuthUnavailable,
     })?;
+    // Checked before any read or write of this person's rows, /me included.
+    if state
+        .config
+        .allowed_user_ids
+        .as_ref()
+        .is_some_and(|allowed| !allowed.contains(&verified.user_id))
+    {
+        return Err(ApiError::AccessNotAllowed);
+    }
     let superadmin = state.config.superadmin_id == Some(verified.user_id);
     let email = crate::modules::access::confirmed_email(&state.db, verified.user_id)
         .await?
@@ -69,10 +78,10 @@ pub async fn require_auth(
 /// Lists the person for the superadministrator and returns whether access is enabled.
 async fn record_identity(db: &PgPool, user_id: Uuid, email: &str) -> Result<bool, ApiError> {
     Ok(sqlx::query_scalar(
-        "INSERT INTO yzy_contracts.access_identities (user_id, email, requested_at)
+        "INSERT INTO access_identities (user_id, email, requested_at)
          VALUES ($1, $2, now())
          ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email,
-           requested_at = COALESCE(yzy_contracts.access_identities.requested_at, EXCLUDED.requested_at)
+           requested_at = COALESCE(access_identities.requested_at, EXCLUDED.requested_at)
          RETURNING enabled_at IS NOT NULL AND NOT suspended",
     )
     .bind(user_id)
@@ -91,7 +100,7 @@ fn bearer_token(headers: &HeaderMap) -> Option<&str> {
 /// tombstoned Contracts account keeps its login but loses access here.
 async fn ensure_active_profile(db: &PgPool, user_id: Uuid) -> Result<(), ApiError> {
     let status: Option<String> =
-        sqlx::query_scalar("SELECT account_status FROM yzy_contracts.profiles WHERE user_id = $1")
+        sqlx::query_scalar("SELECT account_status FROM profiles WHERE user_id = $1")
             .bind(user_id)
             .fetch_optional(db)
             .await?;
@@ -100,7 +109,7 @@ async fn ensure_active_profile(db: &PgPool, user_id: Uuid) -> Result<(), ApiErro
         Some(status) => status,
         None => {
             let inserted = sqlx::query(
-                "INSERT INTO yzy_contracts.profiles (user_id) VALUES ($1)
+                "INSERT INTO profiles (user_id) VALUES ($1)
                  ON CONFLICT (user_id) DO NOTHING",
             )
             .bind(user_id)
@@ -116,12 +125,10 @@ async fn ensure_active_profile(db: &PgPool, user_id: Uuid) -> Result<(), ApiErro
                 }
                 return Err(error.into());
             }
-            sqlx::query_scalar(
-                "SELECT account_status FROM yzy_contracts.profiles WHERE user_id = $1",
-            )
-            .bind(user_id)
-            .fetch_one(db)
-            .await?
+            sqlx::query_scalar("SELECT account_status FROM profiles WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_one(db)
+                .await?
         }
     };
 

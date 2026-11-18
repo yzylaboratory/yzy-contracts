@@ -104,7 +104,7 @@ pub async fn create_upload_url(
         .await?;
 
     sqlx::query(
-        "INSERT INTO yzy_contracts.file_uploads
+        "INSERT INTO file_uploads
            (id, owner_id, object_key, original_file_name, mime_type, declared_size_bytes, register_before)
          VALUES ($1, $2, $3, $4, $5, $6, $7)",
     )

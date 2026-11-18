@@ -40,7 +40,7 @@ pub async fn bank_destination(
 ) -> Result<Option<BankAccountSettings>, ApiError> {
     let row = sqlx::query_as::<_, BankDestination>(
         "SELECT bank_name, account_holder, account_type, account_number, revision, updated_at
-         FROM yzy_contracts.billing_bank_destination WHERE id = 1",
+         FROM billing_bank_destination WHERE id = 1",
     )
     .fetch_optional(executor)
     .await?;
@@ -71,9 +71,9 @@ impl From<PricingRow> for BillingPricing {
 pub async fn pricing(executor: impl PgExecutor<'_>) -> Result<BillingPricing, ApiError> {
     let row = sqlx::query_as::<_, PricingRow>(
         "SELECT price_usd_minor, exchange_rate_milli,
-                yzy_contracts.billing_unit_price_minor(price_usd_minor, exchange_rate_milli) AS unit_price_minor,
+                billing_unit_price_minor(price_usd_minor, exchange_rate_milli) AS unit_price_minor,
                 revision, updated_at
-         FROM yzy_contracts.billing_pricing WHERE id = 1",
+         FROM billing_pricing WHERE id = 1",
     )
     .fetch_one(executor)
     .await?;
@@ -89,12 +89,12 @@ pub async fn save_pricing(
 ) -> Result<BillingPricing, ApiError> {
     let row = if let Some(revision) = expected_revision {
         sqlx::query_as::<_, PricingRow>(
-            "UPDATE yzy_contracts.billing_pricing
+            "UPDATE billing_pricing
              SET price_usd_minor = $1, exchange_rate_milli = $2,
                  updated_by = $3, updated_at = now(), revision = gen_random_uuid()
              WHERE id = 1 AND revision = $4
              RETURNING price_usd_minor, exchange_rate_milli,
-                       yzy_contracts.billing_unit_price_minor(price_usd_minor, exchange_rate_milli) AS unit_price_minor,
+                       billing_unit_price_minor(price_usd_minor, exchange_rate_milli) AS unit_price_minor,
                        revision, updated_at",
         )
         .bind(price_usd_minor)
@@ -105,12 +105,12 @@ pub async fn save_pricing(
         .await?
     } else {
         sqlx::query_as::<_, PricingRow>(
-            "UPDATE yzy_contracts.billing_pricing
+            "UPDATE billing_pricing
              SET price_usd_minor = $1, exchange_rate_milli = $2,
                  updated_by = $3, updated_at = now(), revision = gen_random_uuid()
              WHERE id = 1 AND updated_by IS NULL
              RETURNING price_usd_minor, exchange_rate_milli,
-                       yzy_contracts.billing_unit_price_minor(price_usd_minor, exchange_rate_milli) AS unit_price_minor,
+                       billing_unit_price_minor(price_usd_minor, exchange_rate_milli) AS unit_price_minor,
                        revision, updated_at",
         )
         .bind(price_usd_minor)
@@ -136,7 +136,7 @@ async fn apply_company_prices(
             ));
         }
         let updated = sqlx::query(
-            "UPDATE yzy_contracts.billing_account_companies
+            "UPDATE billing_account_companies
              SET price_usd_minor = $3
              WHERE account_id = $1 AND company_id = $2 AND ends_on IS NULL",
         )
@@ -163,7 +163,7 @@ pub async fn save_bank_destination(
 ) -> Result<BankAccountSettings, ApiError> {
     let row = if let Some(revision) = expected_revision {
         sqlx::query_as::<_, BankDestination>(
-            "UPDATE yzy_contracts.billing_bank_destination
+            "UPDATE billing_bank_destination
              SET bank_name = $1, account_holder = $2, account_type = $3, account_number = $4,
                  updated_by = $5, updated_at = now(), revision = gen_random_uuid()
              WHERE id = 1 AND revision = $6
@@ -179,7 +179,7 @@ pub async fn save_bank_destination(
         .await?
     } else {
         sqlx::query_as::<_, BankDestination>(
-            "INSERT INTO yzy_contracts.billing_bank_destination
+            "INSERT INTO billing_bank_destination
                  (bank_name, account_holder, account_type, account_number, updated_by)
              VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (id) DO NOTHING
@@ -201,12 +201,12 @@ pub async fn managed_account_ids(
     manager: Option<Uuid>,
 ) -> Result<Vec<Uuid>, ApiError> {
     Ok(sqlx::query_scalar(
-        "SELECT a.id FROM yzy_contracts.billing_accounts a
+        "SELECT a.id FROM billing_accounts a
          WHERE $1::uuid IS NULL OR (
            EXISTS (
-             SELECT 1 FROM yzy_contracts.billing_account_managers m
+             SELECT 1 FROM billing_account_managers m
              WHERE m.account_id = a.id AND m.user_id = $1
-           ) AND yzy_contracts.has_enabled_access($1)
+           ) AND has_enabled_access($1)
          )
          ORDER BY a.id FOR SHARE",
     )
@@ -223,7 +223,7 @@ async fn ensure_account_manager(
 ) -> Result<(), ApiError> {
     if let Some(previous) = previous_manager_id.filter(|previous| *previous != user_id) {
         sqlx::query(
-            "DELETE FROM yzy_contracts.billing_account_managers
+            "DELETE FROM billing_account_managers
              WHERE account_id = $1 AND user_id = $2",
         )
         .bind(account_id)
@@ -232,7 +232,7 @@ async fn ensure_account_manager(
         .await?;
     }
     sqlx::query(
-        "INSERT INTO yzy_contracts.billing_account_managers (account_id, user_id)
+        "INSERT INTO billing_account_managers (account_id, user_id)
          VALUES ($1, $2) ON CONFLICT DO NOTHING",
     )
     .bind(account_id)
@@ -252,21 +252,22 @@ struct AccountRow {
     companies: Json<Vec<BillingCompany>>,
 }
 
-const ACCOUNTS_ROWS: &str = "SELECT a.id, a.company_id, COALESCE(dedicated.name, a.name) AS name, a.manager_user_id,
+const ACCOUNTS_ROWS: &str =
+    "SELECT a.id, a.company_id, COALESCE(dedicated.name, a.name) AS name, a.manager_user_id,
            a.starts_on,
            COALESCE(jsonb_agg(jsonb_build_object(
                'id', c.id,
                'name', c.name,
                'price_usd_minor', ac.price_usd_minor,
-               'unit_price_minor', yzy_contracts.billing_unit_price_minor(
+               'unit_price_minor', billing_unit_price_minor(
                  COALESCE(ac.price_usd_minor, p.price_usd_minor), p.exchange_rate_milli)
              ) ORDER BY lower(c.name), c.id)
              FILTER (WHERE c.id IS NOT NULL), '[]'::jsonb) AS companies
-         FROM yzy_contracts.billing_accounts a
-         CROSS JOIN yzy_contracts.billing_pricing p
-         LEFT JOIN yzy_contracts.companies dedicated ON dedicated.id = a.company_id
-         LEFT JOIN yzy_contracts.billing_account_companies ac ON ac.account_id = a.id AND ac.ends_on IS NULL
-         LEFT JOIN yzy_contracts.companies c ON c.id = ac.company_id
+         FROM billing_accounts a
+         CROSS JOIN billing_pricing p
+         LEFT JOIN companies dedicated ON dedicated.id = a.company_id
+         LEFT JOIN billing_account_companies ac ON ac.account_id = a.id AND ac.ends_on IS NULL
+         LEFT JOIN companies c ON c.id = ac.company_id
          WHERE ($1::uuid[] IS NULL OR a.id = ANY($1))
          GROUP BY a.id, dedicated.name";
 
@@ -324,11 +325,9 @@ impl From<AccountRow> for BillingAccount {
 }
 
 pub async fn lock_assignments(db: &mut PgConnection) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "SELECT pg_advisory_xact_lock(hashtextextended('yzy_contracts.billing_assignments', 0))",
-    )
-    .execute(db)
-    .await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('billing_assignments', 0))")
+        .execute(db)
+        .await?;
     Ok(())
 }
 
@@ -340,14 +339,14 @@ pub async fn provision_company_account(
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         "WITH created AS (
-           INSERT INTO yzy_contracts.billing_accounts (company_id, name, manager_user_id, starts_on)
+           INSERT INTO billing_accounts (company_id, name, manager_user_id, starts_on)
            VALUES ($1, $2, $3, (date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo') + interval '1 month')::date)
            RETURNING id, company_id, starts_on, manager_user_id
          ), linked AS (
-           INSERT INTO yzy_contracts.billing_account_companies (account_id, company_id, starts_on)
+           INSERT INTO billing_account_companies (account_id, company_id, starts_on)
            SELECT id, company_id, starts_on FROM created
          )
-         INSERT INTO yzy_contracts.billing_account_managers (account_id, user_id)
+         INSERT INTO billing_account_managers (account_id, user_id)
          SELECT id, manager_user_id FROM created",
     )
     .bind(company_id)
@@ -366,11 +365,11 @@ pub async fn suspend_company_billing(
         "WITH next_month AS (
            SELECT (date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo') + interval '1 month')::date AS starts_on
          ), scheduled AS (
-           DELETE FROM yzy_contracts.billing_account_companies ac USING yzy_contracts.billing_accounts a, next_month n
+           DELETE FROM billing_account_companies ac USING billing_accounts a, next_month n
            WHERE a.company_id = $1 AND ac.account_id = a.id AND ac.ends_on IS NULL AND ac.starts_on >= n.starts_on
          )
-         UPDATE yzy_contracts.billing_account_companies ac SET ends_on = n.starts_on
-         FROM yzy_contracts.billing_accounts a, next_month n
+         UPDATE billing_account_companies ac SET ends_on = n.starts_on
+         FROM billing_accounts a, next_month n
          WHERE a.company_id = $1 AND ac.account_id = a.id AND ac.ends_on IS NULL AND ac.starts_on < n.starts_on",
     )
     .bind(company_id)
@@ -384,14 +383,14 @@ pub async fn resume_company_billing(
     company_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
-        "INSERT INTO yzy_contracts.billing_account_companies (account_id, company_id, starts_on)
+        "INSERT INTO billing_account_companies (account_id, company_id, starts_on)
          SELECT a.id, a.company_id,
            GREATEST(
              a.starts_on,
              (date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo') + interval '1 month')::date,
-             (SELECT max(ac.ends_on) FROM yzy_contracts.billing_account_companies ac WHERE ac.company_id = a.company_id)
+             (SELECT max(ac.ends_on) FROM billing_account_companies ac WHERE ac.company_id = a.company_id)
            )
-         FROM yzy_contracts.billing_accounts a WHERE a.company_id = $1
+         FROM billing_accounts a WHERE a.company_id = $1
          ON CONFLICT (company_id) WHERE ends_on IS NULL DO NOTHING",
     )
     .bind(company_id)
@@ -421,7 +420,7 @@ pub async fn save_account(
     let mut tx = db.begin().await?;
     // Serialize assignment edits across accounts, including scheduled moves.
     lock_assignments(&mut tx).await?;
-    let manager_enabled: bool = sqlx::query_scalar("SELECT yzy_contracts.has_enabled_access($1)")
+    let manager_enabled: bool = sqlx::query_scalar("SELECT has_enabled_access($1)")
         .bind(input.manager_user_id)
         .fetch_one(&mut *tx)
         .await?;
@@ -446,7 +445,7 @@ pub async fn save_account(
         let (start, dedicated_company, current_manager): (NaiveDate, Option<Uuid>, Uuid) =
             sqlx::query_as(
                 "SELECT starts_on, company_id, manager_user_id
-                 FROM yzy_contracts.billing_accounts WHERE id = $1 FOR UPDATE",
+                 FROM billing_accounts WHERE id = $1 FOR UPDATE",
             )
             .bind(account_id)
             .fetch_optional(&mut *tx)
@@ -455,7 +454,7 @@ pub async fn save_account(
         previous_manager_id = Some(current_manager);
         if let Some(company_id) = dedicated_company {
             let assigned: Vec<Uuid> = sqlx::query_scalar(
-                "SELECT company_id FROM yzy_contracts.billing_account_companies WHERE account_id = $1 AND ends_on IS NULL",
+                "SELECT company_id FROM billing_account_companies WHERE account_id = $1 AND ends_on IS NULL",
             )
             .bind(account_id)
             .fetch_all(&mut *tx)
@@ -465,7 +464,7 @@ pub async fn save_account(
                     "La cuenta pertenece a su empresa. Archiva la empresa para detener futuros cobros.",
                 ));
             }
-            sqlx::query("UPDATE yzy_contracts.billing_accounts SET manager_user_id = $2 WHERE id = $1 AND company_id = $3")
+            sqlx::query("UPDATE billing_accounts SET manager_user_id = $2 WHERE id = $1 AND company_id = $3")
                 .bind(account_id)
                 .bind(input.manager_user_id)
                 .bind(company_id)
@@ -498,7 +497,7 @@ pub async fn save_account(
     };
 
     let companies: Vec<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM yzy_contracts.companies
+        "SELECT id FROM companies
          WHERE id = ANY($1) AND archived_at IS NULL ORDER BY id FOR SHARE",
     )
     .bind(&input.company_ids)
@@ -509,11 +508,11 @@ pub async fn save_account(
     }
     let other_payer: bool = sqlx::query_scalar(
         "SELECT EXISTS (
-           SELECT 1 FROM yzy_contracts.billing_account_companies
+           SELECT 1 FROM billing_account_companies
            WHERE company_id = ANY($1) AND ($2::uuid IS NULL OR account_id <> $2)
              AND (ends_on IS NULL OR ends_on > $3)
          ) OR EXISTS (
-           SELECT 1 FROM yzy_contracts.billing_accounts WHERE company_id = ANY($1)
+           SELECT 1 FROM billing_accounts WHERE company_id = ANY($1)
          )",
     )
     .bind(&companies)
@@ -529,16 +528,16 @@ pub async fn save_account(
     if let Some(account_id) = id {
         let changes_prepaid_companies: bool = sqlx::query_scalar(
             "SELECT EXISTS (
-               SELECT 1 FROM yzy_contracts.billing_invoices i
+               SELECT 1 FROM billing_invoices i
                WHERE i.account_id = $1 AND i.period >= $2 AND (
                  NOT i.renewal_generated OR EXISTS (
-                   SELECT 1 FROM yzy_contracts.billing_renewal_periods p
-                   JOIN yzy_contracts.billing_transfer_reports r ON r.id = p.report_id
+                   SELECT 1 FROM billing_renewal_periods p
+                   JOIN billing_transfer_reports r ON r.id = p.report_id
                    WHERE p.invoice_id = i.id AND r.approved IS DISTINCT FROM false
                  )
                )
              ) AND $3 <> ARRAY(
-               SELECT company_id FROM yzy_contracts.billing_account_companies
+               SELECT company_id FROM billing_account_companies
                WHERE account_id = $1 AND ends_on IS NULL ORDER BY company_id
              )",
         )
@@ -554,14 +553,14 @@ pub async fn save_account(
         }
     }
     let account_id = if let Some(account_id) = id {
-        sqlx::query("UPDATE yzy_contracts.billing_accounts SET name = $2, manager_user_id = $3 WHERE id = $1")
+        sqlx::query("UPDATE billing_accounts SET name = $2, manager_user_id = $3 WHERE id = $1")
             .bind(account_id)
             .bind(name)
             .bind(input.manager_user_id)
             .execute(&mut *tx)
             .await?;
         sqlx::query(
-            "DELETE FROM yzy_contracts.billing_account_companies
+            "DELETE FROM billing_account_companies
              WHERE account_id = $1 AND starts_on >= $2 AND ends_on IS NULL AND NOT (company_id = ANY($3))",
         )
         .bind(account_id)
@@ -570,7 +569,7 @@ pub async fn save_account(
         .execute(&mut *tx)
         .await?;
         sqlx::query(
-            "UPDATE yzy_contracts.billing_account_companies SET ends_on = $2
+            "UPDATE billing_account_companies SET ends_on = $2
              WHERE account_id = $1 AND ends_on IS NULL AND NOT (company_id = ANY($3))",
         )
         .bind(account_id)
@@ -581,7 +580,7 @@ pub async fn save_account(
         account_id
     } else {
         sqlx::query_scalar(
-            "INSERT INTO yzy_contracts.billing_accounts (name, manager_user_id, starts_on)
+            "INSERT INTO billing_accounts (name, manager_user_id, starts_on)
              VALUES ($1, $2, $3) RETURNING id",
         )
         .bind(name)
@@ -598,10 +597,10 @@ pub async fn save_account(
     )
     .await?;
     sqlx::query(
-        "INSERT INTO yzy_contracts.billing_account_companies (account_id, company_id, starts_on)
+        "INSERT INTO billing_account_companies (account_id, company_id, starts_on)
          SELECT $1, selected.company_id, $3 FROM unnest($2::uuid[]) AS selected(company_id)
          WHERE NOT EXISTS (
-           SELECT 1 FROM yzy_contracts.billing_account_companies ac
+           SELECT 1 FROM billing_account_companies ac
            WHERE ac.account_id = $1 AND ac.company_id = selected.company_id AND ac.ends_on IS NULL
          )",
     )
@@ -640,12 +639,12 @@ async fn issue_invoices_until(
            SELECT COALESCE($3::date, date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date) AS starts_on
          ), billable AS MATERIALIZED (
            SELECT ac.account_id, ac.company_id, c.name AS company_name, month.period::date AS period,
-                  yzy_contracts.billing_unit_price_minor(
+                  billing_unit_price_minor(
                     COALESCE(ac.price_usd_minor, p.price_usd_minor), p.exchange_rate_milli
                   ) AS unit_price_minor
-           FROM yzy_contracts.billing_account_companies ac
-           JOIN yzy_contracts.companies c ON c.id = ac.company_id
-           CROSS JOIN yzy_contracts.billing_pricing p
+           FROM billing_account_companies ac
+           JOIN companies c ON c.id = ac.company_id
+           CROSS JOIN billing_pricing p
            CROSS JOIN this_month tm
            CROSS JOIN LATERAL generate_series(ac.starts_on::timestamp,
              LEAST(
@@ -656,25 +655,25 @@ async fn issue_invoices_until(
              interval '1 month') AS month(period)
            WHERE ($1::uuid[] IS NULL OR ac.account_id = ANY($1))
              AND ($2::uuid[] IS NULL OR EXISTS (
-               SELECT 1 FROM yzy_contracts.billing_account_companies relevant
+               SELECT 1 FROM billing_account_companies relevant
                WHERE relevant.account_id = ac.account_id AND relevant.company_id = ANY($2)
                  AND relevant.starts_on <= month.period
                  AND (relevant.ends_on IS NULL OR relevant.ends_on > month.period)
              ))
          ), missing AS MATERIALIZED (
            SELECT DISTINCT b.account_id, b.period FROM billable b
-           WHERE NOT EXISTS (SELECT 1 FROM yzy_contracts.billing_invoices i
+           WHERE NOT EXISTS (SELECT 1 FROM billing_invoices i
                              WHERE i.account_id = b.account_id AND i.period = b.period)
          ), candidates AS MATERIALIZED (
            SELECT account_id, period, gen_random_uuid() AS id FROM missing
          ), issued AS (
-           INSERT INTO yzy_contracts.billing_invoices (id, account_id, period, due_on, transfer_memo)
+           INSERT INTO billing_invoices (id, account_id, period, due_on, transfer_memo)
            SELECT id, account_id, period, (period + ($4::int * interval '1 day'))::date,
                   'YZY-' || replace(id::text, '-', '') FROM candidates
            ORDER BY account_id, period
            ON CONFLICT (account_id, period) DO NOTHING RETURNING id, account_id, period
          )
-         INSERT INTO yzy_contracts.billing_invoice_lines (invoice_id, company_id, company_name, unit_price_minor)
+         INSERT INTO billing_invoice_lines (invoice_id, company_id, company_name, unit_price_minor)
          SELECT i.id, b.company_id, b.company_name, b.unit_price_minor
          FROM issued i JOIN billable b USING (account_id, period)",
     )
@@ -714,17 +713,17 @@ pub async fn prepare_renewal(
     }
     let period: NaiveDate = sqlx::query_scalar(
         "SELECT GREATEST(a.starts_on, date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo')::date,
-            ((SELECT max(i.period) FROM yzy_contracts.billing_invoices i
+            ((SELECT max(i.period) FROM billing_invoices i
               WHERE i.account_id = a.id AND i.paid_at IS NOT NULL) + interval '1 month')::date)
-         FROM yzy_contracts.billing_accounts a WHERE a.id = $1",
+         FROM billing_accounts a WHERE a.id = $1",
     )
     .bind(account_id)
     .fetch_one(&mut *db)
     .await?;
     let has_companies: bool = sqlx::query_scalar(
         "SELECT EXISTS (
-           SELECT 1 FROM yzy_contracts.billing_account_companies ac
-           JOIN yzy_contracts.companies c ON c.id = ac.company_id AND c.archived_at IS NULL
+           SELECT 1 FROM billing_account_companies ac
+           JOIN companies c ON c.id = ac.company_id AND c.archived_at IS NULL
            WHERE ac.account_id = $1 AND ac.starts_on <= $2 AND (ac.ends_on IS NULL OR ac.ends_on > $2)
          )",
     )
@@ -739,7 +738,7 @@ pub async fn prepare_renewal(
     }
     issue_invoices_until(&mut *db, Some(&ids), None, Some(period)).await?;
     let invoice_id: Uuid = sqlx::query_scalar(
-        "UPDATE yzy_contracts.billing_invoices SET renewal_generated = false
+        "UPDATE billing_invoices SET renewal_generated = false
          WHERE account_id = $1 AND period = $2 RETURNING id",
     )
     .bind(account_id)
@@ -776,27 +775,27 @@ const INVOICES_ROWS: &str = "SELECT i.id, i.account_id, COALESCE(dedicated.name,
            (i.paid_at IS NULL AND i.due_on < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date) AS is_overdue,
            l.total_minor * COALESCE(r.months, 1) - COALESCE(r.discount_minor, 0) AS total_minor,
            COALESCE(r.months, 1::smallint) AS months, COALESCE(r.discount_minor, 0) AS discount_minor,
-           CASE WHEN i.paid_at IS NULL AND r.id IS NULL THEN yzy_contracts.billing_renewal_month_limit(i.id)
+           CASE WHEN i.paid_at IS NULL AND r.id IS NULL THEN billing_renewal_month_limit(i.id)
                 ELSE 1::smallint END AS renewal_month_limit,
            i.transfer_memo, l.lines, r.reference AS transfer_reference,
            r.id AS transfer_report_id, r.submitted_at AS transfer_reported_at, i.paid_at
-         FROM yzy_contracts.billing_invoices i
-         JOIN yzy_contracts.billing_accounts a ON a.id = i.account_id
-         LEFT JOIN yzy_contracts.companies dedicated ON dedicated.id = a.company_id
+         FROM billing_invoices i
+         JOIN billing_accounts a ON a.id = i.account_id
+         LEFT JOIN companies dedicated ON dedicated.id = a.company_id
          JOIN LATERAL (
            SELECT sum(unit_price_minor) AS total_minor,
              jsonb_agg(jsonb_build_object('company_id', company_id, 'company_name', company_name,
                'unit_price_minor', unit_price_minor) ORDER BY lower(company_name), company_id) AS lines
-           FROM yzy_contracts.billing_invoice_lines WHERE invoice_id = i.id
+           FROM billing_invoice_lines WHERE invoice_id = i.id
          ) l ON true
-         LEFT JOIN yzy_contracts.billing_transfer_reports r
+         LEFT JOIN billing_transfer_reports r
            ON r.invoice_id = i.id AND r.approved IS DISTINCT FROM false
          WHERE ($1::uuid[] IS NULL OR i.account_id = ANY($1)) AND ($2::uuid IS NULL OR i.id = $2)
            AND (NOT i.renewal_generated OR r.id IS NOT NULL
                 OR i.period <= date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo')::date)
            AND NOT EXISTS (
-             SELECT 1 FROM yzy_contracts.billing_renewal_periods p
-             JOIN yzy_contracts.billing_transfer_reports reserved ON reserved.id = p.report_id
+             SELECT 1 FROM billing_renewal_periods p
+             JOIN billing_transfer_reports reserved ON reserved.id = p.report_id
              WHERE p.invoice_id = i.id AND reserved.approved IS DISTINCT FROM false
            )
            AND ($3::boolean IS NULL OR (i.paid_at IS NULL AND r.id IS NOT NULL) = $3)";
@@ -876,11 +875,11 @@ pub async fn lock_invoice(
     accounts: Option<&[Uuid]>,
 ) -> Result<(), ApiError> {
     sqlx::query_scalar::<_, Uuid>(
-        "SELECT i.id FROM yzy_contracts.billing_invoices i WHERE i.id = $1
+        "SELECT i.id FROM billing_invoices i WHERE i.id = $1
          AND ($2::uuid[] IS NULL OR i.account_id = ANY($2))
          AND NOT EXISTS (
-           SELECT 1 FROM yzy_contracts.billing_renewal_periods p
-           JOIN yzy_contracts.billing_transfer_reports r ON r.id = p.report_id
+           SELECT 1 FROM billing_renewal_periods p
+           JOIN billing_transfer_reports r ON r.id = p.report_id
            WHERE p.invoice_id = i.id AND r.approved IS DISTINCT FROM false
          )
          AND (NOT i.renewal_generated
@@ -904,7 +903,7 @@ pub async fn report_transfer(
     expected_total: Option<i64>,
 ) -> Result<(), ApiError> {
     let previous: Option<(String, i16)> = sqlx::query_as(
-        "SELECT reference, months FROM yzy_contracts.billing_transfer_reports
+        "SELECT reference, months FROM billing_transfer_reports
          WHERE invoice_id = $1 AND approved IS DISTINCT FROM false",
     )
     .bind(invoice_id)
@@ -920,7 +919,7 @@ pub async fn report_transfer(
         };
     }
     let monthly_amount: i64 = sqlx::query_scalar(
-        "SELECT sum(unit_price_minor) FROM yzy_contracts.billing_invoice_lines WHERE invoice_id = $1",
+        "SELECT sum(unit_price_minor) FROM billing_invoice_lines WHERE invoice_id = $1",
     )
     .bind(invoice_id)
     .fetch_one(&mut *db)
@@ -940,7 +939,7 @@ pub async fn report_transfer(
         Vec::new()
     };
     let report_id: Uuid = sqlx::query_scalar(
-        "INSERT INTO yzy_contracts.billing_transfer_reports (invoice_id, submitted_by, reference, months, discount_minor)
+        "INSERT INTO billing_transfer_reports (invoice_id, submitted_by, reference, months, discount_minor)
          VALUES ($1, $2, $3, $4, $5) RETURNING id",
     )
     .bind(invoice_id)
@@ -952,8 +951,8 @@ pub async fn report_transfer(
     .await?;
     if !future.is_empty() {
         sqlx::query(
-            "INSERT INTO yzy_contracts.billing_renewal_periods (report_id, period, invoice_id)
-             SELECT $1, period, id FROM yzy_contracts.billing_invoices WHERE id = ANY($2)",
+            "INSERT INTO billing_renewal_periods (report_id, period, invoice_id)
+             SELECT $1, period, id FROM billing_invoices WHERE id = ANY($2)",
         )
         .bind(report_id)
         .bind(&future)
@@ -969,8 +968,8 @@ async fn renewal_periods(
     months: i16,
 ) -> Result<Vec<Uuid>, ApiError> {
     let (account_id, period, limit): (Uuid, NaiveDate, i16) = sqlx::query_as(
-        "SELECT account_id, period, yzy_contracts.billing_renewal_month_limit(id)
-         FROM yzy_contracts.billing_invoices WHERE id = $1",
+        "SELECT account_id, period, billing_renewal_month_limit(id)
+         FROM billing_invoices WHERE id = $1",
     )
     .bind(invoice_id)
     .fetch_one(&mut *db)
@@ -991,14 +990,14 @@ async fn renewal_periods(
         "WITH candidates AS MATERIALIZED (
            SELECT period, gen_random_uuid() AS id FROM unnest($3::date[]) AS months(period)
          ), issued AS (
-           INSERT INTO yzy_contracts.billing_invoices (id, account_id, period, due_on, transfer_memo, renewal_generated)
+           INSERT INTO billing_invoices (id, account_id, period, due_on, transfer_memo, renewal_generated)
            SELECT id, $1, period, (period + ($4::int * interval '1 day'))::date,
                   'YZY-' || replace(id::text, '-', ''), true FROM candidates
            ORDER BY period ON CONFLICT (account_id, period) DO NOTHING RETURNING id
          )
-         INSERT INTO yzy_contracts.billing_invoice_lines (invoice_id, company_id, company_name, unit_price_minor)
+         INSERT INTO billing_invoice_lines (invoice_id, company_id, company_name, unit_price_minor)
          SELECT issued.id, l.company_id, l.company_name, l.unit_price_minor
-         FROM issued CROSS JOIN yzy_contracts.billing_invoice_lines l WHERE l.invoice_id = $2",
+         FROM issued CROSS JOIN billing_invoice_lines l WHERE l.invoice_id = $2",
     )
     .bind(account_id)
     .bind(invoice_id)
@@ -1007,7 +1006,7 @@ async fn renewal_periods(
     .execute(&mut *db)
     .await?;
     let available: Vec<Uuid> = sqlx::query_scalar(
-        "SELECT i.id FROM yzy_contracts.billing_invoices i
+        "SELECT i.id FROM billing_invoices i
          WHERE i.account_id = $1 AND i.period = ANY($2) AND i.paid_at IS NULL
          ORDER BY i.period FOR UPDATE OF i",
     )
@@ -1031,7 +1030,7 @@ pub async fn verify_transfer(
     approve: bool,
 ) -> Result<(), ApiError> {
     let previous: Option<bool> = sqlx::query_scalar(
-        "SELECT approved FROM yzy_contracts.billing_transfer_reports WHERE id = $1 AND invoice_id = $2",
+        "SELECT approved FROM billing_transfer_reports WHERE id = $1 AND invoice_id = $2",
     )
     .bind(report_id)
     .bind(invoice_id)
@@ -1046,7 +1045,7 @@ pub async fn verify_transfer(
         };
     }
     sqlx::query(
-        "UPDATE yzy_contracts.billing_transfer_reports SET approved = $3, verified_at = now(), verified_by = $4
+        "UPDATE billing_transfer_reports SET approved = $3, verified_at = now(), verified_by = $4
          WHERE id = $1 AND invoice_id = $2",
     )
     .bind(report_id)
@@ -1057,9 +1056,9 @@ pub async fn verify_transfer(
     .await?;
     if approve {
         sqlx::query(
-            "UPDATE yzy_contracts.billing_invoices SET paid_at = now()
+            "UPDATE billing_invoices SET paid_at = now()
              WHERE id = $1 OR id IN (
-               SELECT invoice_id FROM yzy_contracts.billing_renewal_periods WHERE report_id = $2
+               SELECT invoice_id FROM billing_renewal_periods WHERE report_id = $2
              )",
         )
         .bind(invoice_id)
@@ -1068,18 +1067,18 @@ pub async fn verify_transfer(
         .await?;
     } else {
         let drafts: Vec<Uuid> = sqlx::query_scalar(
-            "SELECT i.id FROM yzy_contracts.billing_invoices i
-             JOIN yzy_contracts.billing_renewal_periods p ON p.invoice_id = i.id
+            "SELECT i.id FROM billing_invoices i
+             JOIN billing_renewal_periods p ON p.invoice_id = i.id
              WHERE p.report_id = $1 AND i.renewal_generated FOR UPDATE OF i",
         )
         .bind(report_id)
         .fetch_all(&mut *db)
         .await?;
-        sqlx::query("DELETE FROM yzy_contracts.billing_invoice_lines WHERE invoice_id = ANY($1)")
+        sqlx::query("DELETE FROM billing_invoice_lines WHERE invoice_id = ANY($1)")
             .bind(&drafts)
             .execute(&mut *db)
             .await?;
-        sqlx::query("DELETE FROM yzy_contracts.billing_invoices WHERE id = ANY($1)")
+        sqlx::query("DELETE FROM billing_invoices WHERE id = ANY($1)")
             .bind(&drafts)
             .execute(db)
             .await?;
@@ -1089,16 +1088,16 @@ pub async fn verify_transfer(
 
 pub async fn claim_daily_maintenance(db: &PgPool) -> Result<bool, ApiError> {
     let claimed: Option<(String,)> = sqlx::query_as(
-        "INSERT INTO yzy_contracts.billing_job_runs (job, run_on)
+        "INSERT INTO billing_job_runs (job, run_on)
          SELECT 'daily_maintenance', (CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date
          WHERE NOT EXISTS (
-           SELECT 1 FROM yzy_contracts.billing_job_runs
+           SELECT 1 FROM billing_job_runs
            WHERE job = 'daily_maintenance'
              AND run_on = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date
          )
          ON CONFLICT (job) DO UPDATE
            SET run_on = EXCLUDED.run_on, finished_at = now()
-           WHERE yzy_contracts.billing_job_runs.run_on < EXCLUDED.run_on
+           WHERE billing_job_runs.run_on < EXCLUDED.run_on
          RETURNING job",
     )
     .fetch_optional(db)
@@ -1108,16 +1107,16 @@ pub async fn claim_daily_maintenance(db: &PgPool) -> Result<bool, ApiError> {
 
 pub async fn enqueue_due_reminders(db: &PgPool) -> Result<u64, ApiError> {
     sqlx::query(
-        "UPDATE yzy_contracts.billing_reminders r
+        "UPDATE billing_reminders r
          SET sent_at = COALESCE(sent_at, now()), last_error = COALESCE(last_error, 'cancelled')
          WHERE r.sent_at IS NULL
            AND EXISTS (
-             SELECT 1 FROM yzy_contracts.billing_invoices i
+             SELECT 1 FROM billing_invoices i
              WHERE i.id = r.invoice_id
                AND (
                  i.paid_at IS NOT NULL
                  OR EXISTS (
-                   SELECT 1 FROM yzy_contracts.billing_transfer_reports tr
+                   SELECT 1 FROM billing_transfer_reports tr
                    WHERE tr.invoice_id = i.id AND tr.approved IS DISTINCT FROM false
                  )
                )
@@ -1130,7 +1129,7 @@ pub async fn enqueue_due_reminders(db: &PgPool) -> Result<u64, ApiError> {
            SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date AS day
          ), targets AS (
            SELECT i.id AS invoice_id, kind.kind, today.day AS scheduled_for
-           FROM yzy_contracts.billing_invoices i
+           FROM billing_invoices i
            CROSS JOIN today
            CROSS JOIN LATERAL (VALUES
              ('issued', i.period),
@@ -1140,13 +1139,13 @@ pub async fn enqueue_due_reminders(db: &PgPool) -> Result<u64, ApiError> {
            ) AS kind(kind, on_day)
            WHERE i.paid_at IS NULL
              AND NOT EXISTS (
-               SELECT 1 FROM yzy_contracts.billing_transfer_reports r
+               SELECT 1 FROM billing_transfer_reports r
                WHERE r.invoice_id = i.id AND r.approved IS DISTINCT FROM false
              )
              AND kind.on_day <= today.day
              AND i.period <= today.day
          )
-         INSERT INTO yzy_contracts.billing_reminders (invoice_id, kind, scheduled_for)
+         INSERT INTO billing_reminders (invoice_id, kind, scheduled_for)
          SELECT invoice_id, kind, scheduled_for FROM targets
          ON CONFLICT (invoice_id, kind) DO NOTHING",
     )
@@ -1173,13 +1172,13 @@ pub async fn claim_reminder(db: &PgPool) -> Result<Option<ReminderJob>, ApiError
     Ok(sqlx::query_as(
         "WITH next AS (
            SELECT r.id
-           FROM yzy_contracts.billing_reminders r
+           FROM billing_reminders r
            WHERE r.sent_at IS NULL AND r.next_attempt_at <= now() AND r.attempts < 8
            ORDER BY r.next_attempt_at, r.id
            FOR UPDATE SKIP LOCKED
            LIMIT 1
          ), claimed AS (
-           UPDATE yzy_contracts.billing_reminders r
+           UPDATE billing_reminders r
            SET attempts = r.attempts + 1,
                next_attempt_at = now() + interval '15 minutes'
            FROM next WHERE r.id = next.id
@@ -1187,19 +1186,19 @@ pub async fn claim_reminder(db: &PgPool) -> Result<Option<ReminderJob>, ApiError
          )
          SELECT c.id, c.invoice_id, c.kind, COALESCE(dedicated.name, a.name) AS account_name,
                 i.due_on, lines.total_minor, a.manager_user_id,
-                yzy_contracts.confirmed_identity_email(a.manager_user_id) AS manager_email,
+                confirmed_identity_email(a.manager_user_id) AS manager_email,
                 i.transfer_memo
          FROM claimed c
-         JOIN yzy_contracts.billing_invoices i ON i.id = c.invoice_id
-         JOIN yzy_contracts.billing_accounts a ON a.id = i.account_id
-         LEFT JOIN yzy_contracts.companies dedicated ON dedicated.id = a.company_id
+         JOIN billing_invoices i ON i.id = c.invoice_id
+         JOIN billing_accounts a ON a.id = i.account_id
+         LEFT JOIN companies dedicated ON dedicated.id = a.company_id
          JOIN LATERAL (
            SELECT COALESCE(sum(unit_price_minor), 0)::bigint AS total_minor
-           FROM yzy_contracts.billing_invoice_lines WHERE invoice_id = i.id
+           FROM billing_invoice_lines WHERE invoice_id = i.id
          ) lines ON true
          WHERE i.paid_at IS NULL
            AND NOT EXISTS (
-             SELECT 1 FROM yzy_contracts.billing_transfer_reports r
+             SELECT 1 FROM billing_transfer_reports r
              WHERE r.invoice_id = i.id AND r.approved IS DISTINCT FROM false
            )",
     )
@@ -1209,7 +1208,7 @@ pub async fn claim_reminder(db: &PgPool) -> Result<Option<ReminderJob>, ApiError
 
 pub async fn mark_reminder_sent(db: &PgPool, id: Uuid) -> Result<(), ApiError> {
     sqlx::query(
-        "UPDATE yzy_contracts.billing_reminders
+        "UPDATE billing_reminders
          SET sent_at = now(), last_error = NULL WHERE id = $1",
     )
     .bind(id)
@@ -1219,7 +1218,7 @@ pub async fn mark_reminder_sent(db: &PgPool, id: Uuid) -> Result<(), ApiError> {
 }
 
 pub async fn mark_reminder_failed(db: &PgPool, id: Uuid, error: &str) -> Result<(), ApiError> {
-    sqlx::query("UPDATE yzy_contracts.billing_reminders SET last_error = $2 WHERE id = $1")
+    sqlx::query("UPDATE billing_reminders SET last_error = $2 WHERE id = $1")
         .bind(id)
         .bind(error)
         .execute(db)
@@ -1229,7 +1228,7 @@ pub async fn mark_reminder_failed(db: &PgPool, id: Uuid, error: &str) -> Result<
 
 pub async fn suspended_company_ids(db: &PgPool) -> Result<Vec<Uuid>, ApiError> {
     Ok(
-        sqlx::query_scalar("SELECT company_id FROM yzy_contracts.billing_suspended_companies()")
+        sqlx::query_scalar("SELECT company_id FROM billing_suspended_companies()")
             .fetch_all(db)
             .await?,
     )
@@ -1253,17 +1252,17 @@ pub async fn pending_alert_for_manager(
         "SELECT i.id AS invoice_id, COALESCE(dedicated.name, a.name) AS account_name,
                 i.due_on, i.period, lines.total_minor,
                 (CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date AS today
-         FROM yzy_contracts.billing_invoices i
-         JOIN yzy_contracts.billing_accounts a ON a.id = i.account_id
-         LEFT JOIN yzy_contracts.companies dedicated ON dedicated.id = a.company_id
-         JOIN yzy_contracts.billing_account_managers m ON m.account_id = a.id AND m.user_id = $1
+         FROM billing_invoices i
+         JOIN billing_accounts a ON a.id = i.account_id
+         LEFT JOIN companies dedicated ON dedicated.id = a.company_id
+         JOIN billing_account_managers m ON m.account_id = a.id AND m.user_id = $1
          JOIN LATERAL (
            SELECT COALESCE(sum(unit_price_minor), 0)::bigint AS total_minor
-           FROM yzy_contracts.billing_invoice_lines WHERE invoice_id = i.id
+           FROM billing_invoice_lines WHERE invoice_id = i.id
          ) lines ON true
          WHERE i.paid_at IS NULL
            AND NOT EXISTS (
-             SELECT 1 FROM yzy_contracts.billing_transfer_reports r
+             SELECT 1 FROM billing_transfer_reports r
              WHERE r.invoice_id = i.id AND r.approved IS DISTINCT FROM false
            )
            AND (CURRENT_TIMESTAMP AT TIME ZONE 'America/Santo_Domingo')::date

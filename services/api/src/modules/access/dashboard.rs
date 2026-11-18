@@ -74,7 +74,7 @@ async fn activity(db: &sqlx::PgPool, admin_id: Uuid) -> sqlx::Result<DashboardAc
             SELECT (statement_timestamp() AT TIME ZONE 'America/Santo_Domingo')::date AS today
          ), visits AS (
             SELECT user_id, screen, (occurred_at AT TIME ZONE 'America/Santo_Domingo')::date AS day
-            FROM yzy_contracts.portal_activity_events, boundary
+            FROM portal_activity_events, boundary
             WHERE event = 'portal_visit' AND user_id <> $1
               AND occurred_at >= ((today - 6)::timestamp AT TIME ZONE 'America/Santo_Domingo')
               AND occurred_at <= statement_timestamp()
@@ -125,15 +125,15 @@ pub(super) async fn summary(
     .await?;
     let usage = sqlx::query_as::<_, DashboardUsage>(
         "SELECT $1::date AS period,
-           (SELECT count(*) FROM yzy_contracts.companies WHERE archived_at IS NULL) AS active_companies,
+           (SELECT count(*) FROM companies WHERE archived_at IS NULL) AS active_companies,
            count(*) FILTER (WHERE i.enabled_at IS NOT NULL) AS enabled_users,
            count(*) FILTER (WHERE i.enabled_at IS NOT NULL AND o.last_portal_access_at >= $2) AS users_seen_this_month,
            count(*) FILTER (WHERE i.enabled_at IS NULL) AS access_requests,
-           (SELECT count(*) FROM yzy_contracts.generated_documents
+           (SELECT count(*) FROM generated_documents
             WHERE created_at >= $2 AND NOT imported_from_session) AS documents_this_month
-         FROM yzy_contracts.access_identities i
-         JOIN yzy_contracts.profiles p ON p.user_id = i.user_id
-         LEFT JOIN yzy_contracts.portal_access_observations o ON o.user_id = i.user_id
+         FROM access_identities i
+         JOIN profiles p ON p.user_id = i.user_id
+         LEFT JOIN portal_access_observations o ON o.user_id = i.user_id
          WHERE i.user_id <> $3 AND NOT i.suspended AND p.account_status = 'active'",
     )
     .bind(period)

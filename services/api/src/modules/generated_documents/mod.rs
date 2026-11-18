@@ -138,12 +138,11 @@ async fn persist(
             return Err(ApiError::GeneratedDocumentConflict);
         }
         if let Some(company) = &body.company {
-            let allowed: bool =
-                sqlx::query_scalar("SELECT yzy_contracts.has_company_membership($1, $2)")
-                    .bind(owner)
-                    .bind(company.id)
-                    .fetch_one(&state.db)
-                    .await?;
+            let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
+                .bind(owner)
+                .bind(company.id)
+                .fetch_one(&state.db)
+                .await?;
             if !allowed {
                 return Err(ApiError::CompanyNotFound);
             }

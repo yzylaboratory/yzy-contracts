@@ -76,9 +76,9 @@ pub async fn get_template(
 ) -> Result<Json<TemplateResponse>, ApiError> {
     sqlx::query_as(
         "SELECT t.id, t.contract_id, t.owner_id, t.name, t.content_markdown, t.native_variables, t.created_at, t.updated_at
-         FROM yzy_contracts.templates t JOIN yzy_contracts.contracts c ON c.id = t.contract_id
+         FROM templates t JOIN contracts c ON c.id = t.contract_id
          WHERE t.id = $2 AND c.deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key)",
+           AND can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key)",
     )
     .bind(user.id)
     .bind(id)
@@ -133,10 +133,10 @@ pub async fn update_template(
     }
 
     let native: Option<bool> = sqlx::query_scalar(
-        "SELECT t.native_variables IS NOT NULL FROM yzy_contracts.templates t
-         JOIN yzy_contracts.contracts c ON c.id = t.contract_id
+        "SELECT t.native_variables IS NOT NULL FROM templates t
+         JOIN contracts c ON c.id = t.contract_id
          WHERE t.owner_id = $1 AND t.id = $2 AND c.deleted_at IS NULL AND c.catalog_key IS NULL
-           AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key)",
+           AND can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key)",
     )
     .bind(user.id)
     .bind(id)
@@ -149,11 +149,11 @@ pub async fn update_template(
     }
 
     sqlx::query_as(
-        "UPDATE yzy_contracts.templates
+        "UPDATE templates
          SET name = $3, content_markdown = $4
          WHERE owner_id = $1 AND id = $2
-           AND EXISTS (SELECT 1 FROM yzy_contracts.contracts c WHERE c.id = templates.contract_id AND c.catalog_key IS NULL
-             AND c.deleted_at IS NULL AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key))
+           AND EXISTS (SELECT 1 FROM contracts c WHERE c.id = templates.contract_id AND c.catalog_key IS NULL
+             AND c.deleted_at IS NULL AND can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key))
          RETURNING id, contract_id, owner_id, name, content_markdown, native_variables, created_at, updated_at",
     )
     .bind(user.id)

@@ -1,53 +1,124 @@
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use sqlx::{
-    PgPool,
-    migrate::Migrator,
+    AssertSqlSafe, PgPool, SqlSafeStr,
+    migrate::{Migration, Migrator},
     postgres::{PgConnectOptions, PgPoolOptions},
 };
 
+use super::schema::{DatabaseSchema, development_sql};
 use crate::config::Config;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Connects as the runtime role. Every connection searches only the selected
+/// schema, so queries stay unqualified and cannot reach the other product schema.
 pub async fn connect(config: &Config) -> anyhow::Result<PgPool> {
     let options: PgConnectOptions = config
         .database_url
         .parse()
         .context("DATABASE_URL is not a valid PostgreSQL URL")?;
+    connect_with_options(options, config).await
+}
+
+pub async fn connect_with_options(
+    options: PgConnectOptions,
+    config: &Config,
+) -> anyhow::Result<PgPool> {
+    let schema = config.database_schema;
     let superadmin_id = config
         .superadmin_id
         .map(|id| id.to_string())
         .unwrap_or_default();
-    PgPoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(config.database_max_connections)
         .acquire_timeout(CONNECT_TIMEOUT)
         .after_connect(move |connection, _| {
             let superadmin_id = superadmin_id.clone();
             Box::pin(async move {
-                sqlx::query("SELECT set_config('yzy_contracts.superadmin_id', $1, false)")
-                    .bind(superadmin_id)
-                    .execute(connection)
-                    .await?;
+                // No `public` fallback: the search path is the selected schema alone.
+                sqlx::query(
+                    "SELECT set_config('search_path', $1, false),
+                            set_config($2, $3, false)",
+                )
+                .bind(schema.name())
+                .bind(schema.superadmin_setting())
+                .bind(superadmin_id)
+                .execute(connection)
+                .await?;
                 Ok(())
             })
         })
         .connect_with(options.application_name("yzy-contracts-api"))
         .await
-        .context("could not connect to PostgreSQL")
+        .context("could not connect to PostgreSQL")?;
+    verify_schema_access(&pool, schema).await?;
+    Ok(pool)
 }
 
-/// Embedded so that the deployed image carries exactly the migrations it was
-/// built with. The ledger lives in the product schema, not in `public`.
-pub fn migrator() -> Migrator {
+/// Refuses to serve when the role and the schema disagree, when the schema is
+/// missing, or when a DEV role can read PROD.
+async fn verify_schema_access(pool: &PgPool, schema: DatabaseSchema) -> anyhow::Result<()> {
+    let (role, schema_exists, other_readable): (String, bool, bool) = sqlx::query_as(
+        "SELECT current_user::text,
+                to_regnamespace($1) IS NOT NULL,
+                COALESCE(to_regnamespace($2) IS NOT NULL
+                  AND has_schema_privilege($2, 'USAGE'), false)",
+    )
+    .bind(schema.name())
+    .bind(schema.other_name())
+    .fetch_one(pool)
+    .await
+    .context("could not verify the database role and schema")?;
+    if role != schema.role() {
+        bail!(
+            "CONTRACTS_DATABASE_SCHEMA={} requires database role {}, but the connection uses {role}",
+            schema.name(),
+            schema.role()
+        );
+    }
+    if !schema_exists {
+        bail!("schema {} does not exist in this database", schema.name());
+    }
+    if schema == DatabaseSchema::Development && other_readable {
+        bail!(
+            "role {role} can read the production schema {}; DEV must not have access to it",
+            schema.other_name()
+        );
+    }
+    Ok(())
+}
+
+/// Migrations embedded from the same source for both schemas. PROD keeps the
+/// embedded SQL and checksums untouched. DEV applies the DEV rename to each
+/// migration and records it in its own ledger.
+pub fn migrator(schema: DatabaseSchema) -> Migrator {
     let mut migrator = sqlx::migrate!("../../supabase/migrations");
-    migrator.dangerous_set_table_name("yzy_contracts._sqlx_migrations");
+    if schema == DatabaseSchema::Development {
+        let migrations = migrator
+            .migrations
+            .iter()
+            .map(|migration| {
+                Migration::new(
+                    migration.version,
+                    migration.description.clone(),
+                    migration.migration_type,
+                    // Built from the embedded migrations, never from request data.
+                    AssertSqlSafe(development_sql(migration.sql.as_str())).into_sql_str(),
+                    migration.no_tx,
+                )
+            })
+            .collect();
+        migrator = Migrator::with_migrations(migrations);
+    }
+    migrator.dangerous_set_table_name(schema.ledger_table());
     migrator
 }
 
 pub async fn run_migrations(
     database_url: &str,
+    schema: DatabaseSchema,
     superadmin_id: Option<uuid::Uuid>,
 ) -> anyhow::Result<()> {
     let options: PgConnectOptions = database_url
@@ -57,12 +128,14 @@ pub async fn run_migrations(
     let pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(CONNECT_TIMEOUT)
-        .connect_with(options.options([("yzy_contracts.superadmin_id", superadmin)]))
+        .connect_with(options.options([(schema.superadmin_setting(), superadmin)]))
         .await
         .context("could not connect to PostgreSQL to migrate")?;
     let mut connection = pool.acquire().await?;
-    let mut migrator = migrator();
-    accept_previous_checksums(&mut migrator, &mut connection).await?;
+    let mut migrator = migrator(schema);
+    if schema == DatabaseSchema::Production {
+        accept_previous_checksums(&mut migrator, &mut connection).await?;
+    }
     migrator
         .run(&mut *connection)
         .await
@@ -70,6 +143,7 @@ pub async fn run_migrations(
     Ok(())
 }
 
+/// Only PROD has pre-publication ledger rows. Accept exactly their checksums.
 async fn accept_previous_checksums(
     migrator: &mut Migrator,
     connection: &mut sqlx::PgConnection,

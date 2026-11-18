@@ -52,7 +52,7 @@ async fn list_cases(
     if query.q.as_ref().is_some_and(|q| q.contains('\0')) {
         return Err(ApiError::Validation("Valor inválido para q.".to_owned()));
     }
-    let allowed: bool = sqlx::query_scalar("SELECT yzy_contracts.has_company_membership($1, $2)")
+    let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
         .bind(user.id)
         .bind(query.company_id)
         .fetch_one(&state.db)
@@ -362,17 +362,17 @@ pub(crate) async fn correct_case_vehicle(
 ) -> anyhow::Result<()> {
     use anyhow::Context;
     let (client_id, company_name): (Uuid, String) = sqlx::query_as(
-        "SELECT o.client_id, c.name FROM yzy_contracts.client_operations o
-         JOIN yzy_contracts.companies c ON c.id = o.company_id
+        "SELECT o.client_id, c.name FROM client_operations o
+         JOIN companies c ON c.id = o.company_id
          WHERE o.id = $1 AND c.id = $2 AND o.deleted_at IS NULL
-           AND yzy_contracts.has_company_membership($3, c.id)",
+           AND has_company_membership($3, c.id)",
     )
     .bind(operation)
     .bind(company)
     .bind(actor)
     .fetch_one(&mut **tx)
     .await?;
-    let client: Client = sqlx::query_as("SELECT * FROM yzy_contracts.clients WHERE id = $1")
+    let client: Client = sqlx::query_as("SELECT * FROM clients WHERE id = $1")
         .bind(client_id)
         .fetch_one(&mut **tx)
         .await?;

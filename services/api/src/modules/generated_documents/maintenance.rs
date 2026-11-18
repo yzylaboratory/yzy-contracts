@@ -67,9 +67,9 @@ pub async fn replace_words(config: &Config, apply: bool) -> anyhow::Result<()> {
         .await?;
     let matches_case: bool = sqlx::query_scalar(
         "SELECT EXISTS (
-           SELECT 1 FROM yzy_contracts.client_operations o
-           JOIN yzy_contracts.companies c ON c.id = o.company_id
-           JOIN yzy_contracts.clients cl ON cl.id = o.client_id
+           SELECT 1 FROM client_operations o
+           JOIN companies c ON c.id = o.company_id
+           JOIN clients cl ON cl.id = o.client_id
            WHERE o.id = $1 AND c.id = $2 AND o.reference = $3 AND o.deleted_at IS NULL
              AND o.updated_at = $4 AND cl.updated_at = $5 AND c.updated_at = $6
              AND o.vehicle - 'source_document' = $7::jsonb - 'source_document'
@@ -91,7 +91,7 @@ pub async fn replace_words(config: &Config, apply: bool) -> anyhow::Result<()> {
     );
 
     let originals: Vec<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM yzy_contracts.generated_documents
+        "SELECT id FROM generated_documents
          WHERE operation_id = $1 AND operation_company_id = $2 AND format = 'docx'",
     )
     .bind(bundle.operation_id)
@@ -146,9 +146,9 @@ pub async fn replace_words(config: &Config, apply: bool) -> anyhow::Result<()> {
         );
         let matches_original: bool = sqlx::query_scalar(
             "SELECT EXISTS (
-               SELECT 1 FROM yzy_contracts.generated_documents d
-               JOIN yzy_contracts.contracts c ON c.id = d.contract_id
-               JOIN yzy_contracts.templates t ON t.contract_id = c.id
+               SELECT 1 FROM generated_documents d
+               JOIN contracts c ON c.id = d.contract_id
+               JOIN templates t ON t.contract_id = c.id
                WHERE d.id = $1 AND d.contract_id = $2 AND d.document_type = $3
                  AND c.updated_at = $4 AND t.updated_at = $5 AND c.deleted_at IS NULL
              )",

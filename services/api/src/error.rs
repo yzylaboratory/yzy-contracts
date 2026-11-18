@@ -15,6 +15,8 @@ pub enum ApiError {
     AccountDeleted,
     #[error("Your company access is pending")]
     AccessPending,
+    #[error("This account is not allowed in this environment")]
+    AccessNotAllowed,
     #[error("Administrator access is required")]
     AdminRequired,
     #[error("User not found")]
@@ -119,6 +121,7 @@ impl ApiError {
             Self::Unauthenticated => "UNAUTHENTICATED",
             Self::AccountDeleted => "ACCOUNT_DELETED",
             Self::AccessPending => "ACCESS_PENDING",
+            Self::AccessNotAllowed => "ACCESS_NOT_ALLOWED",
             Self::AdminRequired => "ADMIN_REQUIRED",
             Self::AccessUserNotFound => "ACCESS_USER_NOT_FOUND",
             Self::ContractNotFound => "CONTRACT_NOT_FOUND",
@@ -174,6 +177,7 @@ impl ApiError {
             Self::Unauthenticated => StatusCode::UNAUTHORIZED,
             Self::AccountDeleted
             | Self::AccessPending
+            | Self::AccessNotAllowed
             | Self::AdminRequired
             | Self::BillingRequired => StatusCode::FORBIDDEN,
             Self::PaymentRequired => StatusCode::PAYMENT_REQUIRED,

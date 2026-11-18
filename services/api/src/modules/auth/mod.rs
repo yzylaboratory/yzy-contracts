@@ -92,7 +92,7 @@ pub async fn me(
 ) -> Result<Json<MeResponse>, ApiError> {
     let companies: Vec<CompanyAccess> = if user.enabled {
         sqlx::query_as(
-            "SELECT id, name FROM yzy_contracts.companies
+            "SELECT id, name FROM companies
              WHERE archived_at IS NULL ORDER BY is_default DESC, lower(name), id",
         )
         .fetch_all(&state.db)
@@ -108,9 +108,9 @@ pub async fn me(
     } else if user.enabled {
         sqlx::query_as(
             "SELECT EXISTS (
-               SELECT 1 FROM yzy_contracts.billing_account_managers WHERE user_id = $1
+               SELECT 1 FROM billing_account_managers WHERE user_id = $1
              ),
-             ARRAY(SELECT yzy_contracts.billing_companies_for($1))",
+             ARRAY(SELECT billing_companies_for($1))",
         )
         .bind(user.id)
         .fetch_one(&state.db)

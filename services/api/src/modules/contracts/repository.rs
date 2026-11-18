@@ -13,15 +13,15 @@ macro_rules! contract_select {
                 CASE WHEN c.owner_id = $1 OR c.shared_company_ids IS NULL THEN c.shared_company_ids
                      ELSE ARRAY(
                        SELECT company_id FROM unnest(c.shared_company_ids) WITH ORDINALITY AS shared(company_id, position)
-                       WHERE yzy_contracts.has_company_membership($1, company_id) ORDER BY position
+                       WHERE has_company_membership($1, company_id) ORDER BY position
                      ) END AS shared_company_ids,
                 c.name, c.description, c.original_file_name, c.mime_type,
                 c.size_bytes, c.status, t.id AS template_id, j.id AS latest_conversion_id,
                 c.created_at, c.updated_at
-         FROM yzy_contracts.contracts c
-         LEFT JOIN yzy_contracts.templates t ON t.contract_id = c.id
+         FROM contracts c
+         LEFT JOIN templates t ON t.contract_id = c.id
          LEFT JOIN LATERAL (
-           SELECT id FROM yzy_contracts.conversion_jobs
+           SELECT id FROM conversion_jobs
            WHERE contract_id = c.id ORDER BY created_at DESC LIMIT 1
          ) j ON true
          WHERE c.deleted_at IS NULL "
@@ -35,7 +35,7 @@ pub async fn find_for_reader(
 ) -> sqlx::Result<Option<ContractResponse>> {
     sqlx::query_as(concat!(
         contract_select!(),
-        "AND yzy_contracts.can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key) AND c.id = $2"
+        "AND can_read_contract($1, c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key) AND c.id = $2"
     ))
     .bind(owner_id)
     .bind(id)
@@ -51,7 +51,7 @@ pub async fn list_for_reader(
     let pattern = query.q.as_deref().map(like_pattern);
 
     let mut count = QueryBuilder::<Postgres>::new(
-        "SELECT count(*) FROM yzy_contracts.contracts c WHERE c.deleted_at IS NULL ",
+        "SELECT count(*) FROM contracts c WHERE c.deleted_at IS NULL ",
     );
     push_filters(&mut count, owner_id, pattern.as_deref(), query);
     let total: i64 = count.build_query_scalar().fetch_one(db).await?;
@@ -84,7 +84,7 @@ fn push_filters(
     query: &ListContractsQuery,
 ) {
     builder
-        .push(" AND yzy_contracts.can_read_contract(")
+        .push(" AND can_read_contract(")
         .push_bind(owner_id)
         .push(", c.owner_id, c.company_id, c.shared_company_ids, c.catalog_key)");
     if let Some(pattern) = pattern {
@@ -119,9 +119,9 @@ pub async fn scope_for_reader(
     contract_id: Uuid,
 ) -> sqlx::Result<Option<StoredContractScope>> {
     sqlx::query_as(
-        "SELECT company_id, shared_company_ids, catalog_key FROM yzy_contracts.contracts
+        "SELECT company_id, shared_company_ids, catalog_key FROM contracts
          WHERE id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
+           AND can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
     )
     .bind(actor)
     .bind(contract_id)
@@ -149,7 +149,7 @@ async fn can_share(
     // Lock companies in ID order so they cannot be archived before commit.
     let matched: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM (
-           SELECT c.id FROM yzy_contracts.companies c
+           SELECT c.id FROM companies c
            WHERE c.id = ANY($1) AND c.archived_at IS NULL
            ORDER BY c.id FOR SHARE OF c
          ) active",
@@ -185,7 +185,7 @@ pub async fn insert_consuming_upload(
     }
     let owner = contract.author.id;
     let consumed = sqlx::query(
-        "UPDATE yzy_contracts.file_uploads SET consumed_at = now()
+        "UPDATE file_uploads SET consumed_at = now()
          WHERE id = $1 AND owner_id = $2 AND consumed_at IS NULL AND register_before > now()",
     )
     .bind(contract.upload_id)
@@ -196,7 +196,7 @@ pub async fn insert_consuming_upload(
         return Ok(None);
     }
     let id: Uuid = sqlx::query_scalar(
-        "INSERT INTO yzy_contracts.contracts
+        "INSERT INTO contracts
            (owner_id, upload_id, name, description, original_file_name, mime_type,
             size_bytes, object_key, object_etag, company_id, shared_company_ids)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -217,7 +217,7 @@ pub async fn insert_consuming_upload(
     .await?;
     if let Some(variables) = contract.native_variables {
         sqlx::query(
-            "INSERT INTO yzy_contracts.templates (contract_id, owner_id, name, content_markdown, native_variables)
+            "INSERT INTO templates (contract_id, owner_id, name, content_markdown, native_variables)
              VALUES ($1, $2, $3, '', $4)",
         )
         .bind(id)
@@ -226,7 +226,7 @@ pub async fn insert_consuming_upload(
         .bind(sqlx::types::Json(variables))
         .execute(&mut *tx)
         .await?;
-        sqlx::query("UPDATE yzy_contracts.contracts SET status = 'converted' WHERE id = $1")
+        sqlx::query("UPDATE contracts SET status = 'converted' WHERE id = $1")
             .bind(id)
             .execute(&mut *tx)
             .await?;
@@ -250,13 +250,13 @@ pub async fn update_for_owner(
         return Ok(false);
     }
     let result = sqlx::query(
-        "UPDATE yzy_contracts.contracts
+        "UPDATE contracts
          SET name = COALESCE($3, name),
              description = CASE WHEN $4 THEN $5 ELSE description END,
              company_id = CASE WHEN $6 THEN $7 ELSE company_id END,
              shared_company_ids = CASE WHEN $6 THEN $8 ELSE shared_company_ids END
          WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
+           AND can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
     )
     .bind(author.id)
     .bind(id)
@@ -278,9 +278,9 @@ pub async fn update_for_owner(
 pub async fn soft_delete_for_owner(db: &PgPool, owner_id: Uuid, id: Uuid) -> sqlx::Result<bool> {
     let mut tx = db.begin().await?;
     let locked: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM yzy_contracts.contracts
+        "SELECT id FROM contracts
          WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL AND catalog_key IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
+           AND can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)
          FOR UPDATE",
     )
     .bind(owner_id)
@@ -290,25 +290,21 @@ pub async fn soft_delete_for_owner(db: &PgPool, owner_id: Uuid, id: Uuid) -> sql
     if locked.is_none() {
         return Ok(false);
     }
-    sqlx::query(
-        "DELETE FROM yzy_contracts.conversion_jobs WHERE owner_id = $1 AND contract_id = $2",
-    )
-    .bind(owner_id)
-    .bind(id)
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query("DELETE FROM yzy_contracts.templates WHERE owner_id = $1 AND contract_id = $2")
+    sqlx::query("DELETE FROM conversion_jobs WHERE owner_id = $1 AND contract_id = $2")
         .bind(owner_id)
         .bind(id)
         .execute(&mut *tx)
         .await?;
-    sqlx::query(
-        "UPDATE yzy_contracts.contracts SET deleted_at = now() WHERE owner_id = $1 AND id = $2",
-    )
-    .bind(owner_id)
-    .bind(id)
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("DELETE FROM templates WHERE owner_id = $1 AND contract_id = $2")
+        .bind(owner_id)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("UPDATE contracts SET deleted_at = now() WHERE owner_id = $1 AND id = $2")
+        .bind(owner_id)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
     Ok(true)
 }
@@ -326,9 +322,9 @@ pub async fn stored_object_for_reader(
     id: Uuid,
 ) -> sqlx::Result<Option<StoredObject>> {
     sqlx::query_as(
-        "SELECT object_key, original_file_name, mime_type FROM yzy_contracts.contracts
+        "SELECT object_key, original_file_name, mime_type FROM contracts
          WHERE id = $2 AND deleted_at IS NULL
-           AND yzy_contracts.can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
+           AND can_read_contract($1, owner_id, company_id, shared_company_ids, catalog_key)",
     )
     .bind(owner_id)
     .bind(id)

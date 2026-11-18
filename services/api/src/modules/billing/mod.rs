@@ -473,7 +473,7 @@ async fn require_company_membership(
     owner: Uuid,
     company: Uuid,
 ) -> Result<(), ApiError> {
-    let allowed: bool = sqlx::query_scalar("SELECT yzy_contracts.has_company_membership($1, $2)")
+    let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
         .bind(owner)
         .bind(company)
         .fetch_one(db)

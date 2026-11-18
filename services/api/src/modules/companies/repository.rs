@@ -17,9 +17,9 @@ pub(super) async fn list(
     sqlx::query_as(
         "SELECT c.id, c.name, c.variable_values,
                 c.is_default AND $3 AS is_default,
-                ($3 OR c.id IN (SELECT yzy_contracts.billing_companies_for($1))) AS can_manage,
+                ($3 OR c.id IN (SELECT billing_companies_for($1))) AS can_manage,
                 c.archived_at, c.created_at, c.updated_at
-         FROM yzy_contracts.companies c
+         FROM companies c
          WHERE (($2 AND $3) OR c.archived_at IS NULL)
          ORDER BY c.archived_at IS NOT NULL, c.is_default DESC, lower(c.name), c.id",
     )
@@ -38,9 +38,9 @@ pub(super) async fn find_for_reader(
     sqlx::query_as(
         "SELECT c.id, c.name, c.variable_values,
                 c.is_default AND $3 AS is_default,
-                ($3 OR c.id IN (SELECT yzy_contracts.billing_companies_for($1))) AS can_manage,
+                ($3 OR c.id IN (SELECT billing_companies_for($1))) AS can_manage,
                 c.archived_at, c.created_at, c.updated_at
-         FROM yzy_contracts.companies c
+         FROM companies c
          WHERE c.id = $2 AND ($3 OR c.archived_at IS NULL)",
     )
     .bind(user.id)
@@ -57,7 +57,7 @@ async fn managing_owner<'e>(
     id: Uuid,
 ) -> Result<Uuid, ApiError> {
     sqlx::query_scalar(
-        "SELECT c.owner_id FROM yzy_contracts.companies c WHERE c.id = $2
+        "SELECT c.owner_id FROM companies c WHERE c.id = $2
          AND $3 AND $1::uuid IS NOT NULL",
     )
     .bind(user.id)
@@ -77,7 +77,7 @@ async fn find_for_manager<'e>(
     sqlx::query_as(
         "SELECT c.id, c.name, c.variable_values, c.is_default, true AS can_manage,
                 c.archived_at, c.created_at, c.updated_at
-         FROM yzy_contracts.companies c WHERE c.owner_id = $1 AND c.id = $2
+         FROM companies c WHERE c.owner_id = $1 AND c.id = $2
          AND $4 AND $3::uuid IS NOT NULL",
     )
     .bind(owner)
@@ -111,9 +111,9 @@ pub(super) async fn create(
     let mut tx = lock_owner(db, owner).await?;
     billing::lock_assignments(&mut tx).await?;
     let company: Company = sqlx::query_as(
-        "INSERT INTO yzy_contracts.companies (owner_id, name, variable_values, is_default)
+        "INSERT INTO companies (owner_id, name, variable_values, is_default)
          VALUES ($1, $2, $3, NOT EXISTS (
-           SELECT 1 FROM yzy_contracts.companies WHERE owner_id = $1 AND archived_at IS NULL
+           SELECT 1 FROM companies WHERE owner_id = $1 AND archived_at IS NULL
          ))
          RETURNING id, name, variable_values, is_default, true AS can_manage, archived_at, created_at, updated_at",
     )
@@ -144,7 +144,7 @@ pub(super) async fn update(
         return Err(ApiError::CompanyArchived);
     }
     let company = sqlx::query_as(
-        "UPDATE yzy_contracts.companies SET name = $2, variable_values = $3
+        "UPDATE companies SET name = $2, variable_values = $3
          WHERE id = $1 AND archived_at IS NULL
          RETURNING id, name, variable_values, is_default AND $4 AS is_default, true AS can_manage,
                    archived_at, created_at, updated_at",
@@ -172,14 +172,12 @@ pub(super) async fn set_default(
         return Err(ApiError::CompanyArchived);
     }
     if !company.is_default {
-        sqlx::query(
-            "UPDATE yzy_contracts.companies SET is_default = false WHERE owner_id = $1 AND is_default",
-        )
-        .bind(owner)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("UPDATE companies SET is_default = false WHERE owner_id = $1 AND is_default")
+            .bind(owner)
+            .execute(&mut *tx)
+            .await?;
         company = sqlx::query_as(
-            "UPDATE yzy_contracts.companies SET is_default = true WHERE owner_id = $1 AND id = $2
+            "UPDATE companies SET is_default = true WHERE owner_id = $1 AND id = $2
              RETURNING id, name, variable_values, is_default, true AS can_manage, archived_at, created_at, updated_at",
         )
         .bind(owner)
@@ -200,7 +198,7 @@ pub(super) async fn archive(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<Co
         existing
     } else {
         let archived = sqlx::query_as(
-            "UPDATE yzy_contracts.companies SET archived_at = now(), is_default = false
+            "UPDATE companies SET archived_at = now(), is_default = false
              WHERE owner_id = $1 AND id = $2
              RETURNING id, name, variable_values, is_default, true AS can_manage, archived_at, created_at, updated_at",
         )
@@ -211,9 +209,9 @@ pub(super) async fn archive(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<Co
         billing::suspend_company_billing(&mut tx, id).await?;
         if existing.is_default {
             sqlx::query(
-                "UPDATE yzy_contracts.companies SET is_default = true
+                "UPDATE companies SET is_default = true
                  WHERE owner_id = $1 AND id = (
-                   SELECT id FROM yzy_contracts.companies
+                   SELECT id FROM companies
                    WHERE owner_id = $1 AND archived_at IS NULL ORDER BY created_at, id LIMIT 1
                  )",
             )
@@ -236,9 +234,9 @@ pub(super) async fn restore(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<Co
         existing
     } else {
         let restored = sqlx::query_as(
-            "UPDATE yzy_contracts.companies
+            "UPDATE companies
              SET archived_at = NULL, is_default = NOT EXISTS (
-               SELECT 1 FROM yzy_contracts.companies WHERE owner_id = $1 AND archived_at IS NULL
+               SELECT 1 FROM companies WHERE owner_id = $1 AND archived_at IS NULL
              )
              WHERE owner_id = $1 AND id = $2
              RETURNING id, name, variable_values, is_default, true AS can_manage, archived_at, created_at, updated_at",
@@ -265,14 +263,14 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
     }
     let (contracts, operations, billed): (bool, bool, bool) = sqlx::query_as(
         "SELECT
-           EXISTS (SELECT 1 FROM yzy_contracts.contracts WHERE company_id = $1 OR $1 = ANY(shared_company_ids)),
-           EXISTS (SELECT 1 FROM yzy_contracts.client_operations WHERE company_id = $1),
-           EXISTS (SELECT 1 FROM yzy_contracts.billing_invoice_lines WHERE company_id = $1)
+           EXISTS (SELECT 1 FROM contracts WHERE company_id = $1 OR $1 = ANY(shared_company_ids)),
+           EXISTS (SELECT 1 FROM client_operations WHERE company_id = $1),
+           EXISTS (SELECT 1 FROM billing_invoice_lines WHERE company_id = $1)
            OR EXISTS (
-             SELECT 1 FROM yzy_contracts.billing_accounts a
+             SELECT 1 FROM billing_accounts a
              WHERE a.company_id = $1 AND (
-               EXISTS (SELECT 1 FROM yzy_contracts.billing_invoices i WHERE i.account_id = a.id)
-               OR EXISTS (SELECT 1 FROM yzy_contracts.billing_account_companies ac
+               EXISTS (SELECT 1 FROM billing_invoices i WHERE i.account_id = a.id)
+               OR EXISTS (SELECT 1 FROM billing_account_companies ac
                           WHERE ac.account_id = a.id AND ac.company_id <> $1)
              )
            )",
@@ -296,7 +294,7 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
             uses.join(", ")
         )));
     }
-    let deleted: bool = sqlx::query_scalar("SELECT yzy_contracts.delete_archived_company($1)")
+    let deleted: bool = sqlx::query_scalar("SELECT delete_archived_company($1)")
         .bind(id)
         .fetch_one(&mut *tx)
         .await?;

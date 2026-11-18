@@ -103,7 +103,7 @@ pub async fn create_contract(
     let upload: UploadRow = sqlx::query_as(
         "SELECT object_key, original_file_name, mime_type, declared_size_bytes,
                 register_before, consumed_at
-         FROM yzy_contracts.file_uploads
+         FROM file_uploads
          WHERE id = $1 AND owner_id = $2",
     )
     .bind(body.upload_id)

@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -42,6 +42,7 @@ use yzy_contracts_api::{
         document_renderer::DocumentRenderer,
         extractor::ExtractorClient,
         openrouter::DocumentReader,
+        schema::{DatabaseSchema, development_sql},
         storage::{ObjectMetadata, ObjectStorage, PresignedRequest},
     },
     modules::auth::jwt::JwtVerifier,
@@ -126,13 +127,30 @@ async fn template_database() -> &'static str {
                 .execute(&pool)
                 .await
                 .expect("bootstrap");
-            database::migrator().run(&pool).await.expect("migrate");
-            sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
-                "ALTER ROLE yzy_contracts_app LOGIN PASSWORD '{APP_ROLE_PASSWORD}'"
-            )))
+            database::migrator(DatabaseSchema::Production)
+                .run(&pool)
+                .await
+                .expect("migrate");
+            // The DEV schema lives in the same database, built from the same
+            // bootstrap and migrations with the DEV rename, as the shared host does.
+            sqlx::raw_sql(sqlx::AssertSqlSafe(development_sql(include_str!(
+                "../../../../supabase/local/bootstrap.sql"
+            ))))
             .execute(&pool)
             .await
-            .expect("enable the app role");
+            .expect("bootstrap DEV");
+            database::migrator(DatabaseSchema::Development)
+                .run(&pool)
+                .await
+                .expect("migrate DEV");
+            for role in ["yzy_contracts_app", "yzy_contracts_dev_app"] {
+                sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+                    "ALTER ROLE {role} LOGIN PASSWORD '{APP_ROLE_PASSWORD}'"
+                )))
+                .execute(&pool)
+                .await
+                .expect("enable the app role");
+            }
             pool.close().await;
             admin.close().await.expect("close admin connection");
             name
@@ -287,12 +305,38 @@ impl TestApp {
         Self::start_with_limits(extractor_timeout, 1024).await
     }
 
+    /// The DEV instance: the DEV schema, the DEV runtime role and the given allowlist.
+    pub async fn start_development(allowed_user_ids: &[Uuid]) -> Self {
+        Self::start_inner(
+            Duration::from_secs(5),
+            1024,
+            DatabaseSchema::Development,
+            Some(allowed_user_ids.iter().copied().collect()),
+        )
+        .await
+    }
+
     #[allow(dead_code)]
     pub async fn start_with_upload_limit(upload_max_bytes: i64) -> Self {
         Self::start_with_limits(Duration::from_secs(5), upload_max_bytes).await
     }
 
     async fn start_with_limits(extractor_timeout: Duration, upload_max_bytes: i64) -> Self {
+        Self::start_inner(
+            extractor_timeout,
+            upload_max_bytes,
+            DatabaseSchema::Production,
+            None,
+        )
+        .await
+    }
+
+    async fn start_inner(
+        extractor_timeout: Duration,
+        upload_max_bytes: i64,
+        schema: DatabaseSchema,
+        allowed_user_ids: Option<BTreeSet<Uuid>>,
+    ) -> Self {
         let template = template_database().await;
         let database = format!("yzy_ct_{}", Uuid::new_v4().simple());
         let mut admin_connection = PgConnection::connect_with(&admin_options())
@@ -306,24 +350,21 @@ impl TestApp {
             .expect("clone the template database");
         admin_connection.close().await.expect("close");
 
+        // The owner searches the same schema as the app, so repository helpers work on both.
         let admin = PgPoolOptions::new()
             .max_connections(3)
+            .after_connect(move |connection, _| {
+                Box::pin(async move {
+                    sqlx::query("SELECT set_config('search_path', $1, false)")
+                        .bind(schema.name())
+                        .execute(connection)
+                        .await?;
+                    Ok(())
+                })
+            })
             .connect_with(admin_options().database(&database))
             .await
             .expect("connect as owner");
-        // The API runs as the least-privilege role, as it does in production.
-        let db = PgPoolOptions::new()
-            .max_connections(5)
-            .connect_with(
-                admin_options()
-                    .database(&database)
-                    .username("yzy_contracts_app")
-                    .password(APP_ROLE_PASSWORD)
-                    .options([("yzy_contracts.superadmin_id", ADMIN_ID)]),
-            )
-            .await
-            .expect("connect as the app role");
-
         let jwks = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/jwks"))
@@ -334,8 +375,11 @@ impl TestApp {
 
         let config = Config {
             http_bind_addr: "127.0.0.1:0".parse().expect("address"),
+            // The pool is built from the options below through database::connect_with_options.
             database_url: "postgres://unused-in-tests".to_owned(),
             database_max_connections: 5,
+            database_schema: schema,
+            allowed_user_ids,
             superadmin_id: Some(ADMIN_ID),
             superadmin_email: Some(test_email(ADMIN_ID)),
             billing_bank_account: Some(yzy_contracts_api::modules::billing::dto::BankAccount {
@@ -373,6 +417,17 @@ impl TestApp {
             billing_mail: None,
         };
 
+        // The API runs as the schema's least-privilege role, as it does in production.
+        let db = database::connect_with_options(
+            admin_options()
+                .database(&database)
+                .username(schema.role())
+                .password(APP_ROLE_PASSWORD),
+            &config,
+        )
+        .await
+        .expect("connect as the app role");
+
         let storage = Arc::new(FakeStorage::default());
         let state = AppState {
             db,
@@ -409,6 +464,11 @@ impl TestApp {
             worker,
             database,
         }
+    }
+
+    /// Owner-level connection options for this test database, for connecting as other roles.
+    pub fn server_options(&self) -> PgConnectOptions {
+        admin_options().database(&self.database)
     }
 
     /// A second worker process over the same database.

@@ -134,23 +134,23 @@ pub(super) const USER_SOURCE: &str = "
              WHEN i.enabled_at IS NOT NULL THEN 'active' ELSE 'pending' END AS status,
         a.ids AS company_ids, i.created_at,
         EXISTS (
-          SELECT 1 FROM yzy_contracts.billing_account_managers bam
+          SELECT 1 FROM billing_account_managers bam
           WHERE bam.user_id = i.user_id
         ) AS manages_billing,
         m.attempts, (m.sent_at IS NOT NULL) AS sent
-      FROM yzy_contracts.access_identities i
-      JOIN yzy_contracts.profiles p ON p.user_id = i.user_id
+      FROM access_identities i
+      JOIN profiles p ON p.user_id = i.user_id
       CROSS JOIN LATERAL (
-        SELECT ARRAY(SELECT c.id FROM yzy_contracts.company_memberships mm
-          JOIN yzy_contracts.companies c ON c.id = mm.company_id
+        SELECT ARRAY(SELECT c.id FROM company_memberships mm
+          JOIN companies c ON c.id = mm.company_id
           WHERE mm.user_id = i.user_id AND c.archived_at IS NULL ORDER BY c.id) AS ids
       ) a
-      LEFT JOIN yzy_contracts.access_mail m ON m.kind = 'request' AND m.reference = i.user_id::text
+      LEFT JOIN access_mail m ON m.kind = 'request' AND m.reference = i.user_id::text
       UNION ALL
       SELECT NULL, v.name, v.email, 'invited', v.company_ids, v.created_at, false,
         m.attempts, (m.sent_at IS NOT NULL)
-      FROM yzy_contracts.access_invitations v
-      LEFT JOIN yzy_contracts.access_mail m ON m.kind = 'invitation' AND m.reference = v.email
+      FROM access_invitations v
+      LEFT JOIN access_mail m ON m.kind = 'invitation' AND m.reference = v.email
       WHERE v.accepted_by IS NULL
     )";
 
@@ -274,7 +274,7 @@ async fn set_user_access(
         ));
     }
     let updated = sqlx::query(
-        "UPDATE yzy_contracts.access_identities
+        "UPDATE access_identities
          SET suspended = NOT $2,
              enabled_at = CASE WHEN $2 THEN COALESCE(enabled_at, now()) ELSE enabled_at END
          WHERE user_id = $1",
@@ -323,17 +323,16 @@ async fn set_user_billing(
         ));
     }
     let mut tx = state.db.begin().await?;
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM yzy_contracts.access_identities WHERE user_id = $1)",
-    )
-    .bind(id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM access_identities WHERE user_id = $1)")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
     if !exists {
         return Err(ApiError::AccessUserNotFound);
     }
     if body.manages_billing {
-        let enabled: bool = sqlx::query_scalar("SELECT yzy_contracts.has_enabled_access($1)")
+        let enabled: bool = sqlx::query_scalar("SELECT has_enabled_access($1)")
             .bind(id)
             .fetch_one(&mut *tx)
             .await?;
@@ -344,8 +343,8 @@ async fn set_user_billing(
             ));
         }
         sqlx::query(
-            "INSERT INTO yzy_contracts.billing_account_managers (account_id, user_id)
-             SELECT a.id, $1 FROM yzy_contracts.billing_accounts a
+            "INSERT INTO billing_account_managers (account_id, user_id)
+             SELECT a.id, $1 FROM billing_accounts a
              ON CONFLICT DO NOTHING",
         )
         .bind(id)
@@ -359,7 +358,7 @@ async fn set_user_billing(
             ));
         };
         sqlx::query(
-            "UPDATE yzy_contracts.billing_accounts
+            "UPDATE billing_accounts
              SET manager_user_id = $2
              WHERE manager_user_id = $1",
         )
@@ -368,15 +367,15 @@ async fn set_user_billing(
         .execute(&mut *tx)
         .await?;
         sqlx::query(
-            "INSERT INTO yzy_contracts.billing_account_managers (account_id, user_id)
-             SELECT a.id, a.manager_user_id FROM yzy_contracts.billing_accounts a
+            "INSERT INTO billing_account_managers (account_id, user_id)
+             SELECT a.id, a.manager_user_id FROM billing_accounts a
              WHERE a.manager_user_id = $1
              ON CONFLICT DO NOTHING",
         )
         .bind(fallback)
         .execute(&mut *tx)
         .await?;
-        sqlx::query("DELETE FROM yzy_contracts.billing_account_managers WHERE user_id = $1")
+        sqlx::query("DELETE FROM billing_account_managers WHERE user_id = $1")
             .bind(id)
             .execute(&mut *tx)
             .await?;
