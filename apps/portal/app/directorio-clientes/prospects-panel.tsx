@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/arc/badge/badge";
@@ -71,9 +72,16 @@ export function ProspectsPanel({ accountId, companyId, search }: { accountId: st
       <div className={styles.header}>
         <h2 id="prospects-title">Prospectos</h2>
         {companyId && (
-          <Button type="button" variant="secondary" loading={creatingLink} disabled={creatingLink} onClick={() => void createLink()}>
-            Crear enlace para prospecto
-          </Button>
+          <div className={styles.headerActions}>
+            <Button type="button" variant="ghost" loading={!current} disabled={!current}
+              onClick={() => setAttempt(value => value + 1)}>
+              <RefreshCw size={16} aria-hidden="true" />
+              Actualizar prospectos
+            </Button>
+            <Button type="button" variant="secondary" loading={creatingLink} disabled={creatingLink} onClick={() => void createLink()}>
+              Crear enlace para prospecto
+            </Button>
+          </div>
         )}
       </div>
 
@@ -94,10 +102,7 @@ export function ProspectsPanel({ accountId, companyId, search }: { accountId: st
           </ul>
         </LoadingContent>
       ) : "message" in current ? (
-        <div className={styles.header}>
-          <p className={styles.failure} role="alert">{current.message}</p>
-          <Button type="button" variant="secondary" onClick={() => setAttempt(value => value + 1)}>Reintentar</Button>
-        </div>
+        <p className={styles.failure} role="alert">{current.message}</p>
       ) : (
         <ProspectRows
           items={current.items.filter(prospect => prospectMatches(prospect, search))}

@@ -10,36 +10,85 @@
   font-family: var(--font-body, system-ui, sans-serif);
 }
 
-
-
-.header {
-  width: 100%;
-  max-width: 32rem;
-  display: flex;
-  flex-direction: column;
+.welcome {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  text-align: center;
-  margin-top: var(--space-4, 1rem);
-  margin-bottom: var(--space-6, 1.5rem);
+  gap: 0.75rem;
+  inline-size: 100%;
+  max-inline-size: 32rem;
+  margin-block: 0.5rem 1rem;
+  padding: clamp(1rem, 4vw, 1.75rem);
+  border: 1px solid #343b78;
+  border-radius: var(--radius-panel, 1.5rem);
+  background: radial-gradient(ellipse at right, #173e42, transparent 65%), #121638;
+  color: #f7f8fb;
+  box-shadow: 0 10px 26px #12163829;
 }
 
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3, 0.75rem);
-  font-family: var(--font-display, system-ui, sans-serif);
+.welcome::before,
+.welcome::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-inline-end: -4rem;
+  inset-block-start: 50%;
+  translate: 0 -50%;
+  inline-size: 15rem;
+  aspect-ratio: 1;
+  border: 1px solid #79e1ab40;
+  border-radius: 50%;
+}
+
+.welcome::after {
+  inset-inline-end: -6rem;
+  inline-size: 20rem;
+  border-color: #79e1ab29;
+}
+
+.welcomeSweep {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 32%, #a7f9ce40 51%, transparent 68%);
+}
+
+.welcomeBrand {
+  color: #a7f9ce;
+  font-size: 0.875rem;
   font-weight: 700;
-  font-size: var(--text-lg, 1.125rem);
-  letter-spacing: var(--tracking-display, -0.02em);
-  color: var(--brand-ink, #1b1f57);
-  text-decoration: none;
-  margin-bottom: var(--space-3, 0.75rem);
 }
 
-.brandMark {
-  width: 2rem;
-  height: 2rem;
-  flex-shrink: 0;
+.welcomeCopy h1 {
+  margin: 0.3rem 0;
+  font-family: var(--font-display, system-ui, sans-serif);
+  font-size: clamp(1.55rem, 5vw, 2.25rem);
+  letter-spacing: -0.04em;
+  line-height: 1.06;
+}
+
+.welcomeCopy p {
+  margin: 0.5rem 0 0;
+  color: #dfe5f8;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.welcomeMark {
+  inline-size: clamp(3.15rem, 12vw, 5.25rem);
+  border-radius: 22%;
+  background: #2a3084;
+  box-shadow: 0 0 0 1px #a7f9ce40, 0 12px 26px #0b133e65;
+}
+
+.welcomeMark svg {
+  display: block;
+  inline-size: 100%;
 }
 
 .mainCard {
