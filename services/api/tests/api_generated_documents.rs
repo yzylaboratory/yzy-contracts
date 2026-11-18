@@ -483,8 +483,15 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
     current_sale["contract_id"] = sale["id"].clone();
     current_sale["document_type"] = json!("acto_seguro");
     let current_target = format!("{DOCUMENTS}/{}/artifact", Uuid::new_v4());
-    let (status, current) =
-        put_artifact(&app, owner, &current_target, &current_sale, PDF_MIME, PDF_BYTES).await;
+    let (status, current) = put_artifact(
+        &app,
+        owner,
+        &current_target,
+        &current_sale,
+        PDF_MIME,
+        PDF_BYTES,
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED, "{current}");
     let (_, page) = app
         .get(
