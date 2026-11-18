@@ -2,5 +2,6 @@
 !services/api/Cargo.toml
 !services/api/Cargo.lock
 !services/api/src/**
+!services/api/dev-build/**
 !supabase/migrations/**
 **/.DS_Store
