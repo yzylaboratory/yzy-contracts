@@ -1,4 +1,4 @@
-export const ventaCondicionalBoldFields: readonly string[] = [];
+export const ventaCondicionalBoldFields: readonly string[] = ["fecha_firma"];
 
 export function formatVentaCondicional(doc: Document): void {
   const ns = doc.documentElement.namespaceURI;

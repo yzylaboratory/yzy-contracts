@@ -1119,6 +1119,9 @@ test("both conditional sale templates provide writing space for missing vehicle 
     assert.equal(render({ [plate]: "ABC123" }), "NO. DE REGISTRO Y PLACA: ABC123 CHASIS NO: EJEMPLO, MOTOR O NO. DE SERIE: ____________________");
     assert.equal(render({ [plate]: "ABC123", [engine]: "XYZ123" }), clause.replace(`{{${plate}}}`, "ABC123").replace(`{{${engine}}}`, "XYZ123"));
   }
+  assert.equal(wordVehicleIdentifierValue("vehiculo_matricula", "", "NO. DE REGISTRO Y PLACA: ", true), "\u00a0".repeat(20));
+  assert.equal(wordVehicleIdentifierValue("vehiculo_motor", "", "MOTOR O NO. DE SERIE:", true), " " + "\u00a0".repeat(20));
+  assert.equal(wordVehicleIdentifierValue("vehiculo_motor", "XYZ123", "MOTOR O NO. DE SERIE:", true), "XYZ123");
   assert.equal(wordVehicleIdentifierValue("color_del_vehiculo", "", "COLOR: "), "");
   assert.equal(wordVehicleIdentifierValue("vehiculo_matricula", "", "Documento aduanal: "), "");
 });

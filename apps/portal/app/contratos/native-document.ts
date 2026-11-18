@@ -58,10 +58,11 @@ const vehicleIdentifierLabels: Record<string, RegExp> = {
   vehiculo_motor: engineLabel,
 };
 
-/** Deja una línea manuscrita cuando la plantilla identifica el dato del vehículo. */
-export function wordVehicleIdentifierValue(key: string, value: string, prefix: string) {
+/** Reserva espacio para un identificador manuscrito cuando la plantilla lo identifica. */
+export function wordVehicleIdentifierValue(key: string, value: string, prefix: string, blankOnly = false) {
   if (value || !Object.hasOwn(vehicleIdentifierLabels, key) || !vehicleIdentifierLabels[key].test(prefix)) return value;
-  return prefix.endsWith(":") ? " ____________________" : "____________________";
+  const writingSpace = blankOnly ? "\u00a0".repeat(20) : "____________________";
+  return prefix.endsWith(":") ? ` ${writingSpace}` : writingSpace;
 }
 
 function isBoldAddressField(key: string) {
@@ -296,7 +297,7 @@ function resolveNativeTargets(
         : field.value;
       const value = prefix.endsWith("RD$") && formatted.startsWith("RD$")
         ? formatted.slice(3)
-        : wordVehicleIdentifierValue(match[1], formatted, prefix);
+        : wordVehicleIdentifierValue(match[1], formatted, prefix, reference === "venta_condicional");
       const bold = boldFields?.includes(match[1]);
       const runs = bold ? undefined : pagareDateRuns(match[1], value, boldPagareDate);
       edits.push({
