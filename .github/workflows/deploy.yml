@@ -53,10 +53,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    # Serialize production deploys without blocking builds.
-    concurrency:
-      group: production-deploy
-      cancel-in-progress: false
+    # Approvals are independent. Hetzner serializes the approved deployments.
     permissions:
       packages: read
     steps:
