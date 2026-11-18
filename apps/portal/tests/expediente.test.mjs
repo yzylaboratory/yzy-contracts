@@ -1163,7 +1163,7 @@ test("reviewed guarantees keep the recorded use and distinguish registration fro
   assert.equal(describe({ make: "Prueba", chassis_number: "C1", source_document: "bill_of_lading" }),
     "Marca Prueba, Chasis C1");
   const reserve = vehicle => reviewedVehicleDescription(vehicle, expedienteVehicleDescription(vehicle), true);
-  assert.equal(reserve({ chassis_number: "C1" }), "Placa ____________________, Chasis C1, Motor o N.º de serie ____________________");
+  assert.equal(reserve({ chassis_number: "C1" }), `Placa ${"\u00a0".repeat(20)}, Chasis C1, Motor o N.º de serie ${"\u00a0".repeat(20)}`);
   assert.equal(reserve({ plate: "TEST2", engine_number: "M2" }), "Placa TEST2, Motor o N.º de serie M2");
   assert.equal(reviewedVehicleDescription({ vehicle_type: "automóvil" }, "descripción editada"), "descripción editada");
   assert.equal(referenceWordValue("venta_condicional", "vehiculo_tipo", 0, "automóvil privado", "automóvil privado"), "AUTOMÓVIL");

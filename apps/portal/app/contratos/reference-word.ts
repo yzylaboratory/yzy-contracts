@@ -89,16 +89,18 @@ export function reviewedVehicleDescription(vehicle: Vehicle, input: string, rese
   const plate = vehicle.plate?.trim();
   const registration = vehicle.registration_number?.trim();
   const parts = type ? [/^(?:un|una)\s/iu.test(type) ? type : `${article} ${type}`] : [];
+  const writingSpace = reserveMissingIdentifiers ? "\u00a0".repeat(20) : undefined;
   const details = [
     ["Marca", vehicle.make], ["Modelo", vehicle.model], ["Año", vehicle.year], ["Color", vehicle.color],
     ["Matrícula", registration?.toUpperCase() === plate?.toUpperCase() ? undefined : registration],
-    ["Placa", plate || (reserveMissingIdentifiers ? "____________________" : undefined)],
+    ["Placa", plate || writingSpace],
     ["Chasis", vehicle.chassis_number],
     [reserveMissingIdentifiers ? "Motor o N.º de serie" : "Motor",
-      vehicle.engine_number?.trim() || (reserveMissingIdentifiers ? "____________________" : undefined)],
+      vehicle.engine_number?.trim() || writingSpace],
   ];
   for (const [label, value] of details) {
-    if (value?.trim()) parts.push(`${label} ${value.trim()}`);
+    const text = value === writingSpace ? value : value?.trim();
+    if (text) parts.push(`${label} ${text}`);
   }
   return parts.join(", ");
 }
