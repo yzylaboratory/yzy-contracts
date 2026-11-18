@@ -664,6 +664,35 @@ function addCompanyEdits(doc: Document, model: string, profile: CompanyProfile, 
   for (const list of edits.values()) list.sort((left, right) => right.start - left.start);
 }
 
+export function reviewedReferenceValues(
+  reference: string | undefined,
+  values: Record<string, string>,
+  vehicle?: Vehicle,
+  companyProfile?: CompanyProfile,
+) {
+  const witnessProfile = reference === "pagare_autentico" && companyProfile
+    ? {
+        ...companyProfile.values,
+        ...(values.testigo_richard && !companyProfile.values.empresa_testigo_richard?.trim() && {
+          empresa_testigo_richard: values.testigo_richard,
+        }),
+        ...(values.testigo_usuario && !companyProfile.values.empresa_testigo_usuario?.trim() && {
+          empresa_testigo_usuario: values.testigo_usuario,
+        }),
+      }
+    : undefined;
+  return {
+    ...values,
+    ...(reference && vehicle && values.vehiculo_garantia && {
+      vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia, reference === "acto_seguro"),
+    }),
+    ...(witnessProfile && {
+      testigo_richard: declaracionJuradaWitnessValue(witnessProfile, "empresa_testigo_richard") ?? values.testigo_richard ?? "",
+      testigo_usuario: declaracionJuradaWitnessValue(witnessProfile, "empresa_testigo_usuario") ?? values.testigo_usuario ?? "",
+    }),
+  };
+}
+
 export async function fillOriginalWord(
   original: Blob, markdown: string, fields: TemplateField[], values: Record<string, string>,
   nativeVariables: NativeVariable[] | null = null,
@@ -690,9 +719,7 @@ export async function fillOriginalWord(
   const reference = bodyKey === "venta_condicional_seguro" ? undefined : bodyKey;
   const layout = bodyKey ? reviewedWordLayout[bodyKey] : undefined;
   if (companyProfile && !reference) throw new NativeDocumentError("El modelo compartido no coincide con la versión revisada.");
-  const referenceValues = reference && vehicle && values.vehiculo_garantia
-    ? { ...values, vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia, reference === "acto_seguro") }
-    : values;
+  const referenceValues = reviewedReferenceValues(reference, values, vehicle, companyProfile);
   const replacements = nativeVariables
     ? resolveNativeTargets(segments, nativeVariables, fields, referenceValues, allowIncomplete, reference ? false : uppercase, !reference && boldPagareDate, reference, layout?.boldFields)
     : resolveTargets(segments, markdown, fields, values, uppercase, boldPagareDate);

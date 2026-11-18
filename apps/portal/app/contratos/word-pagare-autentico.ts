@@ -1,3 +1,5 @@
+import { declaracionJuradaSignatureName } from "./word-declaracion-jurada";
+
 export const pagareAutenticoBoldFields = ["fecha_firma"];
 
 export function formatPagareAutentico(doc: Document): void {
@@ -141,7 +143,10 @@ export function formatPagareAutentico(doc: Document): void {
   // Separate each line, name and caption into rows so both captions stay aligned if a long name wraps.
   const rows = [
     [{ source: signatureLines, value: lines[0] }, { source: signatureLines, value: lines[1] }],
-    [{ source: leftName, value: names[0] }, { source: rightNameAndLabels, value: names[1] }],
+    [
+      { source: leftName, value: declaracionJuradaSignatureName(names[0]) },
+      { source: rightNameAndLabels, value: declaracionJuradaSignatureName(names[1]) },
+    ],
     [{ source: rightNameAndLabels, value: "TESTIGO" }, { source: rightNameAndLabels, value: "TESTIGO" }],
   ];
   for (const [index, cells] of rows.entries()) {

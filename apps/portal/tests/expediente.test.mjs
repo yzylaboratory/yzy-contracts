@@ -25,7 +25,7 @@ process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-key";
 const { buildCompanySnapshot, buildContractTemplateFields, isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
-const { extractSalesCommitment, formatWordTemplateValue, pagareDateRuns, wordVehicleIdentifierValue } = await import("../app/contratos/native-document.ts");
+const { extractSalesCommitment, formatWordTemplateValue, pagareDateRuns, reviewedReferenceValues, wordVehicleIdentifierValue } = await import("../app/contratos/native-document.ts");
 const { missingLoanVehicleFields, vehicleWrite } = await import("../app/clientes/vehicle-fields.ts");
 const { getClient, listClients, listClientTimeline, listOperations, saveClient, saveOperation } =
   await import("../app/clientes/clients-api.ts");
@@ -1272,13 +1272,24 @@ test("the declaration keeps the witness's full name in the body and abbreviates 
 
 function parseWordXml(xml) {
   const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-  const makeElement = (tagName) => {
+  const parseAttributes = (raw) => {
+    const attrs = {};
+    for (const [, name, value] of raw.matchAll(/([^\s=/>]+)\s*=\s*"([^"]*)"/gu)) {
+      attrs[name] = value;
+      const colon = name.indexOf(":");
+      if (colon !== -1) attrs[name.slice(colon + 1)] = value;
+    }
+    return attrs;
+  };
+  const makeElement = (tagName, attributes = {}) => {
     const colon = tagName.indexOf(":");
     const localName = colon === -1 ? tagName : tagName.slice(colon + 1);
     const el = {
       tagName,
       localName,
       namespaceURI: ns,
+      attributes: { ...attributes },
+      parent: null,
       children: [],
       _text: "",
       get textContent() {
@@ -1287,6 +1298,60 @@ function parseWordXml(xml) {
       set textContent(value) {
         this.children = [];
         this._text = String(value ?? "");
+      },
+      getAttributeNS(_targetNs, name) {
+        return Object.hasOwn(this.attributes, name) ? this.attributes[name] : null;
+      },
+      setAttributeNS(_targetNs, name, value) {
+        this.attributes[name] = String(value);
+        const idx = name.indexOf(":");
+        if (idx !== -1) this.attributes[name.slice(idx + 1)] = String(value);
+      },
+      removeAttributeNS(_targetNs, name) {
+        delete this.attributes[name];
+        delete this.attributes[`w:${name}`];
+        delete this.attributes[`xml:${name}`];
+      },
+      append(...nodes) {
+        for (const node of nodes) {
+          node.remove?.();
+          node.parent = this;
+          this.children.push(node);
+        }
+      },
+      insertBefore(node, refNode) {
+        node.remove?.();
+        node.parent = this;
+        const index = refNode ? this.children.indexOf(refNode) : -1;
+        if (index === -1) this.children.push(node);
+        else this.children.splice(index, 0, node);
+        return node;
+      },
+      remove() {
+        if (!this.parent) return;
+        const index = this.parent.children.indexOf(this);
+        if (index !== -1) this.parent.children.splice(index, 1);
+        this.parent = null;
+      },
+      replaceWith(...nodes) {
+        if (!this.parent) return;
+        const parent = this.parent;
+        const index = parent.children.indexOf(this);
+        if (index === -1) return;
+        for (const node of nodes) {
+          node.remove?.();
+          node.parent = parent;
+        }
+        parent.children.splice(index, 1, ...nodes);
+        this.parent = null;
+      },
+      cloneNode(deep = false) {
+        const copy = makeElement(this.tagName, this.attributes);
+        copy._text = this._text;
+        if (deep) {
+          for (const child of this.children) copy.append(child.cloneNode(true));
+        }
+        return copy;
       },
       getElementsByTagNameNS(targetNs, name) {
         const matches = [];
@@ -1315,15 +1380,23 @@ function parseWordXml(xml) {
     if (tag.startsWith("/")) {
       stack.pop();
     } else if (tag.endsWith("/")) {
-      current.children.push(makeElement(tag.slice(0, -1).trim().split(/\s+/u)[0]));
+      const inner = tag.slice(0, -1).trim();
+      const [name, ...rest] = inner.split(/\s+/u);
+      const el = makeElement(name, parseAttributes(rest.join(" ")));
+      el.parent = current;
+      current.children.push(el);
     } else {
-      const el = makeElement(tag.trim().split(/\s+/u)[0]);
+      const inner = tag.trim();
+      const [name, ...rest] = inner.split(/\s+/u);
+      const el = makeElement(name, parseAttributes(rest.join(" ")));
+      el.parent = current;
       current.children.push(el);
       stack.push(el);
     }
   }
   return {
     documentElement: stack[0].children[0],
+    createElementNS: (_targetNs, tagName) => makeElement(tagName),
     getElementsByTagNameNS: (targetNs, name) => stack[0].getElementsByTagNameNS(targetNs, name),
   };
 }
@@ -1404,4 +1477,113 @@ test("entrega voluntaria keeps both witnesses' full names in the body, abbreviat
     .children.filter(child => child.localName === "tr")[1]
     .children.filter(child => child.localName === "tc");
   assert.deepEqual(fallbackSigCells.map(cell => cell.textContent.trim()), ["ELENA M. REYES VEGA", "CARLOS A. GÓMEZ RUIZ"]);
+});
+
+test("pagare autentico keeps both witnesses' full names in the body, abbreviates middle names in symmetric signatures, and preserves historical initials", async () => {
+  const { identifyReviewedWordBody, referenceWordValue } = await import("../app/contratos/reference-word.ts");
+  const { formatPagareAutentico } = await import("../app/contratos/word-pagare-autentico.ts");
+
+  const archive = unzipSync(readFileSync(new URL("../../contracts-demo/preparadas/pagare_autentico.docx", root)));
+  const xmlBytes = archive["word/document.xml"];
+  assert.equal(await identifyReviewedWordBody(xmlBytes), "pagare_autentico");
+
+  const xml = new TextDecoder().decode(xmlBytes);
+  const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
+  const renderWithProfile = (profileValues) => {
+    const resolved = reviewedReferenceValues(
+      "pagare_autentico",
+      {
+        testigo_richard: companyProfileValue(profileValues, "empresa_testigo_richard"),
+        testigo_usuario: companyProfileValue(profileValues, "empresa_testigo_usuario"),
+      },
+      undefined,
+      { name: "Empresa Sintética", values: profileValues },
+    );
+    const testigoRichard = referenceWordValue("pagare_autentico", "testigo_richard", 0, resolved.testigo_richard, resolved.testigo_richard);
+    const testigoUsuario = referenceWordValue("pagare_autentico", "testigo_usuario", 0, resolved.testigo_usuario, resolved.testigo_usuario);
+
+    const doc = parseWordXml(xml);
+    for (const node of doc.getElementsByTagNameNS(ns, "t")) {
+      if (node.textContent.includes("{{testigo_richard}}")) {
+        node.textContent = node.textContent.replaceAll("{{testigo_richard}}", testigoRichard);
+      }
+      if (node.textContent.includes("{{testigo_usuario}}")) {
+        node.textContent = node.textContent.replaceAll("{{testigo_usuario}}", testigoUsuario);
+      }
+    }
+    formatPagareAutentico(doc);
+    return doc;
+  };
+
+  const findWitnessTable = (doc) => doc.getElementsByTagNameNS(ns, "tbl").find((table) => {
+    const rows = table.children.filter(child => child.localName === "tr");
+    if (rows.length !== 3) return false;
+    const labels = rows[2].children.filter(child => child.localName === "tc").map(cell => cell.textContent.trim());
+    return labels.length === 2 && labels[0] === "TESTIGO" && labels[1] === "TESTIGO";
+  });
+
+  const fullDoc = renderWithProfile({
+    empresa_testigo_usuario: "ELENA M. REYES VEGA",
+    empresa_testigo_usuario_nombre_declaracion: "ELENA MARÍA REYES VEGA",
+    empresa_testigo_richard: "CARLOS ARTURO GÓMEZ RUIZ",
+  });
+  const fullBody = fullDoc.getElementsByTagNameNS(ns, "p").find(p => p.textContent.includes("delante las señores"));
+  assert.ok(fullBody);
+  assert.match(fullBody.textContent, /delante las señores ELENA MARÍA REYES VEGA,.*y CARLOS ARTURO GÓMEZ RUIZ,/);
+  assert.doesNotMatch(fullBody.textContent, /ELENA M\. REYES VEGA/);
+  assert.doesNotMatch(fullBody.textContent, /CARLOS A\. GÓMEZ RUIZ/);
+
+  const fullTable = findWitnessTable(fullDoc);
+  assert.ok(fullTable, "Expected witness signature table in pagare_autentico");
+  const fullGridCols = fullTable.getElementsByTagNameNS(ns, "gridCol").map(col => Number(col.getAttributeNS(ns, "w")));
+  assert.equal(fullGridCols.length, 2);
+  assert.equal(fullGridCols[0], fullGridCols[1]);
+  assert.equal(Number(fullTable.getElementsByTagNameNS(ns, "tblW")[0].getAttributeNS(ns, "w")), fullGridCols[0] * 2);
+  assert.equal(fullTable.getElementsByTagNameNS(ns, "tblLayout")[0].getAttributeNS(ns, "type"), "fixed");
+
+  const fullRows = fullTable.children.filter(child => child.localName === "tr");
+  const fullLineCells = fullRows[0].children.filter(child => child.localName === "tc");
+  assert.equal(fullLineCells[0].textContent.trim(), fullLineCells[1].textContent.trim());
+  assert.match(fullLineCells[0].textContent.trim(), /^_{20,}$/);
+
+  const fullSigCells = fullRows[1].children.filter(child => child.localName === "tc");
+  assert.deepEqual(fullSigCells.map(cell => cell.textContent.trim()), ["CARLOS A. GÓMEZ RUIZ", "ELENA M. REYES VEGA"]);
+  for (const row of fullRows) {
+    const cells = row.children.filter(child => child.localName === "tc");
+    assert.deepEqual(
+      cells.map(cell => Number(cell.getElementsByTagNameNS(ns, "tcW")[0].getAttributeNS(ns, "w"))),
+      [fullGridCols[0], fullGridCols[1]],
+    );
+    assert.deepEqual(
+      cells.map(cell => cell.getElementsByTagNameNS(ns, "jc")[0].getAttributeNS(ns, "val")),
+      ["center", "center"],
+    );
+  }
+
+  // Historical profiles that only store abbreviated initials keep them safely in both body and signatures without inventing names.
+  const historicalDoc = renderWithProfile({
+    empresa_testigo_usuario: "ELENA M. REYES VEGA",
+    empresa_testigo_richard: "CARLOS A. GÓMEZ RUIZ",
+  });
+  const historicalBody = historicalDoc.getElementsByTagNameNS(ns, "p").find(p => p.textContent.includes("delante las señores"));
+  assert.ok(historicalBody);
+  assert.match(historicalBody.textContent, /delante las señores ELENA M\. REYES VEGA,.*y CARLOS A\. GÓMEZ RUIZ,/);
+  const historicalSigCells = findWitnessTable(historicalDoc)
+    .children.filter(child => child.localName === "tr")[1]
+    .children.filter(child => child.localName === "tc");
+  assert.deepEqual(historicalSigCells.map(cell => cell.textContent.trim()), ["CARLOS A. GÓMEZ RUIZ", "ELENA M. REYES VEGA"]);
+
+  // Mismatched declaration full name or compound surnames without middle name stay untouched.
+  const edgeDoc = renderWithProfile({
+    empresa_testigo_usuario: "SOFÍA REYES VEGA",
+    empresa_testigo_usuario_nombre_declaracion: "ELENA MARÍA REYES VEGA",
+    empresa_testigo_richard: "JUAN DE LA CRUZ",
+  });
+  const edgeBody = edgeDoc.getElementsByTagNameNS(ns, "p").find(p => p.textContent.includes("delante las señores"));
+  assert.match(edgeBody.textContent, /delante las señores SOFÍA REYES VEGA,.*y JUAN DE LA CRUZ,/);
+  const edgeSigCells = findWitnessTable(edgeDoc)
+    .children.filter(child => child.localName === "tr")[1]
+    .children.filter(child => child.localName === "tc");
+  assert.deepEqual(edgeSigCells.map(cell => cell.textContent.trim()), ["JUAN DE LA CRUZ", "SOFÍA REYES VEGA"]);
 });
