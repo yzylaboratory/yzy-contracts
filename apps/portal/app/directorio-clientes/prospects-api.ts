@@ -1,3 +1,4 @@
+import type { ClientProfile } from "@/components/case-application/case-application";
 import { api, ApiError } from "@/lib/api";
 
 export type Prospect = {
@@ -8,6 +9,10 @@ export type Prospect = {
   phone: string;
   address: string;
   email: string | null;
+  income_source: string | null;
+  /** Canonical case-application data; null for prospects submitted before it was collected. */
+  profile: ClientProfile | null;
+  /** Legacy top-level copies, read only where `profile` does not carry the value. */
   nationality: string | null;
   marital_status: string | null;
   position: string | null;
@@ -65,6 +70,16 @@ const prospectDate = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", tim
 
 export function formatProspectDate(value: string) {
   return prospectDate.format(new Date(value));
+}
+
+/** The canonical profile, filled from the legacy top-level fields where it has no value yet. */
+export function prospectReviewProfile(prospect: Prospect): ClientProfile {
+  return {
+    ...prospect.profile,
+    nationality: prospect.profile?.nationality ?? prospect.nationality,
+    marital_status: prospect.profile?.marital_status ?? prospect.marital_status,
+    position: prospect.profile?.position ?? prospect.position,
+  };
 }
 
 export function prospectMatches(prospect: Prospect, search: string) {

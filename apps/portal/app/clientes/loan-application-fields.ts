@@ -1,4 +1,4 @@
-import { applicationAmountLabel, applicationDateLabel, clientContractFields, loanApplicationSections, missingLoanProfileFields, type CaseApplication } from "@/components/case-application/case-application";
+import { applicationAmountLabel, applicationDateLabel, clientContractFields, loanApplicationSections, missingLoanProfileFields, type CaseApplication } from "@/components/case-application/case-application-types";
 import type { ClientWrite, Vehicle } from "./clients-api";
 import { vehicleFields } from "./vehicle-fields";
 import { displayClientIdentity, displayClientPhone } from "./client-masks";

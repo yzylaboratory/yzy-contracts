@@ -5,6 +5,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::error::ApiError;
+use crate::modules::clients::ClientProfile;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub(super) struct ProspectLink {
@@ -24,6 +25,9 @@ pub(super) struct Prospect {
     pub address: String,
     #[schema(required = true)]
     pub email: Option<String>,
+    /// Legacy flat field, kept for prospects submitted before `profile`
+    /// existed. [`Self::with_merged_profile`] folds it into `profile` for
+    /// display; the column itself is never overwritten.
     #[schema(required = true)]
     pub nationality: Option<String>,
     #[schema(required = true)]
@@ -31,6 +35,28 @@ pub(super) struct Prospect {
     #[sqlx(rename = "occupation")]
     #[schema(required = true)]
     pub position: Option<String>,
+    #[schema(required = true)]
+    pub income_source: Option<String>,
+    #[schema(required = true)]
+    #[sqlx(json(nullable))]
+    pub profile: Option<ClientProfile>,
+}
+
+impl Prospect {
+    /// For display only: a prospect submitted before `profile` existed has
+    /// its nationality/marital_status/position in the legacy flat columns.
+    /// Folds them into `profile` wherever the canonical profile has no value
+    /// of its own, without ever touching the stored flat columns.
+    pub(super) fn with_merged_profile(mut self) -> Self {
+        if self.nationality.is_some() || self.marital_status.is_some() || self.position.is_some() {
+            self.profile = Some(self.profile.take().unwrap_or_default().merge_legacy(
+                self.nationality.clone(),
+                self.marital_status.clone(),
+                self.position.clone(),
+            ));
+        }
+        self
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -77,6 +103,13 @@ pub(super) struct SubmitProspect {
     pub marital_status: Option<String>,
     #[schema(max_length = 200)]
     pub position: Option<String>,
+    #[schema(max_length = 1000)]
+    pub income_source: Option<String>,
+    /// Canonical client profile (treatment, nationality, marital status,
+    /// housing/vehicle, employment/income, spouse, references). Validated
+    /// the same way as a client's own profile, deny-unknown-fields included;
+    /// it carries no loan data (amount, application date, collateral vehicle).
+    pub profile: Option<ClientProfile>,
 }
 
 /// The same fields after the client-style trim, length check and uppercase
@@ -91,6 +124,8 @@ pub(super) struct NormalizedProspect {
     pub nationality: Option<String>,
     pub marital_status: Option<String>,
     pub position: Option<String>,
+    pub income_source: Option<String>,
+    pub profile: Option<ClientProfile>,
 }
 
 impl SubmitProspect {
@@ -103,6 +138,8 @@ impl SubmitProspect {
         let mut nationality = self.nationality;
         let mut marital_status = self.marital_status;
         let mut position = self.position;
+        let mut income_source = self.income_source;
+        let mut profile = self.profile;
         normalize_required("name", &mut name, 200)?;
         normalize_required("identity", &mut identity, 64)?;
         normalize_required("phone", &mut phone, 80)?;
@@ -112,17 +149,26 @@ impl SubmitProspect {
             ("nationality", &mut nationality, 120),
             ("marital_status", &mut marital_status, 80),
             ("position", &mut position, 200),
+            ("income_source", &mut income_source, 1000),
         ] {
             normalize_optional(field, value, max)?;
         }
         for value in [&mut name, &mut identity, &mut address] {
             *value = value.to_uppercase();
         }
-        for value in [&mut nationality, &mut marital_status, &mut position]
-            .into_iter()
-            .filter_map(Option::as_mut)
+        for value in [
+            &mut nationality,
+            &mut marital_status,
+            &mut position,
+            &mut income_source,
+        ]
+        .into_iter()
+        .filter_map(Option::as_mut)
         {
             *value = value.to_uppercase();
+        }
+        if let Some(profile) = &mut profile {
+            profile.normalize()?;
         }
         Ok(NormalizedProspect {
             name,
@@ -133,6 +179,8 @@ impl SubmitProspect {
             nationality,
             marital_status,
             position,
+            income_source,
+            profile,
         })
     }
 }

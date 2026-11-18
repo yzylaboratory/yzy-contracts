@@ -204,6 +204,35 @@
   accent-color: var(--foreground);
 }
 
+.reviewNote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.reviewSection {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--border);
+}
+
+.reviewSection h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.referenceList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-inline-start: 24px;
+}
+
 @media (max-width: 680px) {
   .dataList {
     grid-template-columns: 1fr;

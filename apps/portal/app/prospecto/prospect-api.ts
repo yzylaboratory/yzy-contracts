@@ -1,14 +1,18 @@
 import { getApiBaseUrl } from "@/lib/api";
+import type { ClientProfile } from "@/components/case-application/case-application";
 
 export interface ProspectFormData {
   name: string;
   identity: string;
   phone: string;
   address: string;
-  email?: string | null;
+  email: string;
+  treatment?: string | null;
   nationality?: string | null;
   marital_status?: string | null;
   position?: string | null;
+  income_source: string;
+  profile: ClientProfile;
 }
 
 export type CheckProspectLinkResult =
@@ -42,6 +46,69 @@ export function extractProspectTokenFromHash(hash: string): string | null {
  */
 export function getPublicApiBase(): string {
   return getApiBaseUrl().replace(/\/+$/, "");
+}
+
+/**
+ * Sanitiza el perfil del cliente para el enlace público, garantizando que incluya
+ * todos los campos exigidos por la ficha sin exponer ni enviar datos de préstamo
+ * (sin monto solicitado, fecha de solicitud ni cálculos de expediente).
+ */
+export function sanitizeProspectProfile(rawProfile?: Partial<ClientProfile> | null): ClientProfile {
+  const profile = rawProfile ?? {};
+  const ownsHome = typeof profile.owns_home === "boolean" ? profile.owns_home : null;
+  const rentsHome = typeof profile.rents_home === "boolean"
+    ? profile.rents_home
+    : (ownsHome !== null ? !ownsHome : null);
+
+  const spouseNotApplicable = profile.spouse_not_applicable === true;
+
+  const spouse = spouseNotApplicable || !profile.spouse
+    ? null
+    : {
+        name: profile.spouse.name?.trim() || null,
+        identity: profile.spouse.identity?.trim() || null,
+        phone: profile.spouse.phone?.trim() || null,
+        employer: profile.spouse.employer?.trim() || null,
+        employment_duration: profile.spouse.employment_duration?.trim() || null,
+        position: profile.spouse.position?.trim() || null,
+        address: profile.spouse.address?.trim() || null,
+        work_phone: profile.spouse.work_phone?.trim() || null,
+      };
+
+  const familyReferences = (profile.family_references ?? []).map((ref) => ({
+    name: ref.name?.trim() || "",
+    relationship: ref.relationship?.trim() || "",
+    phone: ref.phone?.trim() || "",
+    address: ref.address?.trim() || "",
+  }));
+
+  const personalReferences = (profile.personal_references ?? []).map((ref) => ({
+    name: ref.name?.trim() || "",
+    relationship: ref.relationship?.trim() || "",
+    phone: ref.phone?.trim() || "",
+  }));
+
+  return {
+    treatment: profile.treatment?.trim() || null,
+    nationality: profile.nationality?.trim() || null,
+    marital_status: profile.marital_status?.trim() || null,
+    owns_home: ownsHome,
+    rents_home: rentsHome,
+    owns_vehicle: typeof profile.owns_vehicle === "boolean" ? profile.owns_vehicle : null,
+    employer: profile.employer?.trim() || null,
+    work_address: profile.work_address?.trim() || null,
+    work_phone: profile.work_phone?.trim() || null,
+    position: profile.position?.trim() || null,
+    employment_duration: profile.employment_duration?.trim() || null,
+    fixed_income: profile.fixed_income?.trim() || null,
+    other_income: profile.other_income?.trim() || null,
+    other_income_source: profile.other_income_source?.trim() || null,
+    pay_days: profile.pay_days?.trim() || null,
+    spouse_not_applicable: spouseNotApplicable,
+    spouse,
+    family_references: familyReferences,
+    personal_references: personalReferences,
+  };
 }
 
 /**
@@ -92,7 +159,8 @@ export async function checkProspectLink(
 /**
  * Envía los datos del prospecto (POST /api/v1/public/prospect-links/submit).
  * Respuesta 204: éxito; 404: no disponible.
- * name/identity/phone/address son requeridos. Los opcionales vacíos se envían como null o se omiten.
+ * Incluye campos personales, origen de ingresos (income_source) y profile completo de ClientProfile.
+ * Conserva la privacidad y no incluye ningún dato financiero o de cálculo del préstamo.
  */
 export async function submitProspectLink(
   token: string,
@@ -100,6 +168,16 @@ export async function submitProspectLink(
   signal?: AbortSignal,
 ): Promise<SubmitProspectResult> {
   const apiBase = getPublicApiBase();
+  const sanitizedProfile = sanitizeProspectProfile(data.profile);
+
+  const nationality = data.nationality?.trim() || sanitizedProfile.nationality || null;
+  const maritalStatus = data.marital_status?.trim() || sanitizedProfile.marital_status || null;
+  const position = data.position?.trim() || sanitizedProfile.position || null;
+
+  sanitizedProfile.nationality = nationality;
+  sanitizedProfile.marital_status = maritalStatus;
+  sanitizedProfile.position = position;
+
   const payload = {
     token,
     name: data.name.trim(),
@@ -107,9 +185,11 @@ export async function submitProspectLink(
     phone: data.phone.trim(),
     address: data.address.trim(),
     email: data.email?.trim() ? data.email.trim() : null,
-    nationality: data.nationality?.trim() ? data.nationality.trim() : null,
-    marital_status: data.marital_status?.trim() ? data.marital_status.trim() : null,
-    position: data.position?.trim() ? data.position.trim() : null,
+    nationality,
+    marital_status: maritalStatus,
+    position,
+    income_source: data.income_source.trim(),
+    profile: sanitizedProfile,
   };
 
   try {

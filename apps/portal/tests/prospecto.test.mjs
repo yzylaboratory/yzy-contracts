@@ -16,7 +16,12 @@ registerHooks({
       return nextResolve(p, context);
     } catch (error) {
       if (error.code !== "ERR_MODULE_NOT_FOUND" || !/^(?:\.|file:)/.test(p)) throw error;
-      return nextResolve(`${p}.ts`, context);
+      try {
+        return nextResolve(`${p}.ts`, context);
+      } catch (err2) {
+        if (err2.code !== "ERR_MODULE_NOT_FOUND") throw err2;
+        return nextResolve(`${p}.tsx`, context);
+      }
     }
   },
 });
@@ -142,6 +147,31 @@ test("submitProspectLink sends required fields and converts empty optional field
       nationality: "Dominicana",
       marital_status: "",
       position: null,
+      income_source: "Empleado privado",
+      profile: {
+        treatment: "Sr.",
+        owns_home: true,
+        owns_vehicle: false,
+        employer: "Empresa Ejemplo",
+        work_address: "Av. Principal 45",
+        work_phone: "809-555-1111",
+        position: "Analista",
+        employment_duration: "3 años",
+        fixed_income: "RD$50,000.00",
+        other_income: "RD$0.00",
+        other_income_source: "No aplica",
+        pay_days: "Quincenal",
+        spouse_not_applicable: true,
+        family_references: [
+          { name: "Fam 1", relationship: "HERMANO/A", phone: "809-555-2221", address: "Calle 1" },
+          { name: "Fam 2", relationship: "MADRE", phone: "809-555-2222", address: "Calle 2" },
+          { name: "Fam 3", relationship: "PADRE", phone: "809-555-2223", address: "Calle 3" },
+        ],
+        personal_references: [
+          { name: "Ref 1", relationship: "AMIGO/A", phone: "809-555-3331" },
+          { name: "Ref 2", relationship: "COMPAÑERO/A DE TRABAJO", phone: "809-555-3332" },
+        ],
+      },
     };
 
     const result = await submitProspectLink(SYNTHETIC_TOKEN, syntheticData);
@@ -159,12 +189,21 @@ test("submitProspectLink sends required fields and converts empty optional field
     assert.equal(parsedBody.nationality, "Dominicana");
     assert.equal(parsedBody.email, null);
     assert.equal(parsedBody.marital_status, null);
-    assert.equal(parsedBody.position, null);
+    assert.equal(parsedBody.position, "Analista");
+    assert.equal(parsedBody.income_source, "Empleado privado");
+    assert.equal(parsedBody.profile.owns_home, true);
+    assert.equal(parsedBody.profile.rents_home, false);
+    assert.equal(parsedBody.profile.family_references.length, 3);
+    assert.equal(parsedBody.profile.personal_references.length, 2);
 
-    // Verify absolutely no financial keys exist
-    const keys = Object.keys(parsedBody);
-    for (const key of keys) {
-      assert.doesNotMatch(key, /amount|money|salary|income|finance|precio|monto|tarifa/i);
+    // Verify absolutely no loan calculation or requested amount keys exist
+    const rootKeys = Object.keys(parsedBody);
+    for (const key of rootKeys) {
+      assert.doesNotMatch(key, /requested_amount|application_date|case_|loan_calculation/i);
+    }
+    const profileKeys = Object.keys(parsedBody.profile);
+    for (const key of profileKeys) {
+      assert.doesNotMatch(key, /requested_amount|application_date|case_|loan_calculation/i);
     }
   } finally {
     globalThis.fetch = originalFetch;
@@ -211,4 +250,61 @@ test("prospecto code does not leak PII or tokens to storage or console", () => {
       `File ${file} should not log prospect token or PII to console`,
     );
   }
+});
+
+test("prospect payload completely satisfies missingLoanClientFields", async () => {
+  const { missingLoanClientFields } = await import("../app/clientes/loan-application-fields.ts");
+  const { sanitizeProspectProfile } = await import("../app/prospecto/prospect-api.ts");
+
+  const completedProspect = {
+    name: "Juan Pérez Santana",
+    identity: "001-1234567-8",
+    phone: "809-555-1234",
+    address: "Calle 1ra #24, Gazcue, Santo Domingo",
+    email: "juan.perez@example.com",
+    treatment: "Sr.",
+    nationality: "Dominicana",
+    marital_status: "Soltero(a)",
+    position: "Analista de Operaciones",
+    income_source: "Empleado privado",
+    profile: sanitizeProspectProfile({
+      treatment: "Sr.",
+      nationality: "Dominicana",
+      marital_status: "Soltero(a)",
+      owns_home: true,
+      owns_vehicle: false,
+      employer: "Empresa Dominicana S.A.",
+      work_address: "Av. 27 de Febrero #100",
+      work_phone: "809-555-9876",
+      position: "Analista de Operaciones",
+      employment_duration: "3 años",
+      fixed_income: "RD$65,000.00",
+      other_income: "RD$0.00",
+      other_income_source: "No aplica",
+      pay_days: "Quincenal (15 y 30)",
+      spouse_not_applicable: true,
+      family_references: [
+        { name: "Pedro Pérez", relationship: "HERMANO/A", phone: "809-555-1111", address: "Calle Central 10" },
+        { name: "Ana Santana", relationship: "MADRE", phone: "809-555-2222", address: "Calle Sol 15" },
+        { name: "Carlos Pérez", relationship: "PADRE", phone: "809-555-3333", address: "Calle Sol 15" },
+      ],
+      personal_references: [
+        { name: "Luis Gómez", relationship: "AMIGO/A", phone: "809-555-4444" },
+        { name: "Rosa Martínez", relationship: "COMPAÑERO/A DE TRABAJO", phone: "809-555-5555" },
+      ],
+    }),
+  };
+
+  const clientLike = {
+    name: completedProspect.name,
+    identity: completedProspect.identity,
+    phone: completedProspect.phone,
+    address: completedProspect.address,
+    email: completedProspect.email,
+    income_source: completedProspect.income_source,
+    profile: completedProspect.profile,
+  };
+
+  const missing = missingLoanClientFields(clientLike);
+  assert.deepEqual(missing, [], `Expected 0 missing fields, but found: ${missing.join(", ")}`);
 });

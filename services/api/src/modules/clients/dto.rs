@@ -405,7 +405,7 @@ impl OperationPatch {
 
 #[derive(Debug, Default, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub(super) struct ClientProfile {
+pub(crate) struct ClientProfile {
     #[serde(skip_serializing_if = "Option::is_none")]
     treatment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -436,21 +436,28 @@ pub(super) struct ClientProfile {
 }
 
 impl ClientProfile {
-    /// Minimal profile built from a prospect's optional fields at conversion.
-    pub(super) fn from_prospect(
+    /// Fills a prospect's legacy flat nationality/marital_status/position
+    /// into this profile wherever it has no value of its own, so a canonical
+    /// profile's own fields always win over the pre-profile columns.
+    pub(crate) fn merge_legacy(
+        mut self,
         nationality: Option<String>,
         marital_status: Option<String>,
         position: Option<String>,
     ) -> Self {
-        Self {
-            nationality,
-            marital_status,
-            position,
-            ..Default::default()
+        if self.nationality.is_none() {
+            self.nationality = nationality;
         }
+        if self.marital_status.is_none() {
+            self.marital_status = marital_status;
+        }
+        if self.position.is_none() {
+            self.position = position;
+        }
+        self
     }
 
-    fn normalize(&mut self) -> Result<(), ApiError> {
+    pub(crate) fn normalize(&mut self) -> Result<(), ApiError> {
         for (field, value, limit) in [
             ("treatment", &mut self.treatment, 80),
             ("nationality", &mut self.nationality, 120),

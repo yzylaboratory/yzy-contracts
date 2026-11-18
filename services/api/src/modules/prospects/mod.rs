@@ -30,9 +30,8 @@ use crate::{
 /// How long a shared prospect link stays usable. A single named constant so
 /// it is a one-line change if the business ever wants a different window.
 const LINK_TTL_HOURS: i64 = 24;
-/// Generous for the few short text fields a prospect submits; keeps an
-/// unauthenticated caller from sending an oversized body.
-const PROSPECT_JSON_LIMIT: usize = 16 * 1024;
+/// Allows the complete profile, including addresses and accented names.
+const PROSPECT_JSON_LIMIT: usize = 64 * 1024;
 
 pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()

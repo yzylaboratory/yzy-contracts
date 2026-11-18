@@ -312,3 +312,150 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+/* Reference cards & mobile friendly stages */
+.referenceCard {
+  background: var(--surface-raised, #ffffff);
+  border: 1px solid var(--border, rgba(27, 31, 87, 0.12));
+  border-radius: var(--radius-control, 1rem);
+  padding: var(--space-4, 1rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.referenceCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle, rgba(27, 31, 87, 0.08));
+  padding-bottom: var(--space-2, 0.5rem);
+}
+
+.referenceCardTitle {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--brand-ink, #1b1f57);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+}
+
+.referenceBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--brand-navy, #2a3084) 10%, transparent);
+  color: var(--brand-navy, #2a3084);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+}
+
+.fieldsGrid2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3, 0.75rem);
+}
+
+@media (min-width: 480px) {
+  .fieldsGrid2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.subsectionTitle {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-navy, #2a3084);
+  margin: var(--space-2, 0.5rem) 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+}
+
+.toggleCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  background: var(--background, #eceef4);
+  border: 1px solid var(--border-subtle, rgba(27, 31, 87, 0.08));
+  border-radius: var(--radius-control, 1rem);
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--brand-ink, #1b1f57);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--duration-fast, 160ms) ease;
+}
+
+.toggleCard:hover {
+  border-color: var(--border, rgba(27, 31, 87, 0.2));
+}
+
+.toggleCard input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--brand-navy, #2a3084);
+  cursor: pointer;
+}
+
+.segmentedField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 0.25rem);
+}
+
+.segmentedLabel {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--foreground, #1b1f57);
+}
+
+.choiceGroup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2, 0.5rem);
+}
+
+.choiceButton {
+  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  border: 1px solid var(--border, rgba(27, 31, 87, 0.16));
+  border-radius: var(--radius-control, 1rem);
+  background: var(--surface-raised, #ffffff);
+  color: var(--foreground, #1b1f57);
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast, 160ms) ease;
+  text-align: center;
+}
+
+.choiceButton:hover {
+  border-color: var(--brand-navy, #2a3084);
+}
+
+.choiceButtonActive {
+  background: var(--brand-navy, #2a3084);
+  color: #ffffff;
+  border-color: var(--brand-navy, #2a3084);
+  font-weight: 600;
+}
+
+.helperActionRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+
+.selectionError {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm, 0.875rem);
+}

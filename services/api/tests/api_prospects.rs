@@ -358,6 +358,266 @@ async fn prospects_and_conversion_are_isolated_per_company() {
     assert_eq!(error_code(&error), "COMPANY_NOT_FOUND");
 }
 
+fn full_profile() -> serde_json::Value {
+    json!({
+        "treatment": "sr.",
+        "nationality": "dominicana",
+        "marital_status": "casado",
+        "owns_home": true,
+        "owns_vehicle": false,
+        "employer": "comercial ejemplo",
+        "work_address": "avenida ficticia 2",
+        "work_phone": "809-555-0200",
+        "position": "supervisor",
+        "employment_duration": "3 años",
+        "fixed_income": "45000",
+        "other_income": "0",
+        "other_income_source": "",
+        "pay_days": "15 y 30",
+        "spouse": {
+            "name": "cónyuge sintético",
+            "identity": "000-0000005-5",
+            "phone": "809-555-0300",
+            "employer": "otra empresa",
+            "employment_duration": "1 año",
+            "position": "analista",
+            "address": "calle del cónyuge",
+            "work_phone": "809-555-0400",
+        },
+        "family_references": [
+            {"name": "referencia familiar", "relationship": "hermano/a", "phone": "809-555-0500", "address": "calle familiar"},
+        ],
+        "personal_references": [
+            {"name": "referencia personal", "relationship": "amigo/a", "phone": "809-555-0600", "address": "calle personal"},
+        ],
+    })
+}
+
+#[tokio::test]
+async fn prospect_submission_accepts_full_profile_and_income_source_and_converts_it() {
+    let app = TestApp::start().await;
+    let owner = app.superadmin().await;
+    let company = app
+        .legacy_company(owner, "Empresa con ficha completa")
+        .await;
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity":"000-0000010-0"}),
+        )
+        .await;
+    let token = link["token"].as_str().unwrap().to_owned();
+
+    let mut body = submission(&token, "000-0000010-0");
+    body["income_source"] = json!("salario");
+    body["profile"] = full_profile();
+    let (status, _) = app.request(Method::POST, SUBMIT, None, Some(body)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (status, list) = app.get(owner, &prospects_for(company)).await;
+    assert_eq!(status, StatusCode::OK, "{list}");
+    let prospect = &list["items"][0];
+    assert_eq!(prospect["income_source"], "SALARIO");
+    let profile = &prospect["profile"];
+    assert_eq!(profile["nationality"], "DOMINICANA");
+    assert_eq!(profile["marital_status"], "CASADO");
+    assert_eq!(profile["owns_home"], true);
+    assert_eq!(profile["owns_vehicle"], false);
+    assert_eq!(profile["position"], "SUPERVISOR");
+    assert_eq!(profile["spouse"]["name"], "CÓNYUGE SINTÉTICO");
+    assert_eq!(
+        profile["family_references"][0]["name"],
+        "REFERENCIA FAMILIAR"
+    );
+    assert_eq!(
+        profile["personal_references"][0]["name"],
+        "REFERENCIA PERSONAL"
+    );
+    let prospect_id = Uuid::parse_str(prospect["id"].as_str().unwrap()).unwrap();
+
+    let (status, converted) = app
+        .post(owner, &convert(company, prospect_id), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{converted}");
+    let client_id = converted["client_id"].as_str().unwrap();
+    let (status, client) = app
+        .get(owner, &format!("/api/v1/clients/{client_id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{client}");
+    assert_eq!(client["income_source"], "SALARIO");
+    assert_eq!(client["profile"]["nationality"], "DOMINICANA");
+    assert_eq!(client["profile"]["spouse"]["name"], "CÓNYUGE SINTÉTICO");
+    // No loan data (amount, application date, collateral vehicle) ever reaches the profile.
+    assert!(client["profile"]["requested_amount_minor"].is_null());
+    assert!(client["profile"].get("application_date").is_none());
+    assert!(client["profile"].get("vehicle").is_none());
+}
+
+#[tokio::test]
+async fn prospect_submission_rejects_loan_and_unknown_fields_even_nested() {
+    let app = TestApp::start().await;
+    let owner = app.superadmin().await;
+    let company = app.legacy_company(owner, "Empresa con validación").await;
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity":"000-0000011-1"}),
+        )
+        .await;
+    let token = link["token"].as_str().unwrap().to_owned();
+
+    // The profile itself must reject unknown/loan fields.
+    let mut with_loan_amount = submission(&token, "000-0000011-1");
+    let mut profile = full_profile();
+    profile["requested_amount_minor"] = json!(50_000);
+    with_loan_amount["profile"] = profile;
+    assert_eq!(
+        app.request(Method::POST, SUBMIT, None, Some(with_loan_amount))
+            .await
+            .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    let mut with_application_date = submission(&token, "000-0000011-1");
+    let mut profile = full_profile();
+    profile["application_date"] = json!("2026-01-01");
+    with_application_date["profile"] = profile;
+    assert_eq!(
+        app.request(Method::POST, SUBMIT, None, Some(with_application_date))
+            .await
+            .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    let mut with_vehicle = submission(&token, "000-0000011-1");
+    let mut profile = full_profile();
+    profile["vehicle"] = json!({"plate": "A123456"});
+    with_vehicle["profile"] = profile;
+    assert_eq!(
+        app.request(Method::POST, SUBMIT, None, Some(with_vehicle))
+            .await
+            .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    // Nested spouse/reference objects deny unknown fields too.
+    let mut with_unknown_spouse_field = submission(&token, "000-0000011-1");
+    let mut profile = full_profile();
+    profile["spouse"]["ssn"] = json!("000-0000000-0");
+    with_unknown_spouse_field["profile"] = profile;
+    assert_eq!(
+        app.request(Method::POST, SUBMIT, None, Some(with_unknown_spouse_field))
+            .await
+            .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    let mut with_unknown_reference_field = submission(&token, "000-0000011-1");
+    let mut profile = full_profile();
+    profile["family_references"][0]["notes"] = json!("algo");
+    with_unknown_reference_field["profile"] = profile;
+    assert_eq!(
+        app.request(
+            Method::POST,
+            SUBMIT,
+            None,
+            Some(with_unknown_reference_field)
+        )
+        .await
+        .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    // Nothing was recorded for any rejected attempt.
+    let (_, list) = app.get(owner, &prospects_for(company)).await;
+    assert_eq!(list["items"], json!([]));
+}
+
+#[tokio::test]
+async fn legacy_prospect_fields_merge_into_profile_for_display_and_conversion_without_overwrite() {
+    let app = TestApp::start().await;
+    let owner = app.superadmin().await;
+    let company = app
+        .legacy_company(owner, "Empresa con prospectos antiguos")
+        .await;
+
+    // A prospect submitted before `profile` existed: only the flat columns.
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity":"000-0000012-2"}),
+        )
+        .await;
+    let token = link["token"].as_str().unwrap().to_owned();
+    let mut legacy = submission(&token, "000-0000012-2");
+    legacy["nationality"] = json!("dominicana");
+    legacy["marital_status"] = json!("soltero");
+    legacy["position"] = json!("vendedor");
+    assert_eq!(
+        app.request(Method::POST, SUBMIT, None, Some(legacy))
+            .await
+            .0,
+        StatusCode::NO_CONTENT
+    );
+
+    let (_, list) = app.get(owner, &prospects_for(company)).await;
+    let prospect = &list["items"][0];
+    // The legacy flat columns are preserved as-is.
+    assert_eq!(prospect["nationality"], "DOMINICANA");
+    assert_eq!(prospect["marital_status"], "SOLTERO");
+    assert_eq!(prospect["position"], "VENDEDOR");
+    // The merge fallback folds them into `profile` for display.
+    assert_eq!(prospect["profile"]["nationality"], "DOMINICANA");
+    assert_eq!(prospect["profile"]["marital_status"], "SOLTERO");
+    assert_eq!(prospect["profile"]["position"], "VENDEDOR");
+    let prospect_id = Uuid::parse_str(prospect["id"].as_str().unwrap()).unwrap();
+
+    let (status, converted) = app
+        .post(owner, &convert(company, prospect_id), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{converted}");
+    let client_id = converted["client_id"].as_str().unwrap();
+    let (_, client) = app
+        .get(owner, &format!("/api/v1/clients/{client_id}"))
+        .await;
+    assert_eq!(client["profile"]["nationality"], "DOMINICANA");
+    assert_eq!(client["profile"]["marital_status"], "SOLTERO");
+    assert_eq!(client["profile"]["position"], "VENDEDOR");
+
+    // A second, in-flight-style request: both a partial profile and the
+    // legacy flat fields are sent together. The profile's own fields win;
+    // the flat field only fills what the profile left unset.
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity":"000-0000013-3"}),
+        )
+        .await;
+    let token = link["token"].as_str().unwrap().to_owned();
+    let mut mixed = submission(&token, "000-0000013-3");
+    mixed["nationality"] = json!("haitiana");
+    mixed["profile"] = json!({"nationality": "dominicana", "marital_status": "divorciado"});
+    assert_eq!(
+        app.request(Method::POST, SUBMIT, None, Some(mixed)).await.0,
+        StatusCode::NO_CONTENT
+    );
+    let (_, list) = app.get(owner, &prospects_for(company)).await;
+    let mixed_prospect = list["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["identity"] == "000-0000013-3")
+        .unwrap();
+    assert_eq!(mixed_prospect["nationality"], "HAITIANA");
+    // The complete (profile) field wins over the legacy flat column.
+    assert_eq!(mixed_prospect["profile"]["nationality"], "DOMINICANA");
+    assert_eq!(mixed_prospect["profile"]["marital_status"], "DIVORCIADO");
+}
+
 #[tokio::test]
 async fn dev_prospect_submission_stays_in_the_dev_schema() {
     let app = TestApp::start_development(&[ADMIN_ID]).await;
@@ -391,19 +651,17 @@ async fn dev_prospect_submission_stays_in_the_dev_schema() {
         .await;
     assert_eq!(status, StatusCode::CREATED, "{link}");
     let token = link["token"].as_str().unwrap();
-    let (status, _) = app
-        .request(
-            Method::POST,
-            SUBMIT,
-            None,
-            Some(submission(token, "000-0000008-8")),
-        )
-        .await;
+    let mut body = submission(token, "000-0000008-8");
+    body["income_source"] = json!("salario");
+    body["profile"] = json!({"nationality": "dominicana"});
+    let (status, _) = app.request(Method::POST, SUBMIT, None, Some(body)).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let (status, list) = app.get(owner, &prospects_for(company)).await;
     assert_eq!(status, StatusCode::OK, "{list}");
     assert_eq!(list["items"][0]["identity"], "000-0000008-8");
+    assert_eq!(list["items"][0]["income_source"], "SALARIO");
+    assert_eq!(list["items"][0]["profile"]["nationality"], "DOMINICANA");
     let prod_count: i64 = sqlx::query_scalar("SELECT count(*) FROM yzy_contracts.prospects")
         .fetch_one(&app.admin)
         .await

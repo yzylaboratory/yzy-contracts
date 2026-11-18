@@ -9,9 +9,12 @@ use sqlx::{PgPool, Postgres, Transaction};
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
+/// Re-exported so sibling modules (prospects) can share the canonical
+/// profile shape without reaching into this module's private `dto`.
+pub(crate) use self::dto::ClientProfile;
 use self::dto::{
-    CasePage, Client, ClientPage, ClientPatch, ClientProfile, ClientTimelinePage, ClientWrite,
-    ListCases, ListClients, ListTimeline, Operation, OperationPatch, OperationWrite,
+    CasePage, Client, ClientPage, ClientPatch, ClientTimelinePage, ClientWrite, ListCases,
+    ListClients, ListTimeline, Operation, OperationPatch, OperationWrite,
 };
 use crate::{
     app_state::AppState,
@@ -390,16 +393,20 @@ pub(crate) async fn correct_case_vehicle(
 }
 
 /// Minimal identity, contact and address data a prospect submitted, with no
-/// financial fields.
+/// financial fields. `profile` is the canonical profile when the prospect
+/// submitted one; `nationality`/`marital_status`/`position` are the legacy
+/// flat columns kept for prospects submitted before `profile` existed.
 pub(super) struct ProspectConversion {
     pub name: String,
     pub identity: String,
     pub phone: String,
     pub address: String,
     pub email: Option<String>,
+    pub income_source: Option<String>,
     pub nationality: Option<String>,
     pub marital_status: Option<String>,
     pub position: Option<String>,
+    pub profile: Option<ClientProfile>,
 }
 
 /// Reuses client creation and its canonical audit trail, inside the caller's
@@ -410,18 +417,19 @@ pub(super) async fn create_client_from_prospect(
     actor: Uuid,
     prospect: ProspectConversion,
 ) -> Result<Uuid, ApiError> {
+    let profile = prospect.profile.unwrap_or_default().merge_legacy(
+        prospect.nationality,
+        prospect.marital_status,
+        prospect.position,
+    );
     let mut patch = ClientPatch {
         name: Some(prospect.name),
         identity: Some(Some(prospect.identity)),
         address: Some(Some(prospect.address)),
         phone: Some(Some(prospect.phone)),
         email: Some(prospect.email),
-        income_source: Some(None),
-        profile: Some(Some(ClientProfile::from_prospect(
-            prospect.nationality,
-            prospect.marital_status,
-            prospect.position,
-        ))),
+        income_source: Some(prospect.income_source),
+        profile: Some(Some(profile)),
     };
     patch.normalize()?;
     let saved = repository::create_client_in_transaction(tx, actor, patch).await?;

@@ -6309,6 +6309,8 @@ components:
       - nationality
       - marital_status
       - position
+      - income_source
+      - profile
       properties:
         address:
           type: string
@@ -6321,6 +6323,10 @@ components:
           format: uuid
         identity:
           type: string
+        income_source:
+          type:
+          - string
+          - 'null'
         marital_status:
           type:
           - string
@@ -6331,12 +6337,20 @@ components:
           type:
           - string
           - 'null'
+          description: |-
+            Legacy flat field, kept for prospects submitted before `profile`
+            existed. [`Self::with_merged_profile`] folds it into `profile` for
+            display; the column itself is never overwritten.
         phone:
           type: string
         position:
           type:
           - string
           - 'null'
+        profile:
+          oneOf:
+          - $ref: '#/components/schemas/ClientProfile'
+          - type: 'null'
         submitted_at:
           type: string
           format: date-time
@@ -6478,6 +6492,11 @@ components:
           type: string
           maxLength: 64
           minLength: 1
+        income_source:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
         marital_status:
           type:
           - string
@@ -6501,6 +6520,15 @@ components:
           - string
           - 'null'
           maxLength: 200
+        profile:
+          oneOf:
+          - $ref: '#/components/schemas/ClientProfile'
+            description: |-
+              Canonical client profile (treatment, nationality, marital status,
+              housing/vehicle, employment/income, spouse, references). Validated
+              the same way as a client's own profile, deny-unknown-fields included;
+              it carries no loan data (amount, application date, collateral vehicle).
+          - type: 'null'
         token:
           type: string
       additionalProperties: false

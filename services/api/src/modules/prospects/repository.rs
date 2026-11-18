@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{PgPool, types::Json};
 use uuid::Uuid;
 
 use super::dto::{NormalizedProspect, Prospect, ProspectList};
@@ -28,16 +28,21 @@ pub(super) async fn create_link(
 }
 
 pub(super) async fn list(db: &PgPool, company: Uuid) -> sqlx::Result<ProspectList> {
-    let items = sqlx::query_as(
+    let items: Vec<Prospect> = sqlx::query_as(
         "SELECT id, submitted_at, name, identity, phone, address, email,
-                nationality, marital_status, occupation
+                nationality, marital_status, occupation, income_source, profile
          FROM prospects WHERE company_id = $1
          ORDER BY submitted_at DESC, id DESC",
     )
     .bind(company)
     .fetch_all(db)
     .await?;
-    Ok(ProspectList { items })
+    Ok(ProspectList {
+        items: items
+            .into_iter()
+            .map(Prospect::with_merged_profile)
+            .collect(),
+    })
 }
 
 pub(super) async fn verify_identity(
@@ -88,8 +93,10 @@ pub(super) async fn submit(
            RETURNING company_id, used_at
          )
          INSERT INTO prospects
-            (company_id, name, identity, phone, address, email, nationality, marital_status, occupation)
-         SELECT company_id, $3, $4, $5, $6, $7, $8, $9, $10 FROM link WHERE used_at IS NOT NULL
+            (company_id, name, identity, phone, address, email, nationality, marital_status,
+             occupation, income_source, profile)
+         SELECT company_id, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+         FROM link WHERE used_at IS NOT NULL
          RETURNING id",
     )
     .bind(token_hash)
@@ -102,6 +109,8 @@ pub(super) async fn submit(
     .bind(data.nationality)
     .bind(data.marital_status)
     .bind(data.position)
+    .bind(data.income_source)
+    .bind(data.profile.map(Json))
     .fetch_optional(db)
     .await?;
     Ok(saved.is_some())
@@ -121,7 +130,7 @@ pub(super) async fn convert(
     let mut tx = db.begin().await?;
     let prospect: Option<Prospect> = sqlx::query_as(
         "SELECT id, submitted_at, name, identity, phone, address, email,
-                nationality, marital_status, occupation
+                nationality, marital_status, occupation, income_source, profile
          FROM prospects WHERE id = $1 AND company_id = $2
          FOR UPDATE",
     )
@@ -141,9 +150,11 @@ pub(super) async fn convert(
             phone: prospect.phone,
             address: prospect.address,
             email: prospect.email,
+            income_source: prospect.income_source,
             nationality: prospect.nationality,
             marital_status: prospect.marital_status,
             position: prospect.position,
+            profile: prospect.profile,
         },
     )
     .await?;
