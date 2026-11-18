@@ -1,7 +1,7 @@
 import { DOCUMENT_TYPES, hasDocumentTemplateFields, type DocumentType } from "../contratos/document-catalog";
 
 function normalizeDocumentName(value: string) {
-  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value.replace(/\.docx$/i, "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 export function documentTypeFromName(name: string) {
@@ -11,6 +11,13 @@ export function documentTypeFromName(name: string) {
   }
   if (normalized === "levantamiento de oposicion") {
     return DOCUMENT_TYPES.find(document => document.id === "levantamiento_oposicion");
+  }
+  if (
+    normalized === "autorizacion para asegurar vehiculo" ||
+    normalized === "carta de autorizacion para asegurar vehiculo" ||
+    normalized === "autorizacion para asegurar el vehiculo"
+  ) {
+    return DOCUMENT_TYPES.find(document => document.id === "autorizacion_asegurar_vehiculo");
   }
   return DOCUMENT_TYPES.find(document =>
     normalizeDocumentName(document.label) === normalized || normalizeDocumentName(document.id) === normalized);
