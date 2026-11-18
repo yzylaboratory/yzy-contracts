@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 import { shareDocument } from '../../../lib/share/share-artifact';
 import { messageFor } from '../../../shared/errors/messages';
+import { formatDateEs } from '../../../shared/format/date';
 import { colors, radius, space, touch } from '../../../shared/theme/tokens';
 import { AppText } from '../../../shared/ui/AppText';
 import { Button } from '../../../shared/ui/Button';
@@ -16,6 +17,8 @@ import { EmptyState, ErrorState } from '../../../shared/ui/StateViews';
 import { useCaseDetail } from '../../cases';
 import { useCaseDocuments } from '../../cases/hooks/useCases';
 import { FormatChip } from '../../cases/ui/FormatChip';
+import { useDocumentPreview } from '../hooks/useDocumentPreview';
+import { PreviewButton } from './PreviewButton';
 
 // Route params are validated: strict object, bounded list of ids (fail closed).
 export const readyParamsSchema = z.strictObject({
@@ -31,6 +34,7 @@ export function ReadyScreen({ caseId, ids }: { caseId: string; ids: string }) {
   const { caseQuery } = useCaseDetail(caseId);
   const [shareError, setShareError] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const preview = useDocumentPreview();
 
   if (docs.isPending) {
     return (
@@ -82,35 +86,38 @@ export function ReadyScreen({ caseId, ids }: { caseId: string; ids: string }) {
       </View>
 
       {shareError ? <Notice tone="danger" message={shareError} /> : null}
+      {preview.error ? <Notice tone="danger" message={preview.error} /> : null}
       {list.length === 0 ? (
         <EmptyState title="Sin documentos" body="No encontramos los documentos generados de esta operación." />
       ) : null}
 
       {list.map((doc) => (
         <Card key={doc.id} style={styles.row}>
-          <View style={styles.info}>
-            <View style={styles.titleRow}>
-              <FormatChip format={doc.format} />
-              <AppText variant="bodyStrong" numberOfLines={1} style={styles.flex}>
-                {doc.contract_name}
-              </AppText>
-            </View>
-            <AppText variant="caption" tone="secondary" numberOfLines={1}>
-              {doc.filename}
+          <AppText variant="bodyStrong">{doc.contract_name}</AppText>
+          <View style={styles.metaRow}>
+            <FormatChip format={doc.format} />
+            <AppText variant="caption" tone="secondary" style={styles.flex}>
+              {formatDateEs(doc.created_at)}
             </AppText>
+            <PreviewButton
+              name={doc.contract_name}
+              busy={preview.busyId === doc.id}
+              disabled={preview.busyId !== null}
+              onPress={() => void preview.open(doc)}
+            />
+            {doc.has_artifact ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Compartir ${doc.filename}`}
+                accessibilityState={{ busy: sharingId === doc.id, disabled: sharingId !== null }}
+                disabled={sharingId !== null}
+                onPress={() => void share(doc.id)}
+                style={styles.action}
+              >
+                <Ionicons name="share-outline" size={22} color={colors.ink} />
+              </Pressable>
+            ) : null}
           </View>
-          {doc.has_artifact ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Compartir ${doc.filename}`}
-              accessibilityState={{ busy: sharingId === doc.id, disabled: sharingId !== null }}
-              disabled={sharingId !== null}
-              onPress={() => void share(doc.id)}
-              style={styles.action}
-            >
-              <Ionicons name="share-outline" size={22} color={colors.ink} />
-            </Pressable>
-          ) : null}
         </Card>
       ))}
 
@@ -128,9 +135,8 @@ export function ReadyScreen({ caseId, ids }: { caseId: string; ids: string }) {
 
 const styles = StyleSheet.create({
   header: { gap: space.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: 14 },
-  info: { flex: 1, gap: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  row: { gap: space.xs, padding: 14 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   flex: { flex: 1 },
   action: {
     width: touch.minTarget,

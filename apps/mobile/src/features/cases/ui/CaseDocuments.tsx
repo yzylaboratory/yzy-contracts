@@ -12,6 +12,8 @@ import { Notice } from '../../../shared/ui/Notice';
 import { Skeleton } from '../../../shared/ui/Skeleton';
 import { EmptyState, ErrorState } from '../../../shared/ui/StateViews';
 import { colors, radius, space, touch } from '../../../shared/theme/tokens';
+import { useDocumentPreview } from '../../documents/hooks/useDocumentPreview';
+import { PreviewButton } from '../../documents/ui/PreviewButton';
 import { useCaseDocuments } from '../hooks/useCases';
 import { FormatChip } from './FormatChip';
 
@@ -20,6 +22,7 @@ export function CaseDocuments({ caseId }: { caseId: string }) {
   const docs = useCaseDocuments(caseId);
   const [shareError, setShareError] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const preview = useDocumentPreview();
   const items = docs.data?.pages.flatMap((page) => page.items) ?? [];
 
   if (docs.isPending) return <Skeleton height={96} />;
@@ -44,31 +47,34 @@ export function CaseDocuments({ caseId }: { caseId: string }) {
     <View style={styles.list}>
       <AppText variant="subheading">Documentos y contratos {items.length}</AppText>
       {shareError ? <Notice tone="danger" message={shareError} /> : null}
+      {preview.error ? <Notice tone="danger" message={preview.error} /> : null}
       {items.map((doc) => (
         <Card key={doc.id} style={styles.row}>
-          <View style={styles.info}>
-            <View style={styles.titleRow}>
-              <FormatChip format={doc.format} />
-              <AppText variant="bodyStrong" numberOfLines={1} style={styles.flex}>
-                {doc.contract_name}
-              </AppText>
-            </View>
-            <AppText variant="caption" tone="secondary">
+          <AppText variant="bodyStrong">{doc.contract_name}</AppText>
+          <View style={styles.metaRow}>
+            <FormatChip format={doc.format} />
+            <AppText variant="caption" tone="secondary" style={styles.flex}>
               {formatDateEs(doc.created_at)}
             </AppText>
+            <PreviewButton
+              name={doc.contract_name}
+              busy={preview.busyId === doc.id}
+              disabled={preview.busyId !== null}
+              onPress={() => void preview.open(doc)}
+            />
+            {doc.has_artifact ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Compartir ${doc.filename}`}
+                accessibilityState={{ busy: sharingId === doc.id, disabled: sharingId !== null }}
+                disabled={sharingId !== null}
+                onPress={() => void share(doc)}
+                style={styles.action}
+              >
+                <Ionicons name="share-outline" size={22} color={colors.ink} />
+              </Pressable>
+            ) : null}
           </View>
-          {doc.has_artifact ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Compartir ${doc.filename}`}
-              accessibilityState={{ busy: sharingId === doc.id, disabled: sharingId !== null }}
-              disabled={sharingId !== null}
-              onPress={() => void share(doc)}
-              style={styles.action}
-            >
-              <Ionicons name="share-outline" size={22} color={colors.ink} />
-            </Pressable>
-          ) : null}
         </Card>
       ))}
       {docs.hasNextPage ? (
@@ -85,9 +91,8 @@ export function CaseDocuments({ caseId }: { caseId: string }) {
 
 const styles = StyleSheet.create({
   list: { gap: space.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: 14 },
-  info: { flex: 1, gap: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  row: { gap: space.xs, padding: 14 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   flex: { flex: 1 },
   action: { width: touch.minTarget, height: touch.minTarget, borderRadius: radius.small, alignItems: 'center', justifyContent: 'center' },
 });

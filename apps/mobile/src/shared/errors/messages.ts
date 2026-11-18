@@ -34,8 +34,10 @@ export function messageFor(error: unknown): string {
         return 'Este documento ya se generó con otros datos. Vuelve a intentarlo.';
       case 'DOCUMENT_RENDERER_UNAVAILABLE':
         return 'El servicio de documentos no está disponible. Inténtalo de nuevo.';
+      case 'DOCUMENT_RENDER_FAILED':
+        return 'No pudimos convertir este documento a PDF. Inténtalo de nuevo.';
       case 'REQUEST_TIMEOUT':
-        return 'La generación tardó demasiado. Inténtalo de nuevo.';
+        return 'La operación tardó demasiado. Inténtalo de nuevo.';
       case 'INVALID_RESPONSE':
         return 'La respuesta del servidor no se pudo leer. Inténtalo de nuevo.';
       default:

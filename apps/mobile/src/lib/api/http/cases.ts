@@ -25,6 +25,8 @@ import {
   type DocumentWire,
 } from './wire-schema';
 
+const RENDER_TIMEOUT_MS = 60_000;
+
 function segment(value: string): string {
   return encodeURIComponent(value);
 }
@@ -159,6 +161,21 @@ export function createHttpCasesApi(http: ApiClient): YzyApi['cases'] {
       const filename = filenameFromContentDisposition(downloaded.contentDisposition);
       const mimeType = mimeFromContentType(downloaded.contentType);
       const stored = await writeArtifactCache(filename, downloaded.bytes);
+      return { filename: stored.filename, mime_type: mimeType, uri: stored.uri };
+    },
+
+    async renderPdf(documentId: string, sourceFilename: string): Promise<Artifact> {
+      const rendered = await http.binary(`/generated-documents/${segment(documentId)}/render-pdf`, {
+        method: 'POST',
+        timeoutMs: RENDER_TIMEOUT_MS,
+      });
+      if (!rendered.contentType) {
+        throw new ApiError(200, 'INVALID_RESPONSE', 'Respuesta inesperada del servidor.');
+      }
+      // render-pdf sends no Content-Disposition: the PDF takes the Word file's name.
+      const filename = `${sourceFilename.replace(/\.docx$/i, '')}.pdf`;
+      const mimeType = mimeFromContentType(rendered.contentType);
+      const stored = await writeArtifactCache(filename, rendered.bytes);
       return { filename: stored.filename, mime_type: mimeType, uri: stored.uri };
     },
   };

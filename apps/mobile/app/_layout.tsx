@@ -88,6 +88,7 @@ function AccessLayer() {
           <Stack.Screen name="expedientes/[id]/generar" />
           <Stack.Screen name="expedientes/[id]/listos" />
           <Stack.Screen name="nuevo-expediente" />
+          <Stack.Screen name="vista-previa" />
         </Stack.Protected>
         <Stack.Protected guard={access.companies} redirectTo={home}>
           <Stack.Screen name="companies" />

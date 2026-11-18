@@ -381,6 +381,47 @@ describe('cases client', () => {
     expect(written()).toEqual([bytes]);
   });
 
+  it('renders a Word document as PDF with a POST and caches the result', async () => {
+    const bytes = new TextEncoder().encode('%PDF-1.7').buffer as ArrayBuffer;
+    const fetchMock = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      status: 200,
+      headers: {
+        get(name: string) {
+          if (name.toLowerCase() === 'content-type') return 'application/pdf';
+          return null;
+        },
+      },
+      json: async () => null,
+      arrayBuffer: async () => bytes,
+    }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const artifact = await api().renderPdf(DOC, 'contrato.docx');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(`${API_URL}/api/v1/generated-documents/${DOC}/render-pdf`);
+    expect(init).toMatchObject({ method: 'POST' });
+    expect(artifact).toEqual({
+      filename: 'contrato.pdf',
+      mime_type: 'application/pdf',
+      uri: 'file:///cache/contrato.pdf',
+    });
+    expect(written()).toEqual([bytes]);
+  });
+
+  it.each([
+    [415, 'DOCUMENT_RENDER_FAILED'],
+    [503, 'DOCUMENT_RENDERER_UNAVAILABLE'],
+    [504, 'REQUEST_TIMEOUT'],
+  ])('maps a render-pdf %i envelope and does not write a file', async (status, code) => {
+    global.fetch = jest.fn(async () =>
+      jsonResponse(status, { error: { code, message: 'No se pudo.' } }),
+    ) as unknown as typeof fetch;
+    const error = await api().renderPdf(DOC, 'contrato.docx').catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status, code });
+    expect(written()).toEqual([]);
+  });
+
   it('maps an artifact 4xx envelope and does not write a file', async () => {
     global.fetch = jest.fn(async () =>
       jsonResponse(404, { error: { code: 'GENERATED_DOCUMENT_NOT_FOUND', message: 'No hay archivo.' } }),

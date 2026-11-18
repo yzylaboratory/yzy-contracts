@@ -335,6 +335,8 @@ export interface YzyApi {
       body: GenerateDocumentBody;
     }): Promise<DocumentMetadata>;
     artifact(documentId: string): Promise<Artifact>;
+    // Word documents only: the API renders the saved file as a PDF and the client caches it like an artifact.
+    renderPdf(documentId: string, sourceFilename: string): Promise<Artifact>;
   };
   clients: {
     list(params: ClientListParams): Promise<ClientPage>;

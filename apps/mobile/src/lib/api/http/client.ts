@@ -33,9 +33,15 @@ export interface BinaryBody {
   contentDisposition: string | null;
 }
 
+export interface BinaryRequest {
+  method?: JsonMethod;
+  // Rendering a Word file into a PDF can outlast the default request timeout.
+  timeoutMs?: number;
+}
+
 export interface ApiClient {
   json<S extends z.ZodType>(path: string, schema: S, init?: JsonRequest): Promise<z.output<S>>;
-  binary(path: string): Promise<BinaryBody>;
+  binary(path: string, init?: BinaryRequest): Promise<BinaryBody>;
 }
 
 // Non-2xx bodies follow the error envelope. An unreadable body keeps the HTTP status, so a 401 still ends the session.
@@ -71,7 +77,7 @@ export function createApiClient(supabase: SupabaseClient, apiUrl: string): ApiCl
     return token;
   }
 
-  async function send(path: string, init: { method: JsonMethod; accept: string; body?: unknown; binary: boolean }): Promise<{
+  async function send(path: string, init: { method: JsonMethod; accept: string; body?: unknown; binary: boolean; timeoutMs?: number }): Promise<{
     status: number;
     json: unknown;
     bytes: ArrayBuffer | null;
@@ -90,7 +96,7 @@ export function createApiClient(supabase: SupabaseClient, apiUrl: string): ApiCl
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(`${root}${path}`, {
         method: init.method,
@@ -136,8 +142,13 @@ export function createApiClient(supabase: SupabaseClient, apiUrl: string): ApiCl
       }
       return parsed.data;
     },
-    async binary(path: string): Promise<BinaryBody> {
-      const result = await send(path, { method: 'GET', accept: '*/*', binary: true });
+    async binary(path: string, init?: BinaryRequest): Promise<BinaryBody> {
+      const result = await send(path, {
+        method: init?.method ?? 'GET',
+        accept: '*/*',
+        binary: true,
+        timeoutMs: init?.timeoutMs,
+      });
       if (!result.bytes) throw new ApiError(result.status, 'INVALID_RESPONSE', 'Respuesta inesperada del servidor.');
       return {
         bytes: result.bytes,
