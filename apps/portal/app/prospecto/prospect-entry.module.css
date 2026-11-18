@@ -55,10 +55,12 @@
 .mark svg {
   display: block;
   inline-size: 100%;
+  min-inline-size: 0;
 }
 
 .content {
   display: grid;
   justify-items: center;
   inline-size: 100%;
+  min-inline-size: 0;
 }

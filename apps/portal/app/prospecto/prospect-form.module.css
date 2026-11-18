@@ -13,6 +13,7 @@
 .mainCard {
   width: 100%;
   max-width: 32rem;
+  min-inline-size: 0;
   background: var(--surface-raised, #ffffff);
   border: 1px solid var(--border, rgba(27, 31, 87, 0.12));
   border-radius: var(--radius-panel, 1.5rem);
@@ -61,7 +62,8 @@
 }
 
 .stepIndicatorItem {
-  flex: 1;
+  flex: 1 1 0;
+  min-inline-size: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1, 0.25rem);
@@ -149,7 +151,7 @@
 
 .reviewList {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2, 0.5rem);
   margin: 0;
   padding: 0;
@@ -158,7 +160,7 @@
 
 @media (min-width: 480px) {
   .reviewList {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3, 0.75rem);
   }
 }
@@ -357,13 +359,13 @@
 
 .fieldsGrid2 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3, 0.75rem);
 }
 
 @media (min-width: 480px) {
   .fieldsGrid2 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -420,7 +422,7 @@
 
 .choiceGroup {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2, 0.5rem);
 }
 
@@ -458,4 +460,64 @@
   margin: 0;
   color: var(--danger);
   font-size: var(--text-sm, 0.875rem);
+}
+
+@media (max-width: 479px) {
+  .page {
+    padding-block: max(0.75rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-bottom));
+    padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
+  }
+
+  .mainCard,
+  .referenceCard,
+  .reviewBox {
+    padding: 0.875rem;
+  }
+
+  .stepIndicatorList {
+    gap: 0.25rem;
+  }
+
+  .stepTitle {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .actionsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionsRow button,
+  .mainCard input:not([type="checkbox"]),
+  .mainCard button[role="combobox"],
+  .mainCard form > button,
+  .choiceButton,
+  .toggleCard {
+    min-block-size: 44px;
+  }
+
+  .mainCard input:not([type="checkbox"]),
+  .mainCard button[role="combobox"] {
+    font-size: 16px;
+  }
+
+  .mainCard button,
+  .mainCard button span {
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .toggleCard input {
+    flex: none;
+  }
+
+  .reviewTitle {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
 }
