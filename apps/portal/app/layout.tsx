@@ -17,9 +17,12 @@ const description = "Convierte contratos PDF y Word en plantillas editables y pr
 
 export function generateMetadata(): Metadata {
   const siteUrl = resolveSiteUrl();
+  const metadataBase = siteUrl ? new URL(siteUrl) : undefined;
   return {
-    metadataBase: siteUrl ? new URL(siteUrl) : undefined,
-    title,
+    metadataBase,
+    title: metadataBase?.hostname === "yzycontracts.yzylabs.dev"
+      ? { default: `[DEV] ${title}`, template: "[DEV] %s" }
+      : title,
     description,
     openGraph: {
       title,
