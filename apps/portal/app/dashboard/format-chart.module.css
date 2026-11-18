@@ -4,8 +4,8 @@
 
 .chart {
   --series-1: var(--brand-green);
-  --series-2: var(--brand-ink);
-  --series-3: color-mix(in oklab, var(--brand-ink) 45%, var(--brand-stone));
+  --series-2: var(--brand-navy);
+  --series-3: color-mix(in oklab, var(--brand-navy) 45%, var(--brand-stone));
   --space-6: var(--space-3);
   --space-8: var(--space-4);
   --text-muted: var(--text-secondary);
@@ -13,7 +13,20 @@
   --focus-outline-offset: -2px;
 }
 
+:global(:root[data-theme="dark"]) .chart {
+  --series-1: #2fb36a;
+  --series-2: #3a429f;
+  --series-3: color-mix(in oklab, #3a429f 50%, var(--surface-muted));
+}
+
 .chart button {
   min-block-size: var(--control-height-md);
   touch-action: manipulation;
+  transition: background-color var(--duration-fast, 150ms) var(--ease-standard, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart button {
+    transition: none;
+  }
 }

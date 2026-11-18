@@ -15,7 +15,7 @@ export function MonthlyChart({ months }: { months: readonly Month[] }) {
   const last = months.at(-1);
 
   if (!first || !last) {
-    return <p>No hay datos mensuales.</p>;
+    return <p className={styles.empty}>No hay datos mensuales.</p>;
   }
 
   const data = months.map(month => ({
