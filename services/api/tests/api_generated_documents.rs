@@ -342,7 +342,7 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
     let mut payload = pdf(&template["id"]);
     payload["markdown"] = json!("");
     payload["operation_id"] = json!(operation_id);
-    payload["document_type"] = json!("venta_condicional");
+    payload["document_type"] = json!("venta_condicional_seguro");
     payload["company"] = json!({"id": other_company, "name": "Otra empresa", "values": {}});
     assert_eq!(
         put_artifact(&app, owner, &artifact, &payload, PDF_MIME, PDF_BYTES)
@@ -354,7 +354,7 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
     let (status, saved) = put_artifact(&app, owner, &artifact, &payload, PDF_MIME, PDF_BYTES).await;
     assert_eq!(status, StatusCode::CREATED, "{saved}");
     assert_eq!(saved["operation_id"], operation_id);
-    assert_eq!(saved["document_type"], "venta_condicional");
+    assert_eq!(saved["document_type"], "venta_condicional_seguro");
     assert_eq!(saved["contract_id"], template["id"]);
     assert_eq!(
         app.get(owner, &detail).await.1["operation_id"],
@@ -479,13 +479,34 @@ async fn linked_artifact_requires_an_active_company_scope_and_can_use_another_te
         app.get(owner, &format!("{access}?{scope}")).await.0,
         StatusCode::NO_CONTENT
     );
+    let mut current_sale = payload.clone();
+    current_sale["contract_id"] = sale["id"].clone();
+    current_sale["document_type"] = json!("acto_seguro");
+    let current_target = format!("{DOCUMENTS}/{}/artifact", Uuid::new_v4());
+    let (status, current) =
+        put_artifact(&app, owner, &current_target, &current_sale, PDF_MIME, PDF_BYTES).await;
+    assert_eq!(status, StatusCode::CREATED, "{current}");
+    let (_, page) = app
+        .get(
+            owner,
+            &format!("{DOCUMENTS}?operation_id={operation_id}&per_page=1"),
+        )
+        .await;
+    assert_eq!(page["total"], 1);
+    assert_eq!(page["items"], json!([current]));
+    assert_eq!(
+        app.get(owner, &format!("{DOCUMENTS}?operation_id={empty_id}"))
+            .await
+            .1["items"][0]["id"],
+        latest["id"]
+    );
     let (status, _) = app
         .post(owner, &format!("{COMPANIES}/{company}/archive"), json!({}))
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(app.get(owner, &detail).await.0, StatusCode::OK);
     assert_eq!(app.get(owner, DOCUMENTS).await.1["total"], 2);
-    assert_eq!(app.get(owner, STATS).await.1["total"], 2);
+    assert_eq!(app.get(owner, STATS).await.1["total"], 3);
     assert_eq!(
         binary_request(&app, owner, Method::GET, &artifact, PDF_MIME, Vec::new())
             .await

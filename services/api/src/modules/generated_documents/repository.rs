@@ -183,6 +183,8 @@ struct PageRow {
 pub async fn list(db: &PgPool, owner: Uuid, query: &ListDocuments) -> sqlx::Result<DocumentPage> {
     // The two subqueries share a snapshot. Only the requested page of metadata
     // is serialized, even when the filtered count spans many documents.
+    // The original insurance sale template predates catalog keys. Suppress it
+    // only when its replacement is available for the same case and format.
     let row: PageRow = sqlx::query_as(
         "WITH clock AS (
            SELECT (now() AT TIME ZONE 'America/Santo_Domingo')::date AS today
@@ -196,7 +198,7 @@ pub async fn list(db: &PgPool, owner: Uuid, query: &ListDocuments) -> sqlx::Resu
            FROM clock
          ), filtered AS NOT MATERIALIZED (
            SELECT id, contract_id, contract_name, format, filename, created_at, artifact IS NOT NULL AS has_artifact, company, operation_id, document_type
-           FROM yzy_contracts.generated_documents, bounds
+           FROM yzy_contracts.generated_documents AS d, bounds
            WHERE (owner_id = $1 OR operation_company_id IS NOT NULL OR company->>'id' IS NOT NULL)
              AND ($2::text IS NULL
                OR strpos(translate(lower(contract_name), 'áéíóúüñ', 'aeiouun'),
@@ -205,6 +207,18 @@ pub async fn list(db: &PgPool, owner: Uuid, query: &ListDocuments) -> sqlx::Resu
              AND ($3::text IS NULL OR format = $3)
              AND (first_day IS NULL OR (created_at >= first_day AND created_at < next_day))
              AND ($7::uuid IS NULL OR operation_id = $7)
+             AND NOT (
+               (d.document_type IS NOT DISTINCT FROM 'venta_condicional_seguro'
+                OR d.contract_id = '8046c129-4b5f-5345-b744-6f6d0ec4b27a'::uuid)
+               AND EXISTS (
+                 SELECT 1 FROM yzy_contracts.generated_documents AS current_sale
+                 WHERE current_sale.operation_company_id = d.operation_company_id
+                   AND current_sale.operation_id = d.operation_id
+                   AND current_sale.document_type = 'acto_seguro'
+                   AND current_sale.format = d.format
+                   AND current_sale.artifact IS NOT NULL
+               )
+             )
          )
          SELECT (SELECT count(*) FROM filtered) AS total,
                 COALESCE(

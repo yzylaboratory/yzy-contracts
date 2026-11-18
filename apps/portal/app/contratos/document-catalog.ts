@@ -34,6 +34,7 @@ const vehicleReceipt = [...customer, ...vehicle, ...signature] as const;
 const receipt = [...customer, ...vehicle, "operacion_referencia", "fecha_contrato", ...signature] as const;
 
 export const CONDITIONAL_SALE_TITLE = "CONTRATO DE VENTA CONDICIONAL DE MUEBLES";
+export const INSURED_CONDITIONAL_SALE_TITLE = `${CONDITIONAL_SALE_TITLE} (SEGURO)`;
 export const SWORN_DECLARATION_TITLE = "DECLARACION JURADA DE PERSONA FISICA";
 export const OPPOSITION_RELEASE_TITLE = "PODER ESPECIAL PARA LEVANTAMIENTO DE OPOSICION EN LA DGII";
 export const GPS_AGREEMENT_TITLE = "CONTRATO DE ACUERDO ENTRE LAS PARTES - GPS";
@@ -57,7 +58,7 @@ export const DOCUMENT_TYPES = [
     "testigo_richard", "testigo_usuario",
   ] },
   { id: "entrega_voluntaria", label: "Entrega voluntaria", requiredFields: [...customer, "cliente_cedula_letras", ...vehicle, ...signature] },
-  { id: "acto_seguro", label: "Acto de seguro", requiresInsuranceCompany: true, requiredFields: [
+  { id: "acto_seguro", label: INSURED_CONDITIONAL_SALE_TITLE, requiresInsuranceCompany: true, requiredFields: [
     "cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature, ...insuranceScheduleFields,
   ] },
   { id: "pagare_seguro", label: "Pagaré de seguro", requiresInsuranceCompany: true, requiredFields: ["cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature] },
@@ -84,6 +85,7 @@ export const DOCUMENT_TYPES = [
 ] as const satisfies readonly { id: string; label: string; requiredFields: readonly string[]; requiresInsuranceCompany?: true }[];
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]["id"];
+export const SELECTABLE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter(document => document.id !== "venta_condicional_seguro");
 type DocumentDefinition = {
   id: DocumentType;
   label: string;
@@ -109,7 +111,7 @@ export function isInsuranceDocumentType(type: DocumentType) {
   return INSURANCE_DOCUMENT_TYPES.includes(type);
 }
 
-export const INITIAL_EXPEDIENTE_DOCUMENT_TYPES: readonly DocumentType[] = DOCUMENT_TYPES
+export const INITIAL_EXPEDIENTE_DOCUMENT_TYPES: readonly DocumentType[] = SELECTABLE_DOCUMENT_TYPES
   .map(document => document.id)
   .filter(id => !POST_CLOSING_DOCUMENT_TYPES.includes(id));
 

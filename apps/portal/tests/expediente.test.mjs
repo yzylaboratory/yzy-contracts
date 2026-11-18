@@ -668,12 +668,14 @@ test("initial expediente generation excludes post-closing document types and omi
     "acuerdo_seguro",
     "autorizacion_asegurar_vehiculo",
   ]);
-  assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.length, 15);
+  assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.length, 14);
+  assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.includes("venta_condicional_seguro"), false);
+  assert.equal(getDocumentType("acto_seguro").label, "CONTRATO DE VENTA CONDICIONAL DE MUEBLES (SEGURO)");
   for (const excluded of POST_CLOSING_DOCUMENT_TYPES) {
     assert.equal(INITIAL_EXPEDIENTE_DOCUMENT_TYPES.includes(excluded), false);
   }
   const combined = new Set([...INITIAL_EXPEDIENTE_DOCUMENT_TYPES, ...POST_CLOSING_DOCUMENT_TYPES]);
-  assert.equal(combined.size, DOCUMENT_TYPES.length);
+  assert.equal(combined.size, DOCUMENT_TYPES.length - 1);
 
   assert.deepEqual(initialExpedienteDocumentTypes({ insurancePaid: false }), [...INITIAL_EXPEDIENTE_DOCUMENT_TYPES]);
   const paidTypes = initialExpedienteDocumentTypes({ insurancePaid: true });
@@ -1157,6 +1159,9 @@ test("reviewed guarantees keep the recorded use and distinguish registration fro
     "una camioneta, Matrícula M1, Placa TEST2, Chasis C1");
   assert.equal(describe({ make: "Prueba", chassis_number: "C1", source_document: "bill_of_lading" }),
     "Marca Prueba, Chasis C1");
+  const reserve = vehicle => reviewedVehicleDescription(vehicle, expedienteVehicleDescription(vehicle), true);
+  assert.equal(reserve({ chassis_number: "C1" }), "Placa ____________________, Chasis C1, Motor o N.º de serie ____________________");
+  assert.equal(reserve({ plate: "TEST2", engine_number: "M2" }), "Placa TEST2, Motor o N.º de serie M2");
   assert.equal(reviewedVehicleDescription({ vehicle_type: "automóvil" }, "descripción editada"), "descripción editada");
   assert.equal(referenceWordValue("venta_condicional", "vehiculo_tipo", 0, "automóvil privado", "automóvil privado"), "AUTOMÓVIL");
 });

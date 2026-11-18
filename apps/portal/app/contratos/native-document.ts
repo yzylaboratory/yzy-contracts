@@ -689,7 +689,7 @@ export async function fillOriginalWord(
   const layout = bodyKey ? reviewedWordLayout[bodyKey] : undefined;
   if (companyProfile && !reference) throw new NativeDocumentError("El modelo compartido no coincide con la versión revisada.");
   const referenceValues = reference && vehicle && values.vehiculo_garantia
-    ? { ...values, vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia) }
+    ? { ...values, vehiculo_garantia: reviewedVehicleDescription(vehicle, values.vehiculo_garantia, reference === "acto_seguro") }
     : values;
   const replacements = nativeVariables
     ? resolveNativeTargets(segments, nativeVariables, fields, referenceValues, allowIncomplete, reference ? false : uppercase, !reference && boldPagareDate, reference, layout?.boldFields)

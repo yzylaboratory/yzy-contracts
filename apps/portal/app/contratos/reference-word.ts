@@ -81,7 +81,7 @@ function referenceTreatment(model: Reference, input: string) {
   return `${article.toUpperCase()} ${abbreviation}`;
 }
 
-export function reviewedVehicleDescription(vehicle: Vehicle, input: string) {
+export function reviewedVehicleDescription(vehicle: Vehicle, input: string, reserveMissingIdentifiers = false) {
   // A free-text description supplied by the operator takes precedence.
   if (input.trim().toUpperCase() !== expedienteVehicleDescription(vehicle).toUpperCase()) return input;
   const type = vehicle.vehicle_type?.trim() ?? "";
@@ -92,7 +92,10 @@ export function reviewedVehicleDescription(vehicle: Vehicle, input: string) {
   const details = [
     ["Marca", vehicle.make], ["Modelo", vehicle.model], ["Año", vehicle.year], ["Color", vehicle.color],
     ["Matrícula", registration?.toUpperCase() === plate?.toUpperCase() ? undefined : registration],
-    ["Placa", plate], ["Chasis", vehicle.chassis_number], ["Motor", vehicle.engine_number],
+    ["Placa", plate || (reserveMissingIdentifiers ? "____________________" : undefined)],
+    ["Chasis", vehicle.chassis_number],
+    [reserveMissingIdentifiers ? "Motor o N.º de serie" : "Motor",
+      vehicle.engine_number?.trim() || (reserveMissingIdentifiers ? "____________________" : undefined)],
   ];
   for (const [label, value] of details) {
     if (value?.trim()) parts.push(`${label} ${value.trim()}`);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { Banknote, Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FileType2, FolderOpen, Handshake, KeyRound, Landmark, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
-import { DOCUMENT_TYPES, getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
+import { SELECTABLE_DOCUMENT_TYPES, getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
 import { downloadBlob } from "@/app/contratos/document-export";
 import { listGeneratedDocuments } from "@/app/contratos/generated-documents-api";
 import { Badge } from "@/components/arc/badge/badge";
@@ -34,7 +34,7 @@ const demos: Partial<Record<DocumentType, string>> = {
 };
 
 export function DocumentOptionsSkeleton() {
-  return <div className={styles.documentGrid}><LoadingBlock height={144} />{DOCUMENT_TYPES.map(({ id }) => <LoadingBlock key={id} height={144} />)}</div>;
+  return <div className={styles.documentGrid}><LoadingBlock height={144} />{SELECTABLE_DOCUMENT_TYPES.map(({ id }) => <LoadingBlock key={id} height={144} />)}</div>;
 }
 
 export function OperationDocumentPicker({ accountId, operation }: { accountId: string; operation: Operation }) {
@@ -110,7 +110,7 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
           const type = record.documentType ? getDocumentType(record.documentType) : documentTypeFromName(record.contractName);
           if (type) types.add(type.id);
         }
-        if (!items.length || page * perPage >= total || types.size === DOCUMENT_TYPES.length) break;
+        if (!items.length || page * perPage >= total) break;
       }
       if (!signal.aborted) setHistory({ types, unavailable: false });
     }
@@ -174,7 +174,7 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
             <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
         </span>
       </button>
-      {DOCUMENT_TYPES.map(({ id, label }) => {
+      {SELECTABLE_DOCUMENT_TYPES.map(({ id, label }) => {
         const Icon = icons[id];
         const generated = history?.types.has(id);
         return <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button" onClick={() => setRequest({ type: id })}>
