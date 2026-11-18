@@ -15,24 +15,25 @@ import { usePortalAccess } from "@/lib/portal-access";
 import { ClientEditor } from "../clientes/client-editor";
 import { displayClientIdentity } from "../clientes/client-masks";
 import { clientScope, directoryLocations, useClientDirectoryRevision } from "../clientes/client-navigation";
-import { clientDirectoryHref, clientDirectoryRecordHref } from "../clientes/client-paths";
+import { clientDirectoryHref, clientDirectoryRecordHref, newClientExpedienteHref } from "../clientes/client-paths";
 import { clientErrorMessage, deleteClient, getClient, listClients, type Client, type ClientPage } from "../clientes/clients-api";
 import { ClientRowsSkeleton } from "../clientes/clients-skeleton";
 import { useUnsavedChanges } from "../clientes/use-unsaved-changes";
 import styles from "../clientes/clients.module.css";
+import { ProspectsPanel } from "./prospects-panel";
 
 const pageSize = 10;
 const newClientTitleId = "client-directory-new-title";
 const editClientTitleId = "client-directory-edit-title";
 
 export function ClientsCrudDirectory({ page, creating }: { page?: number; creating: boolean }) {
-  const { state } = usePortalAccess();
+  const { state, activeCompany } = usePortalAccess();
   const identity = state.kind === "ready" && state.identity.role === "member" && state.identity.access === "active" ? state.identity : null;
   const accountId = identity?.id;
-  return <DirectoryView key={accountId ?? "signed-out"} accountId={accountId} page={page} creating={creating} />;
+  return <DirectoryView key={accountId ?? "signed-out"} accountId={accountId} companyId={activeCompany?.id} page={page} creating={creating} />;
 }
 
-function DirectoryView({ accountId, page, creating }: { accountId?: string; page?: number; creating: boolean }) {
+function DirectoryView({ accountId, companyId, page, creating }: { accountId?: string; companyId?: string; page?: number; creating: boolean }) {
   const changes = useUnsavedChanges();
   const [creatingClient, setCreatingClient] = useState(() => Boolean(creating && accountId));
   const title = creatingClient ? "Nuevo cliente" : "Clientes";
@@ -53,6 +54,7 @@ function DirectoryView({ accountId, page, creating }: { accountId?: string; page
       {accountId && (
         <ClientCrudList
           accountId={accountId}
+          companyId={companyId}
           requestedPage={page}
           creatingClient={creatingClient}
           setCreatingClient={setCreatingClient}
@@ -63,8 +65,9 @@ function DirectoryView({ accountId, page, creating }: { accountId?: string; page
   );
 }
 
-function ClientCrudList({ accountId, requestedPage, creatingClient, setCreatingClient, changes }: {
+function ClientCrudList({ accountId, companyId, requestedPage, creatingClient, setCreatingClient, changes }: {
   accountId: string;
+  companyId?: string;
   requestedPage?: number;
   creatingClient: boolean;
   setCreatingClient: (creating: boolean) => void;
@@ -159,6 +162,8 @@ function ClientCrudList({ accountId, requestedPage, creatingClient, setCreatingC
   }
 
   return (
+    <>
+    <ProspectsPanel key={companyId ?? "no-company"} accountId={accountId} companyId={companyId} search={search} />
     <section className={styles.panel} aria-labelledby="client-crud-list-title">
       <div className={styles.header}>
         <h2 id="client-crud-list-title">Listado de clientes</h2>
@@ -208,6 +213,7 @@ function ClientCrudList({ accountId, requestedPage, creatingClient, setCreatingC
         </>
       )}
     </section>
+    </>
   );
 }
 
@@ -248,13 +254,13 @@ function ClientCrudRow({ client, deleting, disableDelete, onDelete }: {
 }
 
 export function ClientsCrudRecord({ clientId }: { clientId: string }) {
-  const { state } = usePortalAccess();
+  const { state, activeCompany } = usePortalAccess();
   const identity = state.kind === "ready" && state.identity.role === "member" && state.identity.access === "active" ? state.identity : null;
   const accountId = identity?.id;
-  return <RecordView key={`${accountId ?? "signed-out"}:${clientId}`} accountId={accountId} clientId={clientId} />;
+  return <RecordView key={`${accountId ?? "signed-out"}:${clientId}`} accountId={accountId} clientId={clientId} canCreateExpediente={Boolean(activeCompany)} />;
 }
 
-function RecordView({ accountId, clientId }: { accountId?: string; clientId: string }) {
+function RecordView({ accountId, clientId, canCreateExpediente }: { accountId?: string; clientId: string; canCreateExpediente: boolean }) {
   const router = useRouter();
   const { toast } = useToastStack();
   const changes = useUnsavedChanges();
@@ -318,9 +324,17 @@ function RecordView({ accountId, clientId }: { accountId?: string; clientId: str
         <>
           <div className={styles.header}>
             <p className={styles.muted} role="status">Actualiza los datos del cliente o elimínalo si aún no tiene expedientes.</p>
-            <Button type="button" variant="secondary" loading={deleting} disabled={deleting} onClick={() => void remove()}>
-              Eliminar cliente
-            </Button>
+            <div className={styles.directoryActions}>
+              <Button type="button" variant="secondary" loading={deleting} disabled={deleting} onClick={() => void remove()}>
+                Eliminar cliente
+              </Button>
+              {canCreateExpediente && (
+                <Link className={styles.directoryAction} href={newClientExpedienteHref(client.id)}
+                  onNavigate={event => { if (!changes.confirmNavigation()) event.preventDefault(); }}>
+                  Nuevo expediente
+                </Link>
+              )}
+            </div>
           </div>
           <ClientEditor
             accountId={accountId}

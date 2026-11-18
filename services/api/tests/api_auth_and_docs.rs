@@ -294,6 +294,11 @@ async fn openapi_documents_every_endpoint_with_bearer_auth_and_tags() {
         "/api/v1/clients/{client_id}/operations",
         "/api/v1/companies/{company_id}/clients/{client_id}/operations/{operation_id}",
         "/api/v1/clients/{client_id}/timeline",
+        "/api/v1/companies/{company_id}/prospect-links",
+        "/api/v1/companies/{company_id}/prospects",
+        "/api/v1/companies/{company_id}/prospects/{id}/convert",
+        "/api/v1/public/prospect-links/check",
+        "/api/v1/public/prospect-links/submit",
         "/api/v1/files/upload-url",
         "/api/v1/contracts",
         "/api/v1/contracts/{id}",
@@ -324,6 +329,11 @@ async fn openapi_documents_every_endpoint_with_bearer_auth_and_tags() {
     assert!(doc["paths"]["/api/v1/contracts"]["get"]["security"].is_array());
     assert!(doc["paths"]["/api/v1/companies"]["get"]["security"].is_array());
     assert!(doc["paths"]["/api/v1/clients/{client_id}/timeline"]["get"]["security"].is_array());
+    assert!(
+        doc["paths"]["/api/v1/companies/{company_id}/prospect-links"]["post"]["security"]
+            .is_array()
+    );
+    assert!(doc["paths"]["/api/v1/public/prospect-links/check"]["post"]["security"].is_null());
     assert!(doc["paths"]["/api/v1/companies/{company_id}/clients"].is_null());
     assert!(doc["components"]["schemas"]["Client"]["properties"]["company_id"].is_null());
     assert_eq!(
@@ -353,6 +363,7 @@ async fn openapi_documents_every_endpoint_with_bearer_auth_and_tags() {
             "Users",
             "Administration",
             "Clients",
+            "Prospects",
             "Companies",
             "Files",
             "Contracts",

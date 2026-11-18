@@ -5,13 +5,13 @@ mod loan_pdf;
 mod repository;
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use utoipa_axum::{router::OpenApiRouter, routes};
 use uuid::Uuid;
 
 use self::dto::{
-    CasePage, Client, ClientPage, ClientPatch, ClientTimelinePage, ClientWrite, ListCases,
-    ListClients, ListTimeline, Operation, OperationPatch, OperationWrite,
+    CasePage, Client, ClientPage, ClientPatch, ClientProfile, ClientTimelinePage, ClientWrite,
+    ListCases, ListClients, ListTimeline, Operation, OperationPatch, OperationWrite,
 };
 use crate::{
     app_state::AppState,
@@ -387,4 +387,43 @@ pub(crate) async fn correct_case_vehicle(
     loan_pdf::render_application(&client, &saved, company_name)
         .context("loan application could not be generated")?;
     Ok(())
+}
+
+/// Minimal identity, contact and address data a prospect submitted, with no
+/// financial fields.
+pub(super) struct ProspectConversion {
+    pub name: String,
+    pub identity: String,
+    pub phone: String,
+    pub address: String,
+    pub email: Option<String>,
+    pub nationality: Option<String>,
+    pub marital_status: Option<String>,
+    pub position: Option<String>,
+}
+
+/// Reuses client creation and its canonical audit trail, inside the caller's
+/// transaction, so a prospect's conversion gets the same global identity
+/// dedup (`clients_global_identity_idx`) as a manual client registration.
+pub(super) async fn create_client_from_prospect(
+    tx: &mut Transaction<'_, Postgres>,
+    actor: Uuid,
+    prospect: ProspectConversion,
+) -> Result<Uuid, ApiError> {
+    let mut patch = ClientPatch {
+        name: Some(prospect.name),
+        identity: Some(Some(prospect.identity)),
+        address: Some(Some(prospect.address)),
+        phone: Some(Some(prospect.phone)),
+        email: Some(prospect.email),
+        income_source: Some(None),
+        profile: Some(Some(ClientProfile::from_prospect(
+            prospect.nationality,
+            prospect.marital_status,
+            prospect.position,
+        ))),
+    };
+    patch.normalize()?;
+    let saved = repository::create_client_in_transaction(tx, actor, patch).await?;
+    Ok(saved.id)
 }

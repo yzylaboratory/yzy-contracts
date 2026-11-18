@@ -314,10 +314,24 @@ async fn superadmin_deletes_only_archived_unused_companies() {
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(error_code(&error), "COMPANY_NOT_ARCHIVED");
 
+    let (status, link) = app
+        .post(owner, &format!("{company_path}/prospect-links"), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{link}");
+
     let (status, _) = app
         .post(owner, &format!("{company_path}/archive"), json!({}))
         .await;
     assert_eq!(status, StatusCode::OK);
+    let (status, _) = app
+        .request(
+            Method::POST,
+            "/api/v1/public/prospect-links/check",
+            None,
+            Some(json!({"token": link["token"]})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = app.delete(owner, &company_path).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
     let (status, error) = app.get(owner, &company_path).await;

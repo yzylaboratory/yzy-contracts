@@ -30,7 +30,7 @@ use crate::{
     error::{ApiError, ErrorEnvelope},
     modules::{
         access, auth, billing, clients, companies, contracts, conversions, document_readings,
-        files, generated_documents, system, templates,
+        files, generated_documents, prospects, system, templates,
     },
 };
 
@@ -50,6 +50,7 @@ const JSON_ENVELOPE_BYTES: usize = 64 * 1024;
         (name = "Users", description = "The authenticated user"),
         (name = "Administration", description = "Company access and invitations"),
         (name = "Clients", description = "Global client directory and company-scoped case files for enabled people"),
+        (name = "Prospects", description = "Self-registration links shared with prospects, and the people who submit through them before a case file exists"),
         (name = "Companies", description = "Reusable company details owned by the authenticated account"),
         (name = "Files", description = "Direct uploads to private storage"),
         (name = "Contracts", description = "Contract records owned by the authenticated user"),
@@ -83,7 +84,9 @@ impl Modify for BearerSecurity {
 }
 
 fn public_routes() -> OpenApiRouter<AppState> {
-    OpenApiRouter::with_openapi(ApiDoc::openapi()).merge(system::router())
+    OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(system::router())
+        .merge(prospects::public_router())
 }
 
 fn business_routes(template_max_bytes: usize, upload_max_bytes: i64) -> OpenApiRouter<AppState> {
@@ -94,6 +97,7 @@ fn business_routes(template_max_bytes: usize, upload_max_bytes: i64) -> OpenApiR
         .merge(contracts::router(upload_max_bytes))
         .merge(conversions::router())
         .merge(document_readings::router())
+        .merge(prospects::router())
         .merge(templates::router())
         .merge(generated_documents::router(
             template_max_bytes,

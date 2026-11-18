@@ -403,7 +403,7 @@ impl OperationPatch {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Default, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct ClientProfile {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -436,6 +436,20 @@ pub(super) struct ClientProfile {
 }
 
 impl ClientProfile {
+    /// Minimal profile built from a prospect's optional fields at conversion.
+    pub(super) fn from_prospect(
+        nationality: Option<String>,
+        marital_status: Option<String>,
+        position: Option<String>,
+    ) -> Self {
+        Self {
+            nationality,
+            marital_status,
+            position,
+            ..Default::default()
+        }
+    }
+
     fn normalize(&mut self) -> Result<(), ApiError> {
         for (field, value, limit) in [
             ("treatment", &mut self.treatment, 80),

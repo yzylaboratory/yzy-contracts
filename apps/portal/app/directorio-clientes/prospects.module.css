@@ -1,0 +1,214 @@
+.section {
+  display: grid;
+  gap: 16px;
+  min-inline-size: 0;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.muted,
+.failure {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.failure { color: var(--danger); }
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-block-start: 1px solid var(--border);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px;
+  border-block-end: 1px solid var(--border);
+}
+
+.identity {
+  display: grid;
+  flex: 1 1 200px;
+  gap: 4px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.identity span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nameLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeletonRow {
+  display: grid;
+  gap: 4px;
+  padding: 12px 4px;
+}
+
+.scopeNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.scopeNotice a {
+  color: var(--foreground);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.scopeNotice a:focus-visible,
+.linkDialog button:focus-visible,
+.reviewDialog button:focus-visible,
+.reviewDialog input:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+
+.dialog {
+  inline-size: min(640px, calc(100% - 32px));
+  max-block-size: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.dialog::backdrop {
+  background: rgb(12 14 18 / 55%);
+}
+
+.dialogHeader {
+  display: grid;
+  gap: 4px;
+  padding: 16px 20px;
+  border-block-end: 1px solid var(--border);
+}
+
+.dialogHeader h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.dialogHeader p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.dialogBody {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-block-start: 1px solid var(--border);
+}
+
+.dataList {
+  display: grid;
+  grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.dataGroup {
+  display: contents;
+}
+
+.dataList dt {
+  color: var(--text-secondary);
+}
+
+.dataList dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataList dd[data-empty="true"] {
+  color: var(--text-secondary);
+}
+
+.copyRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.confirmLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.confirmLabel input {
+  inline-size: 18px;
+  block-size: 18px;
+  margin-block-start: 3px;
+  accent-color: var(--foreground);
+}
+
+@media (max-width: 680px) {
+  .dataList {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .dataList dd {
+    margin-block-end: 8px;
+  }
+
+  .copyRow {
+    grid-template-columns: 1fr;
+  }
+}

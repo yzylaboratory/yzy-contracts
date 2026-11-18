@@ -45,6 +45,10 @@ pub enum ApiError {
     ClientInUse,
     #[error("No se encontró el expediente.")]
     ClientOperationNotFound,
+    #[error("No se encontró el prospecto.")]
+    ProspectNotFound,
+    #[error("El enlace no está disponible.")]
+    ProspectLinkUnavailable,
     #[error("{0}")]
     CaseReferenceConflict(&'static str),
     #[error("Company not found")]
@@ -129,6 +133,8 @@ impl ApiError {
             Self::ClientIdentityConflict => "CLIENT_IDENTITY_CONFLICT",
             Self::ClientInUse => "CLIENT_IN_USE",
             Self::ClientOperationNotFound => "CLIENT_OPERATION_NOT_FOUND",
+            Self::ProspectNotFound => "PROSPECT_NOT_FOUND",
+            Self::ProspectLinkUnavailable => "PROSPECT_LINK_NOT_FOUND",
             Self::CaseReferenceConflict(_) => "CASE_REFERENCE_CONFLICT",
             Self::CompanyNotFound => "COMPANY_NOT_FOUND",
             Self::BillingRequired => "BILLING_REQUIRED",
@@ -186,6 +192,8 @@ impl ApiError {
             | Self::CompanyNotFound
             | Self::ClientNotFound
             | Self::ClientOperationNotFound
+            | Self::ProspectNotFound
+            | Self::ProspectLinkUnavailable
             | Self::AccessUserNotFound
             | Self::TemplateNotFound
             | Self::ConversionNotFound

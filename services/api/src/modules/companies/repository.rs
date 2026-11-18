@@ -261,10 +261,11 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
     if existing.archived_at.is_none() {
         return Err(ApiError::CompanyNotArchived);
     }
-    let (contracts, operations, billed): (bool, bool, bool) = sqlx::query_as(
+    let (contracts, operations, prospects, billed): (bool, bool, bool, bool) = sqlx::query_as(
         "SELECT
            EXISTS (SELECT 1 FROM contracts WHERE company_id = $1 OR $1 = ANY(shared_company_ids)),
            EXISTS (SELECT 1 FROM client_operations WHERE company_id = $1),
+           EXISTS (SELECT 1 FROM prospects WHERE company_id = $1),
            EXISTS (SELECT 1 FROM billing_invoice_lines WHERE company_id = $1)
            OR EXISTS (
              SELECT 1 FROM billing_accounts a
@@ -285,6 +286,9 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
     if operations {
         uses.push("expedientes");
     }
+    if prospects {
+        uses.push("prospectos");
+    }
     if billed {
         uses.push("facturación");
     }
@@ -294,6 +298,10 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
             uses.join(", ")
         )));
     }
+    sqlx::query("DELETE FROM prospect_links WHERE company_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
     let deleted: bool = sqlx::query_scalar("SELECT delete_archived_company($1)")
         .bind(id)
         .fetch_one(&mut *tx)

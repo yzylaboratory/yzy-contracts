@@ -21,7 +21,7 @@ function safeReplayPage(value: string) {
 function canRecordPage() {
   if (typeof window === "undefined") return false;
   const { pathname, search, hash } = window.location;
-  return pathname !== "/" && !/^\/(?:auth|login|preacceso)(?:\/|$)/.test(pathname) && !search && !hash;
+  return pathname !== "/" && !/^\/(?:auth|login|preacceso|prospecto)(?:\/|$)/.test(pathname) && !search && !hash;
 }
 
 let initialized = false;

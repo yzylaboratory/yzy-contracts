@@ -9,5 +9,6 @@ pub mod conversions;
 pub mod document_readings;
 pub mod files;
 pub mod generated_documents;
+pub mod prospects;
 pub mod system;
 pub mod templates;

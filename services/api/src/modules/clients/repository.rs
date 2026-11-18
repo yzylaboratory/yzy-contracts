@@ -91,6 +91,19 @@ pub(super) async fn create_client(
     body: ClientPatch,
 ) -> Result<Client, ApiError> {
     let mut tx = db.begin().await?;
+    let saved = create_client_in_transaction(&mut tx, actor, body).await?;
+    tx.commit().await?;
+    Ok(saved)
+}
+
+/// Shares the caller's transaction, so a prospect's conversion can create the
+/// client and delete the pending record atomically, with the same global
+/// identity dedup and canonical audit trail as a manual client registration.
+pub(super) async fn create_client_in_transaction(
+    tx: &mut Transaction<'_, Postgres>,
+    actor: Uuid,
+    body: ClientPatch,
+) -> Result<Client, ApiError> {
     let saved: Client = sqlx::query_as(
         "INSERT INTO clients (name, identity, address, phone, email, income_source, profile)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -103,13 +116,10 @@ pub(super) async fn create_client(
     .bind(body.email.flatten())
     .bind(body.income_source.flatten())
     .bind(body.profile.flatten().map(Json))
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await
     .map_err(client_write_error)?;
-    Snapshot::from(&saved)
-        .record_creation(&mut tx, actor)
-        .await?;
-    tx.commit().await?;
+    Snapshot::from(&saved).record_creation(tx, actor).await?;
     Ok(saved)
 }
 

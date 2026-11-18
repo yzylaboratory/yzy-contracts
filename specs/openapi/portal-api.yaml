@@ -1517,6 +1517,148 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/companies/{company_id}/prospect-links:
+    post:
+      tags:
+      - Prospects
+      operationId: create_link
+      parameters:
+      - name: company_id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '201':
+          description: One-time link, valid for 24 hours; the token is returned once and never stored or logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProspectLink'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found or not accessible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/prospects:
+    get:
+      tags:
+      - Prospects
+      operationId: list_prospects
+      parameters:
+      - name: company_id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Prospects self-registered through a link for this company, still pending conversion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProspectList'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company not found or not accessible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/prospects/{id}/convert:
+    post:
+      tags:
+      - Prospects
+      operationId: convert_prospect
+      parameters:
+      - name: company_id
+        in: path
+        description: Company UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: id
+        in: path
+        description: Prospect UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Converted into a global client with the canonical dedup and audit trail; the pending prospect record is removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConvertedProspect'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company or prospect not found, or the prospect does not belong to this company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: A client with this identification already exists; no client was overwritten
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
   /api/v1/companies/{id}:
     get:
       tags:
@@ -3304,6 +3446,66 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/public/prospect-links/check:
+    post:
+      tags:
+      - Prospects
+      operationId: check_link
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckProspectLink'
+        required: true
+      responses:
+        '204':
+          description: The link is still usable
+        '404':
+          description: Unknown, malformed, expired or already used link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/public/prospect-links/submit:
+    post:
+      tags:
+      - Prospects
+      operationId: submit_prospect
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitProspect'
+        required: true
+      responses:
+        '204':
+          description: Submission recorded for the company behind the link
+        '404':
+          description: Unknown, malformed, expired or already used link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/templates/{id}:
     get:
       tags:
@@ -4471,6 +4673,14 @@ components:
           - string
           - 'null'
       additionalProperties: false
+    CheckProspectLink:
+      type: object
+      required:
+      - token
+      properties:
+        token:
+          type: string
+      additionalProperties: false
     Client:
       type: object
       required:
@@ -5019,6 +5229,14 @@ components:
       - processing
       - completed
       - failed
+    ConvertedProspect:
+      type: object
+      required:
+      - client_id
+      properties:
+        client_id:
+          type: string
+          format: uuid
     CreateAccount:
       allOf:
       - $ref: '#/components/schemas/AccountInput'
@@ -6060,6 +6278,73 @@ components:
           type: string
           format: date
       additionalProperties: false
+    Prospect:
+      type: object
+      required:
+      - id
+      - submitted_at
+      - name
+      - identity
+      - phone
+      - address
+      - email
+      - nationality
+      - marital_status
+      - position
+      properties:
+        address:
+          type: string
+        email:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+        identity:
+          type: string
+        marital_status:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        nationality:
+          type:
+          - string
+          - 'null'
+        phone:
+          type: string
+        position:
+          type:
+          - string
+          - 'null'
+        submitted_at:
+          type: string
+          format: date-time
+    ProspectLink:
+      type: object
+      required:
+      - token
+      - expires_at
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+        token:
+          type: string
+          description: |-
+            One-time token for the portal's `/prospecto#token` fragment. Returned
+            once; the API never stores or logs it, only its SHA-256 digest.
+    ProspectList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Prospect'
     ReadDocumentForm:
       type: object
       description: Multipart form accepted by `POST /api/v1/document-readings`.
@@ -6153,6 +6438,54 @@ components:
         visits:
           type: integer
           format: int64
+    SubmitProspect:
+      type: object
+      required:
+      - token
+      - name
+      - identity
+      - phone
+      - address
+      properties:
+        address:
+          type: string
+          maxLength: 1000
+          minLength: 1
+        email:
+          type:
+          - string
+          - 'null'
+          maxLength: 254
+        identity:
+          type: string
+          maxLength: 64
+          minLength: 1
+        marital_status:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        nationality:
+          type:
+          - string
+          - 'null'
+          maxLength: 120
+        phone:
+          type: string
+          maxLength: 80
+          minLength: 1
+        position:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        token:
+          type: string
+      additionalProperties: false
     TemplateResponse:
       type: object
       required:
@@ -6687,6 +7020,8 @@ tags:
   description: Company access and invitations
 - name: Clients
   description: Global client directory and company-scoped case files for enabled people
+- name: Prospects
+  description: Self-registration links shared with prospects, and the people who submit through them before a case file exists
 - name: Companies
   description: Reusable company details owned by the authenticated account
 - name: Files
