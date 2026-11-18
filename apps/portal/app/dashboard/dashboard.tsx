@@ -117,25 +117,21 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
       value: savedCounter.value,
       suffix: savedCounter.suffix,
       context: `Tu ahorro: ${formatMinutes(stats.user_time_saved_minutes)} · ${stats.documents_total} docs`,
-      href: "/docs-generados",
     },
     unsigned: {
       label: "Sin firmar",
       value: stats.unsigned_cases,
       context: `${stats.status_counts.solicitud} en solicitud · ${stats.status_counts.en_proceso} en proceso`,
-      href: "/clientes",
     },
     pendingDisbursement: {
       label: "Sin desembolsar",
       value: stats.pending_disbursement_cases,
       context: `${stats.status_counts.firma} en firma · ${stats.cases_without_plan} sin plan de pagos`,
-      href: "/clientes",
     },
     disbursed: {
       label: "Desembolsados",
       value: stats.disbursed_cases,
       context: `${stats.user_disbursements_total} hechos por ti · ${stats.disbursed_this_month} este mes`,
-      href: "/clientes",
     },
   };
 
