@@ -1587,3 +1587,15 @@ test("pagare autentico keeps both witnesses' full names in the body, abbreviates
     .children.filter(child => child.localName === "tc");
   assert.deepEqual(edgeSigCells.map(cell => cell.textContent.trim()), ["JUAN DE LA CRUZ", "SOFÍA REYES VEGA"]);
 });
+
+test("expediente document groups cover every selectable document in lending order", async () => {
+  const { SELECTABLE_DOCUMENT_TYPES } = await import("../app/contratos/document-catalog.ts");
+  const { expedienteDocumentGroups, expedienteDocumentPosition } = await import("../app/clientes/expediente-document-groups.ts");
+  const types = expedienteDocumentGroups.flatMap(group => group.types);
+  assert.equal(types[0], "solicitud_prestamo");
+  assert.equal(types.length, SELECTABLE_DOCUMENT_TYPES.length + 1);
+  assert.deepEqual(new Set(types.slice(1)), new Set(SELECTABLE_DOCUMENT_TYPES.map(document => document.id)));
+  assert.deepEqual(expedienteDocumentGroups.map(group => group.types.length), [3, 3, 4, 3, 2, 3]);
+  assert.equal(expedienteDocumentPosition("venta_condicional_seguro"), expedienteDocumentPosition("acto_seguro"));
+  assert.equal(expedienteDocumentPosition(undefined), types.length);
+});

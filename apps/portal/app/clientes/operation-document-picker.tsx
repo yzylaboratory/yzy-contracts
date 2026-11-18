@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { Banknote, Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FileType2, FolderOpen, Handshake, KeyRound, Landmark, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
-import { SELECTABLE_DOCUMENT_TYPES, getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
+import { getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
 import { downloadBlob } from "@/app/contratos/document-export";
 import { listGeneratedDocuments } from "@/app/contratos/generated-documents-api";
 import { Badge } from "@/components/arc/badge/badge";
@@ -19,6 +19,7 @@ import { documentTypeFromName } from "./document-template-match";
 import { loanApplicationDocumentState } from "./loan-application-download";
 import { listDocumentTemplates, resolveDocumentTemplate } from "./operation-templates";
 import { expedienteDocumentLabel } from "./expediente-document-label";
+import { expedienteDocumentGroups } from "./expediente-document-groups";
 import styles from "./clients.module.css";
 
 const icons = {
@@ -35,7 +36,12 @@ const demos: Partial<Record<DocumentType, string>> = {
 };
 
 export function DocumentOptionsSkeleton() {
-  return <div className={styles.documentGrid}><LoadingBlock height={144} />{SELECTABLE_DOCUMENT_TYPES.map(({ id }) => <LoadingBlock key={id} height={144} />)}</div>;
+  return <div className={styles.documentGroups}>{expedienteDocumentGroups.map(({ title, types }) => (
+    <div key={title} className={styles.documentGroup}>
+      <LoadingBlock width={180} />
+      <div className={styles.documentGrid}>{types.map(id => <LoadingBlock key={id} height={144} />)}</div>
+    </div>
+  ))}</div>;
 }
 
 export function OperationDocumentPicker({ accountId, operation }: { accountId: string; operation: Operation }) {
@@ -164,28 +170,36 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
     </div>}
     {loanFailure && <p className={styles.failure} role="alert">{loanFailure}</p>}
     <span className={styles.loanGenerationStatus} role="status">{loanBusy ? "Generando solicitud de préstamo…" : ""}</span>
-    <div className={styles.documentGrid} data-tour="document-type">
-      <button className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button"
-        aria-haspopup="dialog" aria-busy={loanBusy || undefined} aria-disabled={loanBusy || undefined}
-        onClick={() => { if (!loanRequest.current) loanFormatSheet.current?.showModal(); }}>
-        <span className={styles.documentIcon}><FileText size={22} aria-hidden="true" /></span>
-        <span className={styles.documentLabel}>Solicitud de préstamo</span>
-        <span className={styles.documentStatus}>
-          {loanBusy ? <span aria-hidden="true">Generando…</span> : loanGeneratedFor === loanScope &&
-            <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
-        </span>
-      </button>
-      {SELECTABLE_DOCUMENT_TYPES.map(({ id, label }) => {
-        const Icon = icons[id];
-        const generated = history?.types.has(id);
-        return <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button" onClick={() => setRequest({ type: id })}>
-          <span className={styles.documentIcon}><Icon size={22} aria-hidden="true" /></span>
-          <span className={styles.documentLabel}>{expedienteDocumentLabel(label)}</span>
-          <span className={styles.documentStatus}>
-            {generated && <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
-          </span>
-        </button>;
-      })}
+    <div className={styles.documentGroups} data-tour="document-type">
+      {expedienteDocumentGroups.map(({ title, types }) => <section key={title} className={styles.documentGroup}>
+        <h3>{title}</h3>
+        <div className={styles.documentGrid}>
+          {types.map(id => {
+            if (id === "solicitud_prestamo") return (
+              <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button"
+                aria-haspopup="dialog" aria-busy={loanBusy || undefined} aria-disabled={loanBusy || undefined}
+                onClick={() => { if (!loanRequest.current) loanFormatSheet.current?.showModal(); }}>
+                <span className={styles.documentIcon}><FileText size={22} aria-hidden="true" /></span>
+                <span className={styles.documentLabel}>Solicitud de préstamo</span>
+                <span className={styles.documentStatus}>
+                  {loanBusy ? <span aria-hidden="true">Generando…</span> : loanGeneratedFor === loanScope &&
+                    <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
+                </span>
+              </button>
+            );
+            const label = getDocumentType(id)?.label ?? id;
+            const Icon = icons[id];
+            const generated = history?.types.has(id);
+            return <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button" onClick={() => setRequest({ type: id })}>
+              <span className={styles.documentIcon}><Icon size={22} aria-hidden="true" /></span>
+              <span className={styles.documentLabel}>{expedienteDocumentLabel(label)}</span>
+              <span className={styles.documentStatus}>
+                {generated && <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
+              </span>
+            </button>;
+          })}
+        </div>
+      </section>)}
     </div>
     <dialog ref={loanFormatSheet} className={styles.formatSheet} aria-labelledby={loanFormatTitle}
       onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }}>

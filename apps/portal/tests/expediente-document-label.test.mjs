@@ -9,3 +9,8 @@ test("the expediente lists uppercase titles and filenames in sentence case", () 
   assert.equal(expedienteDocumentLabel("Entrega voluntaria"), "Entrega voluntaria");
   assert.equal(expedienteDocumentLabel("entrega-voluntaria.docx", true), "entrega-voluntaria.docx");
 });
+
+test("document headings preserve Spanish accents and acronyms", () => {
+  assert.equal(expedienteDocumentLabel("DECLARACION JURADA DE PERSONA FISICA"), "Declaración jurada de persona física");
+  assert.equal(expedienteDocumentLabel("PODER ESPECIAL PARA LEVANTAMIENTO DE OPOSICION EN LA DGII"), "Poder especial para levantamiento de oposición en la DGII");
+});

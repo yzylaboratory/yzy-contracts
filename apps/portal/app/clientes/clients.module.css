@@ -650,3 +650,24 @@
     animation: none;
   }
 }
+
+.documentGroups {
+  display: grid;
+  gap: 24px;
+}
+
+.documentGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.documentGroup h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.documentsTable .documentGroupRow > th {
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font-weight: 650;
+}

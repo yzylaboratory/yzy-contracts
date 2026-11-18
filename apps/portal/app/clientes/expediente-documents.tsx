@@ -14,6 +14,8 @@ import { recordPortalActivity } from "@/lib/activity";
 import table from "@/app/contratos/contracts.module.css";
 import { clientErrorMessage, type Client, type Operation } from "./clients-api";
 import { ExpedienteDocumentRegeneration } from "./expediente-document-regeneration";
+import { expedienteDocumentGroups, expedienteDocumentPosition } from "./expediente-document-groups";
+import { documentTypeFromName } from "./document-template-match";
 import { expedienteDocumentLabel } from "./expediente-document-label";
 import { DocumentsRowsSkeleton } from "./clients-skeleton";
 import { LoanApplicationDownload, LoanApplicationIncompleteActions } from "./loan-application-download";
@@ -22,8 +24,11 @@ import styles from "./clients.module.css";
 const pageSize = 20;
 const dateFormat = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeZone: "America/Santo_Domingo" });
 const formatLabel = { pdf: "PDF", docx: "Word", email: "Correo" } as const;
-type DocumentPage = Awaited<ReturnType<typeof listGeneratedDocuments>>;
-type Result = { page: number; attempt: number } & ({ data: DocumentPage } | { error: string });
+type Result = { attempt: number } & ({ items: GeneratedDocumentMetadata[] } | { error: string });
+
+function position(record: GeneratedDocumentMetadata) {
+  return expedienteDocumentPosition(record.documentType ?? documentTypeFromName(record.contractName)?.id);
+}
 type DocumentAction = "preview" | "download";
 
 export type LoanDocumentRow = {
@@ -51,28 +56,43 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
   const section = useRef<HTMLElement>(null);
   const previewTrigger = useRef<HTMLButtonElement | null>(null);
   const pending = useRef(false);
-  const current = result?.page === page && result.attempt === attempt ? result : undefined;
-  const lastPage = result && "data" in result ? Math.max(1, Math.ceil(result.data.total / pageSize)) : 1;
+  const current = result?.attempt === attempt ? result : undefined;
+  const loaded = current && "items" in current ? current.items : undefined;
+  const lastPage = Math.max(1, Math.ceil((loaded?.length ?? 0) / pageSize));
   const showLoan = page === 1 && Boolean(loan);
-  const items = current && "data" in current ? current.data.items : [];
+  const items = loaded?.slice((page - 1) * pageSize, page * pageSize) ?? [];
   const hasRows = showLoan || items.length > 0;
+  const groups = expedienteDocumentGroups.map((group, index) => ({
+    title: group.title,
+    showLoan: index === 0 && showLoan,
+    items: items.filter(record => group.types.some(type => expedienteDocumentPosition(type) === position(record))),
+  }));
+  const otherItems = items.filter(record => position(record) === expedienteDocumentPosition(undefined));
+  if (otherItems.length) groups.push({ title: "Otros documentos", showLoan: false, items: otherItems });
 
   useEffect(() => {
     const controller = new AbortController();
-    listGeneratedDocuments(accountId, { page, perPage: pageSize, search: "", format: "all", period: "any", operationId }, controller.signal)
-      .then(data => {
-        if (controller.signal.aborted) return;
-        const finalPage = Math.max(1, Math.ceil(data.total / pageSize));
-        if (page > finalPage) setPage(finalPage);
-        else setResult({ page, attempt, data });
-      })
-      .catch(error => {
-        if (!controller.signal.aborted) {
-          setResult({ page, attempt, error: clientErrorMessage(error, "No se pudieron cargar los documentos del expediente.") });
-        }
-      });
+    async function loadDocuments() {
+      const documents: GeneratedDocumentMetadata[] = [];
+      const perPage = 100;
+      for (let nextPage = 1; !controller.signal.aborted; nextPage++) {
+        const { items, total } = await listGeneratedDocuments(accountId,
+          { page: nextPage, perPage, search: "", format: "all", period: "any", operationId }, controller.signal);
+        documents.push(...items);
+        if (!items.length || nextPage * perPage >= total) break;
+      }
+      if (!controller.signal.aborted) {
+        documents.sort((left, right) => position(left) - position(right));
+        setResult({ attempt, items: documents });
+      }
+    }
+    void loadDocuments().catch(error => {
+      if (!controller.signal.aborted) {
+        setResult({ attempt, error: clientErrorMessage(error, "No se pudieron cargar los documentos del expediente.") });
+      }
+    });
     return () => controller.abort();
-  }, [accountId, operationId, page, attempt]);
+  }, [accountId, operationId, attempt]);
 
   useEffect(() => {
     if (!preview) return;
@@ -135,7 +155,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
       <h2 id="expediente-documents-title">Documentos y contratos</h2>
       <div className={styles.actions}>
         <ExpedienteDocumentRegeneration accountId={accountId} clientId={clientId} operationId={operationId}
-          hasLoan={Boolean(loan)} disabled={lastPage === 1 && current !== undefined && "data" in current && !current.data.total && !loan}
+          hasLoan={Boolean(loan)} disabled={loaded?.length === 0 && !loan}
           onRefreshed={() => {
             setPage(1);
             setAttempt(value => value + 1);
@@ -157,8 +177,9 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
             <th scope="col"><span className={table.srOnly}>Acciones</span></th>
           </tr>
         </thead>
-        <tbody>
-          {showLoan && loan && <tr>
+        {groups.filter(group => group.showLoan || group.items.length > 0).map(group => <tbody key={group.title}>
+          <tr className={styles.documentGroupRow}><th scope="rowgroup" colSpan={4}>{group.title}</th></tr>
+          {group.showLoan && loan && <tr>
             <th scope="row">
               <span className={styles.documentName}>Solicitud de préstamo</span>
               {loanDate && <span className={styles.documentMeta}>Fecha · {applicationDateLabel(loanDate)}</span>}
@@ -173,7 +194,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
             <td className={styles.documentsDetail}><span className={styles.documentFormat} data-format={loanFormat}>{formatLabel[loanFormat]}</span></td>
             <td><LoanApplicationDownload accountId={accountId} client={loan.client} operation={loan.operation} format={loanFormat} /></td>
           </tr>}
-          {items.map(record => <tr key={record.id}>
+          {group.items.map(record => <tr key={record.id}>
             <th scope="row">
               <span className={styles.documentName}>{expedienteDocumentLabel(record.contractName)}</span>
               <span className={styles.documentMeta}>{expedienteDocumentLabel(record.filename, true)}</span>
@@ -212,7 +233,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
               </div>
             </td>
           </tr>)}
-        </tbody>
+        </tbody>)}
       </table>
     </div>}
     {!current ? <LoadingContent label="Cargando documentos…"><DocumentsRowsSkeleton /></LoadingContent> : "error" in current ? (
