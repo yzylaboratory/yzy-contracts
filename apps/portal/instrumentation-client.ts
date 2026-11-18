@@ -27,13 +27,20 @@ function canRecordPage() {
 let initialized = false;
 let recordingAllowed = false;
 
+function getSentryEnvironment(): string {
+  if (typeof window !== "undefined" && window.location.hostname === "yzycontracts.yzylabs.dev") {
+    return "development";
+  }
+  return process.env.NODE_ENV === "production" ? "production" : "development";
+}
+
 function initializeReplay() {
   if (!dsn || !canRecordPage()) return;
   // Keep the integration optional and prevent a monitoring failure from breaking the portal.
   try {
     init({
       dsn,
-      environment: process.env.NODE_ENV === "production" ? "production" : "development",
+      environment: getSentryEnvironment(),
       replaysSessionSampleRate: 0,
       replaysOnErrorSampleRate: 1,
       transport(options) {

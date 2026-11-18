@@ -1,14 +1,25 @@
 import { supabase } from "./supabase";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+const DEV_HOSTNAME = "yzycontracts.yzylabs.dev";
 
-if (!baseUrl) {
-  throw new Error("NEXT_PUBLIC_API_URL is required");
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === DEV_HOSTNAME) {
+      return "";
+    }
+  }
+  const url = (typeof window === "undefined" ? process.env.API_URL : undefined) ?? process.env.NEXT_PUBLIC_API_URL;
+  return url ?? "";
 }
 
 export class ApiError extends Error {
-  constructor(readonly status: number, readonly code: string, message: string) {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
     super(message);
+    this.status = status;
+    this.code = code;
   }
 }
 
@@ -41,7 +52,9 @@ async function request(path: string, init: ApiRequest) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(init.body);
   }
-  const response = await fetch(`${baseUrl}/api/v1${path}`, {
+  const apiBase = getApiBaseUrl().replace(/\/+$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const response = await fetch(`${apiBase}/api/v1${normalizedPath}`, {
     method: init.method ?? "GET",
     cache: "no-store",
     signal: init.signal,
