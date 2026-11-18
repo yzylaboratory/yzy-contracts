@@ -13,6 +13,7 @@ import { isActiveAccount } from "@/lib/api";
 import { recordPortalActivity } from "@/lib/activity";
 import table from "@/app/contratos/contracts.module.css";
 import { clientErrorMessage, type Client, type Operation } from "./clients-api";
+import { ExpedienteDocumentRegeneration } from "./expediente-document-regeneration";
 import { DocumentsRowsSkeleton } from "./clients-skeleton";
 import { LoanApplicationDownload, LoanApplicationIncompleteActions } from "./loan-application-download";
 import styles from "./clients.module.css";
@@ -32,11 +33,13 @@ export type LoanDocumentRow = {
   onCompleteApplication: () => void;
 };
 
-export function ExpedienteDocuments({ accountId, operationId, action, loan }: {
+export function ExpedienteDocuments({ accountId, clientId, operationId, action, loan, onRegenerated }: {
   accountId: string;
+  clientId: string;
   operationId: string;
   action: ReactNode;
   loan?: LoanDocumentRow;
+  onRegenerated: () => void;
 }) {
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
@@ -129,7 +132,16 @@ export function ExpedienteDocuments({ accountId, operationId, action, loan }: {
   return <section ref={section} className={styles.panel} aria-labelledby="expediente-documents-title">
     <div className={styles.header}>
       <h2 id="expediente-documents-title">Documentos y contratos</h2>
-      {action}
+      <div className={styles.actions}>
+        {action}
+        <ExpedienteDocumentRegeneration accountId={accountId} clientId={clientId} operationId={operationId}
+          hasLoan={Boolean(loan)} disabled={lastPage === 1 && current !== undefined && "data" in current && !current.data.total && !loan}
+          onRefreshed={() => {
+            setPage(1);
+            setAttempt(value => value + 1);
+            onRegenerated();
+          }} />
+      </div>
     </div>
     {loan && <LoanApplicationIncompleteActions client={loan.client} operation={loan.operation}
       onCompleteClient={loan.onCompleteClient} onCompleteApplication={loan.onCompleteApplication} />}

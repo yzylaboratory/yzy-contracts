@@ -1208,3 +1208,50 @@ test("the initial batch requests one manual distribution only for selected disbu
   await generateInitialExpedienteDocuments(input);
   assert.equal(requests, 1);
 });
+
+test("regeneration keeps the original template and returns every pending format after a billing stop", async t => {
+  const { generateInitialExpedienteDocuments } = await import("../app/contratos/batch-document-generation.ts");
+  const accountId = "synthetic-admin";
+  const companyId = "synthetic-company";
+  const contracts = [
+    { id: "original-gps", name: "GPS", template_id: "original-gps", company_id: companyId },
+    { id: "current-gps", name: "GPS", catalog_key: "gps", template_id: "current-gps" },
+    { id: "closing", name: "Entrega de vehículo con fines de saldo", template_id: "closing", company_id: companyId },
+  ].map(contract => ({ ...contract, original_file_name: contract.id + ".docx" }));
+  const documents = [
+    { id: "saved-word", documentType: "gps", contractId: "original-gps", format: "docx" },
+    { id: "saved-pdf", documentType: "gps", contractId: "original-gps", format: "pdf" },
+    { id: "saved-closing", documentType: "entrega_vehiculo_fines_saldo", contractId: "closing", format: "docx" },
+  ].map(document => ({ ...document, contractName: document.documentType, filename: "prueba." + document.format }));
+  const accessChecks = [];
+  t.mock.method(supabase.auth, "getSession", async () => ({
+    data: { session: { user: { id: accountId }, access_token: "synthetic-token" } },
+  }));
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    const path = new URL(url).pathname;
+    assert.equal(init.method, "GET");
+    if (path.endsWith("/companies")) {
+      return Response.json({ items: [{ id: companyId, name: "Compañía de prueba", values: {} }] });
+    }
+    if (path.endsWith("/contracts")) {
+      return Response.json({ items: contracts, page: 1, per_page: 100, total: contracts.length });
+    }
+    if (path.includes("/templates/")) {
+      const definition = getDocumentType(path.endsWith("/closing") ? "entrega_vehiculo_fines_saldo" : "gps");
+      return Response.json({ native_variables: definition.requiredFields.map(key => ({ key, occurrences: 1 })) });
+    }
+    assert.ok(path.endsWith("/generation-access"));
+    accessChecks.push(path);
+    return Response.json({ error: { code: "PAYMENT_REQUIRED", message: "Bloqueo de prueba." } }, { status: 402 });
+  });
+
+  const result = await generateInitialExpedienteDocuments({
+    accountId, client, operation: { ...operation, company_id: companyId },
+    preferredFormat: "docx", regenerationDocuments: documents,
+    requestDisbursementDistribution: async () => assert.fail("No hay documentos de desembolso."),
+  });
+  assert.ok(result.stoppedEarly);
+  assert.deepEqual(accessChecks, ["/api/v1/contracts/original-gps/generation-access"]);
+  assert.deepEqual(result.failed.map(item => item.savedDocumentId), documents.map(item => item.id));
+  assert.ok(result.failed.every(item => item.billingBlocked));
+});

@@ -57,6 +57,7 @@ function RecordContents({ accountId, companies, activeCompanyId, clientId, exped
   const router = useRouter();
   const { advance } = useProductTour();
   const [attempt, setAttempt] = useState(0);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
   const [record, setRecord] = useState<({ client: Client; operation: Operation | null } | { message: string }) & { attempt: number }>();
   const creating = expedienteId === undefined;
   const scope = `${clientScope(accountId, clientId)}:${expedienteId ?? `create:${activeCompanyId ?? ""}`}`;
@@ -194,16 +195,16 @@ function RecordContents({ accountId, companies, activeCompanyId, clientId, exped
       <div className={styles.stack}>
         <ExpedienteDetail key={operation.id} accountId={accountId} operation={operation} client={client}
           companyName={companies.find(company => company.id === operation.company_id)?.name ?? "Empresa no disponible"}
-          clientPanel={clientPanel} onEdit={() => openEditor({ kind: "operation", operationId: operation.id })}
+          clientPanel={clientPanel} onRegenerated={() => setDocumentsVersion(value => value + 1)} onEdit={() => openEditor({ kind: "operation", operationId: operation.id })}
           onEditPlan={() => openEditor({ kind: "payment-plan" })}
           onCompleteClient={() => openEditor({ kind: "client", forLoan: true })} />
       </div>
-      <ClientTimeline key={`${operation.id}:${operation.updated_at}`} accountId={accountId} clientId={client.id} operationId={operation.id} />
+      <ClientTimeline key={`${operation.id}:${operation.updated_at}:${documentsVersion}`} accountId={accountId} clientId={client.id} operationId={operation.id} />
     </div>
   </div>;
 }
 
-function ExpedienteDetail({ accountId, operation, client, companyName, clientPanel, onEdit, onEditPlan, onCompleteClient }: {
+function ExpedienteDetail({ accountId, operation, client, companyName, clientPanel, onEdit, onEditPlan, onCompleteClient, onRegenerated }: {
   accountId: string;
   operation: Operation;
   client: Client;
@@ -212,6 +213,7 @@ function ExpedienteDetail({ accountId, operation, client, companyName, clientPan
   onEdit: () => void;
   onEditPlan: () => void;
   onCompleteClient: () => void;
+  onRegenerated: () => void;
 }) {
   const { advance } = useProductTour();
   const [planOpen, setPlanOpen] = useState(() =>
@@ -260,7 +262,7 @@ function ExpedienteDetail({ accountId, operation, client, companyName, clientPan
       </dl>
     </section>
     {clientPanel}
-    <ExpedienteDocuments accountId={accountId} operationId={operation.id}
+    <ExpedienteDocuments accountId={accountId} clientId={client.id} operationId={operation.id} onRegenerated={onRegenerated}
       loan={operation.application && hasCaseApplication(operation.application) && operation.application.application_date
         ? { client, operation, application: operation.application, onCompleteClient, onCompleteApplication: onEdit }
         : undefined}

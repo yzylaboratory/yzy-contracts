@@ -487,6 +487,15 @@
   color: inherit;
 }
 
+.regenerationFailures {
+  display: grid;
+  gap: 8px;
+  max-block-size: 40dvh;
+  overflow: auto;
+  margin: 0;
+  padding-inline-start: 24px;
+}
+
 .formatSheet[open] {
   animation: formatSheetIn 220ms cubic-bezier(.2, .8, .2, 1);
 }

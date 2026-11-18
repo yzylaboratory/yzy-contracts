@@ -11,7 +11,7 @@ import {
   isCompanyField,
 } from "@/app/configuracion/empresas/company-fields";
 import type { Client, Operation } from "@/app/clientes/clients-api";
-import { matchDocumentTemplate } from "@/app/clientes/document-template-match";
+import { documentTypeFromName, matchDocumentTemplate } from "@/app/clientes/document-template-match";
 import { loadOperationDocxTemplates, resolveDocumentTemplate, type LoadedDocumentTemplate } from "@/app/clientes/operation-templates";
 import { ApiError } from "@/lib/api";
 import { checkGenerationAccess, type Contract } from "./contracts-api";
@@ -29,10 +29,11 @@ import {
   initialExpedienteDocumentTypes,
   INSURANCE_COMPANY_NAME,
   isInsuranceCompanyName,
+  isInsuranceDocumentType,
   type DocumentType,
 } from "./document-catalog";
 import { caseVehicleKeys, isExpedienteField, missingVehicleMessage, percentageDateKey, resolveExpedienteFields, usesBoldNotarialDate, usesDisbursementData, usesUppercaseDocumentData } from "./expediente-fields";
-import { saveGeneratedArtifact, type DocumentFormat, type GeneratedFormat, type GeneratedOutput } from "./generated-documents-api";
+import { getGeneratedDocument, saveGeneratedArtifact, type DocumentFormat, type GeneratedDocumentMetadata, type GeneratedFormat, type GeneratedOutput } from "./generated-documents-api";
 import { hasInsuranceIssuerInContract, NativeDocumentError, prepareNativeDocument, readSalesCommitmentFromContract } from "./native-document";
 import { wordsSource } from "./native-field-kinds";
 import { validateTemplateField } from "./template-fields";
@@ -57,7 +58,8 @@ export type BatchProgress = {
 };
 
 export type BatchDocumentFailure = {
-  type: DocumentType;
+  type: DocumentType | null;
+  savedDocumentId?: string;
   label: string;
   message: string;
   billingBlocked?: boolean;
@@ -111,10 +113,12 @@ export async function generateInitialExpedienteDocuments(input: {
   preferredFormat: GeneratedFormat;
   requestDisbursementDistribution: (signal: AbortSignal) => Promise<string>;
   retryOnlyTypes?: readonly DocumentType[];
+  regenerationDocuments?: readonly GeneratedDocumentMetadata[];
+  requestConfirmedBalance?: (signal: AbortSignal) => Promise<{ confirmedBalanceMinor: number; balanceDate: string }>;
   onProgress?: (progress: BatchProgress) => void;
   signal?: AbortSignal;
 }): Promise<BatchGenerationResult> {
-  const { accountId, client, operation, preferredFormat, retryOnlyTypes, onProgress, signal } = input;
+  const { accountId, client, operation, preferredFormat, retryOnlyTypes, regenerationDocuments, onProgress, signal } = input;
   const targetTypes = retryOnlyTypes?.length
     ? [...retryOnlyTypes]
     : initialExpedienteDocumentTypes({ insurancePaid: operation.insurance_paid === true });
@@ -129,7 +133,7 @@ export async function generateInitialExpedienteDocuments(input: {
 
   const [{ items: companies }, loadedTemplates] = await Promise.all([
     listCompanies(accountId, false, requestSignal),
-    loadOperationDocxTemplates(accountId, operation.company_id, requestSignal),
+    loadOperationDocxTemplates(accountId, operation.company_id, requestSignal, regenerationDocuments?.map(document => document.contractId)),
   ]);
 
   const selectedCompany: Company | undefined = companies.find(company => company.id === operation.company_id);
@@ -144,22 +148,46 @@ export async function generateInitialExpedienteDocuments(input: {
     }),
   } : undefined;
 
-  const resolvedTargets: { type: DocumentType; label: string; entry?: LoadedDocumentTemplate; ambiguous?: boolean }[] = [];
-  for (const type of targetTypes) {
+  const resolvedTargets: { type: DocumentType; label: string; entry?: LoadedDocumentTemplate; unavailable?: string; saved?: GeneratedDocumentMetadata }[] = [];
+  if (regenerationDocuments) {
+    const seen = new Set<string>();
+    for (const saved of regenerationDocuments) {
+      const key = `${saved.contractId}:${saved.format}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const entry = loadedTemplates.find(item => item.contract.id === saved.contractId);
+      const type = getDocumentType(saved.documentType)?.id
+        ?? getDocumentType(entry?.contract.catalog_key)?.id
+        ?? documentTypeFromName(saved.contractName)?.id;
+      const label = `${saved.contractName} (${saved.format === "docx" ? "Word" : saved.format === "pdf" ? "PDF" : "Correo"})`;
+      if (!type) {
+        failed.push({ type: null, savedDocumentId: saved.id, label, message: "Abre la generación individual para revisar los campos de esta plantilla." });
+        continue;
+      }
+      const unavailable = !entry ? "La plantilla usada para emitir este documento ya no está disponible."
+        : operation.insurance_paid && isInsuranceDocumentType(type) ? "El expediente indica que el seguro ya está pagado."
+        : undefined;
+      resolvedTargets.push({ type, label, entry, unavailable, saved });
+    }
+  }
+  for (const type of regenerationDocuments ? [] : targetTypes) {
     const label = getDocumentType(type)?.label ?? type;
     const resolution = resolveTemplateEntry(loadedTemplates, accountId, operation.company_id, type);
     if (resolution.kind === "missing") continue;
     if (resolution.kind === "ambiguous") {
-      resolvedTargets.push({ type, label, ambiguous: true });
+      resolvedTargets.push({ type, label, unavailable: "Hay varias plantillas compatibles. Selecciona la plantilla desde el expediente." });
       continue;
     }
     resolvedTargets.push({ type, label, entry: resolution.entry });
   }
 
-  const needsDistribution = resolvedTargets.some(({ type, entry }) =>
-    usesDisbursementData(type) && entry?.template.native_variables?.some(field => field.key === "distribucion_desembolso"));
+  const needsDistribution = resolvedTargets.some(({ type, entry, unavailable }) =>
+    !unavailable && usesDisbursementData(type) && entry?.template.native_variables?.some(field => field.key === "distribucion_desembolso"));
   const distribution = needsDistribution
     ? await input.requestDisbursementDistribution(requestSignal)
+    : undefined;
+  const balance = resolvedTargets.some(target => target.type === "carta_saldo" && !target.unavailable)
+    ? await input.requestConfirmedBalance?.(requestSignal)
     : undefined;
 
   let cachedSalesParagraph: string | undefined;
@@ -200,6 +228,7 @@ export async function generateInitialExpedienteDocuments(input: {
     }
   }
 
+  const total = resolvedTargets.length + failed.length;
   const queue: BatchQueueItem[] = resolvedTargets.map(target => ({
     type: target.type,
     label: target.label,
@@ -214,7 +243,7 @@ export async function generateInitialExpedienteDocuments(input: {
   ) {
     onProgress?.({
       completed: completedCount,
-      total: resolvedTargets.length,
+      total,
       phase,
       currentType,
       currentLabel,
@@ -223,7 +252,7 @@ export async function generateInitialExpedienteDocuments(input: {
   }
 
   if (resolvedTargets.length > 0) {
-    emitProgress(0, "preparing", resolvedTargets[0].type, resolvedTargets[0].label);
+    emitProgress(failed.length, "preparing", resolvedTargets[0].type, resolvedTargets[0].label);
   }
 
   for (let index = 0; index < resolvedTargets.length; index++) {
@@ -236,9 +265,9 @@ export async function generateInitialExpedienteDocuments(input: {
     queue[index] = { ...queue[index], status: "active" };
     emitProgress(generated.length + failed.length, "generating", target.type, target.label);
 
-    if (target.ambiguous || !target.entry) {
-      const message = "Hay varias plantillas compatibles. Selecciona la plantilla desde el expediente.";
-      failed.push({ type: target.type, label: target.label, message });
+    if (target.unavailable || !target.entry) {
+      const message = target.unavailable ?? "La plantilla no está disponible.";
+      failed.push({ type: target.type, savedDocumentId: target.saved?.id, label: target.label, message });
       queue[index] = { ...queue[index], status: "error", message };
       continue;
     }
@@ -281,6 +310,7 @@ export async function generateInitialExpedienteDocuments(input: {
         : undefined;
 
       const resolved = resolveExpedienteFields(target.type, client, operation, {
+        ...balance,
         salesCommitmentParagraph,
         insuranceCompanyName,
         insuranceCompanyValues: issuerValues,
@@ -336,7 +366,15 @@ export async function generateInitialExpedienteDocuments(input: {
       }
 
       const sourceFormat: DocumentFormat = contract.original_file_name.toLowerCase().endsWith(".docx") ? "docx" : "pdf";
-      const effectiveOutput: DocumentFormat = sourceFormat === "pdf" ? "pdf" : outputFormat;
+      const email = target.saved?.format === "email"
+        ? (await getGeneratedDocument(accountId, target.saved.id)).email
+        : undefined;
+      if (target.saved?.format === "email" && !email) {
+        throw new NativeDocumentError("No se encontraron los datos del borrador de correo anterior.");
+      }
+      const savedFormat = target.saved?.format;
+      const effectiveOutput = email?.attachmentFormat ?? (savedFormat === "email" ? undefined : savedFormat)
+        ?? (sourceFormat === "pdf" ? "pdf" : outputFormat);
 
       await checkGenerationAccess(contract.id, accountId, companySnapshot?.id, operation.id);
 
@@ -359,30 +397,37 @@ export async function generateInitialExpedienteDocuments(input: {
         vehicle: operation.vehicle,
       });
 
-      const filename = `${fileBase(contract.name)}.${effectiveOutput}`;
+      const filename = target.saved?.filename ?? `${fileBase(contract.name)}.${effectiveOutput}`;
       const record: GeneratedOutput = {
-        format: effectiveOutput,
+        format: target.saved?.format ?? effectiveOutput,
+        ...(email && { email }),
         filename,
         markdown: "",
         ...(companySnapshot && { company: companySnapshot }),
         operationId: operation.id,
         documentType: target.type,
       };
+      requestSignal.throwIfAborted();
       await saveGeneratedArtifact(accountId, crypto.randomUUID(), contract.id, record, artifact);
       generated.push({ type: target.type, label: target.label, filename });
       queue[index] = { ...queue[index], status: "done", format: effectiveOutput };
       emitProgress(generated.length + failed.length, "generating", target.type, target.label);
     } catch (error) {
+      if (requestSignal.aborted) {
+        stoppedEarly = true;
+        break;
+      }
       if (error instanceof ApiError && error.code === "PAYMENT_REQUIRED") {
         billingBlocked = true;
         stoppedEarly = true;
         const message = "La generación está pausada para esta empresa por falta de pago.";
-        failed.push({ type: target.type, label: target.label, message, billingBlocked: true });
+        failed.push({ type: target.type, savedDocumentId: target.saved?.id, label: target.label, message, billingBlocked: true });
         queue[index] = { ...queue[index], status: "error", message };
         resolvedTargets.slice(index + 1).forEach((remaining, offset) => {
           const remainingMessage = "Pendiente por bloqueo de facturación de la empresa.";
           failed.push({
             type: remaining.type,
+            savedDocumentId: remaining.saved?.id,
             label: remaining.label,
             message: remainingMessage,
             billingBlocked: true,
@@ -394,12 +439,13 @@ export async function generateInitialExpedienteDocuments(input: {
       if (error instanceof ApiError && error.status === 401) {
         stoppedEarly = true;
         const message = "Tu sesión terminó. Vuelve a iniciar sesión.";
-        failed.push({ type: target.type, label: target.label, message });
+        failed.push({ type: target.type, savedDocumentId: target.saved?.id, label: target.label, message });
         queue[index] = { ...queue[index], status: "error", message };
         resolvedTargets.slice(index + 1).forEach((remaining, offset) => {
           const remainingMessage = "No se generó porque la sesión expiró.";
           failed.push({
             type: remaining.type,
+            savedDocumentId: remaining.saved?.id,
             label: remaining.label,
             message: remainingMessage,
           });
@@ -410,6 +456,7 @@ export async function generateInitialExpedienteDocuments(input: {
       const message = formatErrorMessage(error, `No se pudo generar «${target.label}».`);
       failed.push({
         type: target.type,
+        savedDocumentId: target.saved?.id,
         label: target.label,
         message,
       });

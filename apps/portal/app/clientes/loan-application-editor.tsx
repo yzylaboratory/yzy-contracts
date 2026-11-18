@@ -343,7 +343,7 @@ export function LoanApplicationEditor({ accountId, companyId, client, operation,
     const controller = new AbortController();
     batchAbort.current = controller;
     const retryTypes = retryOnly && generationResult
-      ? generationResult.failed.map(item => item.type)
+      ? generationResult.failed.flatMap(item => item.type ? [item.type] : [])
       : undefined;
 
     const operationId = targetOperation.id;

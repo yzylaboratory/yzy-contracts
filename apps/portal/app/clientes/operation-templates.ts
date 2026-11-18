@@ -41,8 +41,8 @@ export type LoadedDocumentTemplate = {
   template: Awaited<ReturnType<typeof getTemplate>>;
 };
 
-export async function loadOperationDocxTemplates(accountId: string, companyId: string, signal: AbortSignal): Promise<LoadedDocumentTemplate[]> {
-  const contracts = (await listOperationContracts(accountId, companyId, signal)).filter(contract => contract.original_file_name.toLowerCase().endsWith(".docx"));
+export async function loadOperationDocxTemplates(accountId: string, companyId: string, signal: AbortSignal, originalContractIds: readonly string[] = []): Promise<LoadedDocumentTemplate[]> {
+  const contracts = (await listOperationContracts(accountId, companyId, signal)).filter(contract => contract.original_file_name.toLowerCase().endsWith(".docx") || originalContractIds.includes(contract.id));
   const loaded: LoadedDocumentTemplate[] = [];
   for (let index = 0; index < contracts.length && !signal.aborted; index += 8) {
     const templates = await Promise.all(contracts.slice(index, index + 8).map(async contract => {
