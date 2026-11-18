@@ -67,7 +67,7 @@ export const DOCUMENT_TYPES = [
     ...customer, "cliente_telefono", "cliente_correo", "cliente_origen_ingresos", "fecha_contrato", ...vehicle, ...signature,
   ] },
   { id: "gps", label: GPS_AGREEMENT_TITLE, requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
-  { id: "autorizacion_data", label: "Autorización de datos", requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
+  { id: "autorizacion_data", label: "Autorización de revisión del buró de crédito", requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
   { id: "acuerdo_seguro", label: ANNUAL_INSURANCE_RENEWAL_TITLE, requiredFields: [...customer, ...signature] },
   { id: "autorizacion_asegurar_vehiculo", label: "Carta de autorización para asegurar vehículo", requiredFields: [
     ...customer, "cliente_direccion", ...vehicle, ...signature,

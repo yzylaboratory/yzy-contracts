@@ -9,6 +9,9 @@ export function documentTypeFromName(name: string) {
   if (normalized === "venta condicional de vehiculo con financiamiento de seguro" || normalized === "venta condicional del seguro") {
     return DOCUMENT_TYPES.find(document => document.id === "venta_condicional_seguro");
   }
+  if (normalized === "autorizacion de datos") {
+    return DOCUMENT_TYPES.find(document => document.id === "autorizacion_data");
+  }
   if (normalized === "levantamiento de oposicion") {
     return DOCUMENT_TYPES.find(document => document.id === "levantamiento_oposicion");
   }
