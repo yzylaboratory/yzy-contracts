@@ -15,6 +15,9 @@ export function documentTypeFromName(name: string) {
   if (normalized === "levantamiento de oposicion") {
     return DOCUMENT_TYPES.find(document => document.id === "levantamiento_oposicion");
   }
+  if (normalized === "pagare de seguro") {
+    return DOCUMENT_TYPES.find(document => document.id === "pagare_seguro");
+  }
   if (normalized === "acuerdo de seguro") {
     return DOCUMENT_TYPES.find(document => document.id === "acuerdo_seguro");
   }

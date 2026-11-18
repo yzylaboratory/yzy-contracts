@@ -401,7 +401,7 @@ export async function generateInitialExpedienteDocuments(input: {
       const filename = contract.catalog_key === "venta_condicional" || contract.catalog_key === "declaracion_jurada"
         || contract.catalog_key === "levantamiento_oposicion" || contract.catalog_key === "gps" || contract.catalog_key === "acto_seguro"
         || contract.catalog_key === "autorizacion_asegurar_vehiculo" || contract.catalog_key === "acuerdo_seguro"
-        || contract.catalog_key === "pagare_autentico" || !target.saved
+        || contract.catalog_key === "pagare_autentico" || contract.catalog_key === "pagare_seguro" || !target.saved
         ? `${fileBase(contract.name, contract.catalog_key)}.${extension}` : target.saved.filename;
       const record: GeneratedOutput = {
         format: target.saved?.format ?? effectiveOutput,

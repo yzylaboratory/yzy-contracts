@@ -63,7 +63,7 @@ export const DOCUMENT_TYPES = [
   { id: "acto_seguro", label: INSURED_CONDITIONAL_SALE_TITLE, requiresInsuranceCompany: true, requiredFields: [
     "cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature, ...insuranceScheduleFields,
   ] },
-  { id: "pagare_seguro", label: "Pagaré de seguro", requiresInsuranceCompany: true, requiredFields: ["cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature] },
+  { id: "pagare_seguro", label: `${NOTARIAL_PROMISSORY_NOTE_TITLE} (SEGURO)`, requiresInsuranceCompany: true, requiredFields: ["cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature] },
   { id: "declaracion_jurada", label: SWORN_DECLARATION_TITLE, requiredFields: [
     ...customer, "cliente_telefono", "cliente_correo", "cliente_origen_ingresos", "fecha_contrato", ...vehicle, ...signature,
   ] },

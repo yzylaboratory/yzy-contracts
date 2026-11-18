@@ -21,6 +21,7 @@ export function isInsuranceIssuerField(key: string) {
 }
 
 export function fileBase(title: string, catalogKey?: string | null) {
+  if (catalogKey === "pagare_seguro") return "pagare-de-seguro";
   if (catalogKey === "pagare_autentico") return "pagare-autentico";
   if (catalogKey === "autorizacion_asegurar_vehiculo") return "autorizacion-para-asegurar-vehiculo";
   if (catalogKey === "acuerdo_seguro") return "acuerdo-de-seguro";
