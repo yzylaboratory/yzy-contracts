@@ -9,6 +9,7 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  FileText,
   HeartHandshake,
   Lock,
   UserCheck,
@@ -519,9 +520,37 @@ export function ProspectForm() {
     );
   }
 
+  if (submitting) {
+    return (
+      <section className={`${styles.mainCard} ${styles.sendingCard}`} aria-label="Envío de la ficha">
+        <div className={styles.statusCard} role="status">
+          <motion.div
+            className={styles.sendingIllustration}
+            aria-hidden="true"
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: reducedMotion ? 0 : 0.28 }}
+          >
+            <FileText size={36} />
+            <span className={styles.sendingLock}><Lock size={15} /></span>
+          </motion.div>
+          <h2 className={styles.statusTitle}>Enviando tu información</h2>
+          <p className={styles.statusMessage}>Estamos enviando tu ficha al equipo por una conexión cifrada.</p>
+          <div className={styles.sendingProgress} aria-hidden="true" />
+        </div>
+      </section>
+    );
+  }
+
   if (status === "success") {
     return (
-      <section className={styles.mainCard} role="region" aria-label="Confirmación de envío">
+      <motion.section
+        className={styles.mainCard}
+        aria-label="Confirmación de envío"
+        initial={reducedMotion ? false : { opacity: 0.6, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reducedMotion ? 0 : 0.28 }}
+      >
         <div className={styles.statusCard}>
           <div className={`${styles.statusIconWrapper} ${styles.statusIconSuccess}`}>
             <CheckCircle2 className={styles.statusIcon} aria-hidden="true" size={36} />
@@ -536,7 +565,7 @@ export function ProspectForm() {
             Por seguridad, este enlace ha sido desactivado. Ya puedes cerrar esta ventana.
           </p>
         </div>
-      </section>
+      </motion.section>
     );
   }
 
