@@ -7,7 +7,7 @@ use crate::{
     modules::{auth::AuthUser, billing::repository as billing},
 };
 
-pub(super) async fn list(
+pub(in crate::modules) async fn list(
     db: &PgPool,
     user_id: Uuid,
     include_archived: bool,
@@ -30,7 +30,7 @@ pub(super) async fn list(
     .await
 }
 
-pub(super) async fn find_for_reader(
+pub(in crate::modules) async fn find_for_reader(
     db: impl PgExecutor<'_>,
     user: &AuthUser,
     id: Uuid,

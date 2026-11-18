@@ -40,6 +40,8 @@ pub(super) struct ListCases {
     pub per_page: i64,
     #[validate(length(max = 200))]
     pub q: Option<String>,
+    /// Only case files in this status. Omit it to list every status.
+    pub status: Option<OperationStatus>,
 }
 
 fn default_page() -> i64 {
@@ -407,11 +409,11 @@ impl OperationPatch {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ClientProfile {
     #[serde(skip_serializing_if = "Option::is_none")]
-    treatment: Option<String>,
+    pub(super) treatment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    nationality: Option<String>,
+    pub(super) nationality: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    marital_status: Option<String>,
+    pub(super) marital_status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     spouse_not_applicable: Option<bool>,
     owns_home: Option<bool>,
@@ -420,7 +422,7 @@ pub(crate) struct ClientProfile {
     employer: Option<String>,
     work_address: Option<String>,
     work_phone: Option<String>,
-    position: Option<String>,
+    pub(super) position: Option<String>,
     employment_duration: Option<String>,
     fixed_income: Option<String>,
     other_income: Option<String>,
@@ -640,27 +642,27 @@ fn normalize_contacts(
 #[serde(deny_unknown_fields)]
 pub(super) struct Vehicle {
     #[serde(skip_serializing_if = "Option::is_none")]
-    registration_number: Option<String>,
+    pub(super) registration_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    chassis_number: Option<String>,
+    pub(super) chassis_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    plate: Option<String>,
+    pub(super) plate: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    make: Option<String>,
+    pub(super) make: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    model: Option<String>,
+    pub(super) model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    year: Option<String>,
+    pub(super) year: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    color: Option<String>,
+    pub(super) color: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    engine_number: Option<String>,
+    pub(super) engine_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    vehicle_type: Option<String>,
+    pub(super) vehicle_type: Option<String>,
     /// Document the vehicle data comes from. A vehicle imported with a bill of
     /// lading has no type, plate or engine number until it is registered.
     #[serde(skip_serializing_if = "Option::is_none")]
-    source_document: Option<VehicleDocument>,
+    pub(super) source_document: Option<VehicleDocument>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -714,29 +716,29 @@ impl TryFrom<String> for CalendarDate {
 #[serde(deny_unknown_fields)]
 pub(super) struct Payment {
     #[schema(value_type = NaiveDate)]
-    date: CalendarDate,
+    pub(super) date: CalendarDate,
     /// Zero is allowed for an extraordinary payment with a pending amount.
     #[schema(minimum = 0, maximum = 9_007_199_254_740_991_i64)]
-    amount_minor: i64,
+    pub(super) amount_minor: i64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Financing {
     /// Dates must be strictly increasing and precede the final principal date.
-    interest_installments: Vec<Payment>,
-    final_principal: Payment,
-    extraordinary_payments: Vec<Payment>,
+    pub(super) interest_installments: Vec<Payment>,
+    pub(super) final_principal: Payment,
+    pub(super) extraordinary_payments: Vec<Payment>,
     /// The extraordinary payment dates are calculated from the case signature date.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub extraordinary_from_signature: bool,
     /// Explicit number of extraordinary payments saved for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schema(minimum = 0, maximum = 299)]
-    extraordinary_payment_count: Option<usize>,
+    pub(super) extraordinary_payment_count: Option<usize>,
     #[schema(minimum = 1, maximum = 9_007_199_254_740_991_i64)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    insurance_installment_count: Option<i64>,
+    pub(super) insurance_installment_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monthly_plan: Option<MonthlyPlan>,
 }

@@ -5,6 +5,7 @@ use axum::{
 };
 use serde::Serialize;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 /// Every error the API can return. Internal causes are logged, never serialized.
 #[derive(Debug, thiserror::Error)]
@@ -67,6 +68,8 @@ pub enum ApiError {
     GeneratedDocumentNotFound,
     #[error("This generated document ID is already in use")]
     GeneratedDocumentConflict,
+    #[error("Hay varias plantillas compatibles. Selecciona la plantilla desde el expediente.")]
+    DocumentTemplateAmbiguous(Vec<TemplateCandidate>),
     #[error("The document could not be rendered in PDF")]
     DocumentRenderFailed,
     #[error("The document renderer is temporarily unavailable")]
@@ -150,6 +153,7 @@ impl ApiError {
             Self::ConversionNotFound => "CONVERSION_NOT_FOUND",
             Self::GeneratedDocumentNotFound => "GENERATED_DOCUMENT_NOT_FOUND",
             Self::GeneratedDocumentConflict => "GENERATED_DOCUMENT_CONFLICT",
+            Self::DocumentTemplateAmbiguous(_) => "DOCUMENT_TEMPLATE_AMBIGUOUS",
             Self::DocumentRenderFailed => "DOCUMENT_RENDER_FAILED",
             Self::DocumentRendererUnavailable => "DOCUMENT_RENDERER_UNAVAILABLE",
             Self::DocumentReaderUnavailable => "DOCUMENT_READER_UNAVAILABLE",
@@ -224,6 +228,7 @@ impl ApiError {
             | Self::InvalidDocxVariables
             | Self::InvalidDocxTemplate
             | Self::DocumentRenderFailed
+            | Self::DocumentTemplateAmbiguous(_)
             | Self::DocumentUnreadable
             | Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Timeout => StatusCode::GATEWAY_TIMEOUT,
@@ -262,17 +267,55 @@ pub struct ErrorBody {
     pub message: String,
 }
 
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct TemplateCandidate {
+    pub contract_id: Uuid,
+    pub name: String,
+}
+
+/// Validation errors for case generation also carry the available choices on ambiguity.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CaseDocumentErrorEnvelope {
+    error: CaseDocumentErrorBody,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+struct CaseDocumentErrorBody {
+    code: &'static str,
+    message: String,
+    /// Present only for DOCUMENT_TEMPLATE_AMBIGUOUS.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(nullable = false)]
+    candidates: Option<Vec<TemplateCandidate>>,
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         if let Self::Internal(cause) = &self {
             tracing::error!(error = format!("{cause:#}"), "request failed");
         }
+        let status = self.status();
+        let code = self.code();
+        let message = self.to_string();
+        if let Self::DocumentTemplateAmbiguous(candidates) = self {
+            return (
+                status,
+                Json(CaseDocumentErrorEnvelope {
+                    error: CaseDocumentErrorBody {
+                        code,
+                        message,
+                        candidates: Some(candidates),
+                    },
+                }),
+            )
+                .into_response();
+        }
         let envelope = ErrorEnvelope {
             error: ErrorBody {
-                code: self.code().to_owned(),
-                message: self.to_string(),
+                code: code.to_owned(),
+                message,
             },
         };
-        (self.status(), Json(envelope)).into_response()
+        (status, Json(envelope)).into_response()
     }
 }

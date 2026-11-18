@@ -2664,6 +2664,12 @@ paths:
         required: false
         schema:
           type: string
+      - name: status
+        in: query
+        description: Only case files in this status. Omit it to list every status.
+        required: false
+        schema:
+          $ref: '#/components/schemas/OperationStatus'
       responses:
         '200':
           description: Case files for one company, with their client and vehicle, newest first
@@ -2730,6 +2736,155 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/expedientes/{id}/available-documents:
+    get:
+      tags:
+      - Clients
+      operationId: available_documents
+      parameters:
+      - name: id
+        in: path
+        description: Case file UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: company_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Template availability, newest generated document and operator inputs for each catalog type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AvailableDocument'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company or case outside the active scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/expedientes/{id}/documents/{document_id}:
+    put:
+      tags:
+      - Clients
+      operationId: generate_document
+      parameters:
+      - name: id
+        in: path
+        description: Case file UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: document_id
+        in: path
+        description: Client-generated document UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateCaseDocument'
+        required: true
+      responses:
+        '200':
+          description: Previously saved identical request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '201':
+          description: Generated document and saved binary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '402':
+          description: Generation is paused because the company is suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Company, case or compatible contract unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: This document ID was used by another request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Word input, generated artifact or request exceeds its size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input or template, failed rendering, or templates requiring a choice (DOCUMENT_TEMPLATE_AMBIGUOUS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDocumentErrorEnvelope'
+        '503':
+          description: Renderer unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '504':
+          description: Generation timed out
           content:
             application/json:
               schema:
@@ -3968,6 +4123,37 @@ components:
       enum:
       - pdf
       - docx
+    Availability:
+      type: string
+      enum:
+      - ready
+      - ambiguous
+      - missing
+    AvailableDocument:
+      type: object
+      required:
+      - document_type
+      - status
+      - candidates
+      - latest_generated
+      - operator_fields
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateCandidate'
+        document_type:
+          $ref: '#/components/schemas/CaseDocumentType'
+        latest_generated:
+          oneOf:
+          - $ref: '#/components/schemas/LatestGeneratedDocument'
+          - type: 'null'
+        operator_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperatorField'
+        status:
+          $ref: '#/components/schemas/Availability'
     BankAccount:
       type: object
       required:
@@ -4554,6 +4740,55 @@ components:
           - string
           - 'null'
       additionalProperties: false
+    CaseDocumentErrorBody:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateCandidate'
+          description: Present only for DOCUMENT_TEMPLATE_AMBIGUOUS.
+        code:
+          type: string
+        message:
+          type: string
+    CaseDocumentErrorEnvelope:
+      type: object
+      description: Validation errors for case generation also carry the available choices on ambiguity.
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/CaseDocumentErrorBody'
+    CaseDocumentFormat:
+      type: string
+      enum:
+      - pdf
+      - docx
+    CaseDocumentType:
+      type: string
+      enum:
+      - venta_condicional
+      - venta_condicional_seguro
+      - pagare_autentico
+      - entrega_voluntaria
+      - acto_seguro
+      - pagare_seguro
+      - declaracion_jurada
+      - gps
+      - autorizacion_data
+      - acuerdo_seguro
+      - autorizacion_asegurar_vehiculo
+      - autorizacion_desembolso
+      - designacion_cuenta
+      - levantamiento_oposicion
+      - entrega_vehiculo
+      - entrega_vehiculo_fines_saldo
+      - entrega_documentos
+      - carta_saldo
     CaseListItem:
       type: object
       required:
@@ -5854,6 +6089,35 @@ components:
           - $ref: '#/components/schemas/MonthlyPlan'
           - type: 'null'
       additionalProperties: false
+    GenerateCaseDocument:
+      type: object
+      required:
+      - company_id
+      - document_type
+      - format
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        contract_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        document_type:
+          $ref: '#/components/schemas/CaseDocumentType'
+        format:
+          $ref: '#/components/schemas/CaseDocumentFormat'
+        operator_values:
+          type: object
+          description: |-
+            Operator inputs for this document type. The available-documents response declares the allowed keys.
+            Text values are limited to 1000 characters after trimming.
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
+      additionalProperties: false
     HealthResponse:
       type: object
       required:
@@ -5949,6 +6213,21 @@ components:
       - pending
       - in_review
       - paid
+    LatestGeneratedDocument:
+      type: object
+      required:
+      - id
+      - created_at
+      - format
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        format:
+          $ref: '#/components/schemas/DocumentFormat'
+        id:
+          type: string
+          format: uuid
     LegacyDocument:
       type: object
       required:
@@ -6256,6 +6535,29 @@ components:
         vehicle:
           $ref: '#/components/schemas/Vehicle'
       additionalProperties: false
+    OperatorField:
+      type: object
+      required:
+      - key
+      - label
+      - kind
+      - required
+      properties:
+        key:
+          type: string
+        kind:
+          $ref: '#/components/schemas/OperatorFieldKind'
+        label:
+          type: string
+        required:
+          type: boolean
+          example: true
+    OperatorFieldKind:
+      type: string
+      enum:
+      - text
+      - money
+      - date
     Party:
       type: object
       properties:
@@ -6532,6 +6834,17 @@ components:
         token:
           type: string
       additionalProperties: false
+    TemplateCandidate:
+      type: object
+      required:
+      - contract_id
+      - name
+      properties:
+        contract_id:
+          type: string
+          format: uuid
+        name:
+          type: string
     TemplateResponse:
       type: object
       required:

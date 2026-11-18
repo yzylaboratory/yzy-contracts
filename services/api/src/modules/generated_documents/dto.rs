@@ -92,16 +92,16 @@ pub struct SaveDocument {
     pub email: Option<EmailDraft>,
     #[validate(nested)]
     pub legacy: Option<LegacyDocument>,
-    // Only multipart exports can carry a company snapshot.
+    // Only artifact uploads and server generation carry a company snapshot.
     #[serde(skip)]
     #[schema(ignore)]
-    pub(super) company: Option<CompanySnapshot>,
+    pub(in crate::modules) company: Option<CompanySnapshot>,
     #[serde(skip)]
     #[schema(ignore)]
-    pub(super) operation_id: Option<Uuid>,
+    pub(in crate::modules) operation_id: Option<Uuid>,
     #[serde(skip)]
     #[schema(ignore)]
-    pub(super) document_type: Option<String>,
+    pub(in crate::modules) document_type: Option<String>,
 }
 
 #[derive(Deserialize, Validate, ToSchema)]

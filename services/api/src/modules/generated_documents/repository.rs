@@ -17,7 +17,7 @@ pub async fn insert(
     artifact: Option<(FileKind, &[u8])>,
 ) -> sqlx::Result<Option<DocumentMetadata>> {
     let mut tx = db.begin().await?;
-    let saved = insert_in_transaction(&mut tx, owner, id, body, legacy, artifact).await?;
+    let saved = insert_in_transaction(&mut tx, owner, id, body, legacy, artifact, None).await?;
     tx.commit().await?;
     Ok(saved)
 }
@@ -29,13 +29,14 @@ pub(super) async fn insert_in_transaction(
     body: &SaveDocument,
     legacy: Option<(&str, DateTime<Utc>)>,
     artifact: Option<(FileKind, &[u8])>,
+    case_fingerprint: Option<&[u8]>,
 ) -> sqlx::Result<Option<DocumentMetadata>> {
     // Fresh documents inherit access to their source and company.
     let saved: Option<DocumentMetadata> = sqlx::query_as(
         "INSERT INTO generated_documents
             (owner_id, id, contract_id, contract_name, format, filename, markdown,
-             email, imported_from_session, created_at, artifact, company, operation_id, operation_company_id, document_type)
-         SELECT $1, $2, $3, source.name, $4, $5, $6, $7, $8::text IS NOT NULL, COALESCE($9, now()), $10, $13, $15, CASE WHEN $15 IS NOT NULL THEN $14 END, $16
+             email, imported_from_session, created_at, artifact, company, operation_id, operation_company_id, document_type, case_request_fingerprint)
+         SELECT $1, $2, $3, source.name, $4, $5, $6, $7, $8::text IS NOT NULL, COALESCE($9, now()), $10, $13, $15, CASE WHEN $15 IS NOT NULL THEN $14 END, $16, $17
          FROM (
            SELECT CASE WHEN $8::text IS NOT NULL THEN $8 ELSE (
              SELECT name FROM contracts
@@ -58,7 +59,7 @@ pub(super) async fn insert_in_transaction(
                  AND (o.contract_id IS NULL OR can_use_client_contract($1, o.contract_id, $14))
              )
            ))
-         ON CONFLICT (id) DO NOTHING
+         ON CONFLICT DO NOTHING
          RETURNING id, contract_id, contract_name, format, filename, created_at, artifact IS NOT NULL AS has_artifact, company, operation_id, document_type",
     )
     .bind(owner)
@@ -77,23 +78,26 @@ pub(super) async fn insert_in_transaction(
     .bind(body.company.as_ref().map(|company| company.id))
     .bind(body.operation_id)
     .bind(&body.document_type)
+    .bind(case_fingerprint)
     .fetch_optional(&mut *connection)
     .await?;
     // A regenerated case document replaces the earlier copy of the same
-    // template and format in that case.
+    // template, type and format in that case.
     if let Some(saved) = &saved
         && saved.operation_id.is_some()
     {
         sqlx::query(
             "DELETE FROM generated_documents
              WHERE operation_id = $1 AND operation_company_id = $2
-               AND contract_id = $3 AND format = $4 AND id <> $5",
+               AND contract_id = $3 AND format = $4 AND id <> $5
+               AND document_type IS NOT DISTINCT FROM $6",
         )
         .bind(saved.operation_id)
         .bind(body.company.as_ref().map(|company| company.id))
         .bind(body.contract_id)
         .bind(body.format.as_str())
         .bind(saved.id)
+        .bind(&body.document_type)
         .execute(&mut *connection)
         .await?;
     }
@@ -121,6 +125,31 @@ pub(super) async fn find_for_owner(
     sqlx::query_as(
         "SELECT id, contract_id, contract_name, format, filename, created_at, artifact IS NOT NULL AS has_artifact,
                 markdown, email, imported_from_session, company, operation_id, document_type
+         FROM generated_documents WHERE owner_id = $1 AND id = $2",
+    )
+    .bind(owner)
+    .bind(id)
+    .fetch_optional(db)
+    .await
+}
+
+#[derive(sqlx::FromRow)]
+pub(super) struct StoredCaseRequest {
+    #[sqlx(flatten)]
+    pub metadata: DocumentMetadata,
+    #[sqlx(rename = "case_request_fingerprint")]
+    pub fingerprint: Option<Vec<u8>>,
+}
+
+pub(super) async fn find_case_request(
+    db: &PgPool,
+    owner: Uuid,
+    id: Uuid,
+) -> sqlx::Result<Option<StoredCaseRequest>> {
+    sqlx::query_as(
+        "SELECT id, contract_id, contract_name, format, filename, created_at,
+                artifact IS NOT NULL AS has_artifact, company, operation_id, document_type,
+                case_request_fingerprint
          FROM generated_documents WHERE owner_id = $1 AND id = $2",
     )
     .bind(owner)

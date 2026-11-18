@@ -76,6 +76,19 @@ pub(super) async fn render_pdf(
 }
 
 pub(crate) async fn pdf_response(state: &AppState, docx: Bytes) -> Result<Response, ApiError> {
+    let pdf = render_pdf_bytes(state, docx).await?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, FileKind::Pdf.mime_type()),
+            (header::CACHE_CONTROL, "private, no-store"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        Bytes::from(pdf),
+    )
+        .into_response())
+}
+
+pub(crate) async fn render_pdf_bytes(state: &AppState, docx: Bytes) -> Result<Vec<u8>, ApiError> {
     let max_bytes = artifact_max_bytes(state.config.upload_max_bytes);
     if docx.len() > max_bytes {
         return Err(ApiError::PayloadTooLarge);
@@ -87,14 +100,5 @@ pub(crate) async fn pdf_response(state: &AppState, docx: Bytes) -> Result<Respon
         .document_renderer
         .as_ref()
         .ok_or(ApiError::DocumentRendererUnavailable)?;
-    let pdf = renderer.render_pdf(docx, max_bytes).await?;
-    Ok((
-        [
-            (header::CONTENT_TYPE, FileKind::Pdf.mime_type()),
-            (header::CACHE_CONTROL, "private, no-store"),
-            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
-        ],
-        Bytes::from(pdf),
-    )
-        .into_response())
+    renderer.render_pdf(docx, max_bytes).await
 }

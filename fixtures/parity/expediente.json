@@ -1,0 +1,240 @@
+{
+  "client": {
+    "name": "DARÍO NÚÑEZ FICTICIO",
+    "identity": "000-0000001-0",
+    "address": "Calle del Ensayo, edificio Nube",
+    "phone": "809-555-0100",
+    "email": "dario@example.test",
+    "income_source": "ANIMACIÓN",
+    "profile": {
+      "treatment": "SR.",
+      "nationality": "DOMINICANO",
+      "marital_status": "SOLTERO",
+      "position": "DIBUJANTE"
+    }
+  },
+  "operation": {
+    "reference": "ENSAYO-1",
+    "signature_date": "2026-01-31",
+    "insurance_installment_minor": 200000,
+    "contract_date": "2026-02-01",
+    "insurance_paid": false,
+    "vehicle": {
+      "vehicle_type": "AUTOMÓVIL",
+      "make": "ENSAYO",
+      "model": "BRÚJULA",
+      "year": "2024",
+      "color": "AZUL",
+      "plate": "PRB0001",
+      "chassis_number": "PRUEBA00000000001",
+      "engine_number": "000914"
+    },
+    "application": {
+      "application_date": "2026-01-25",
+      "requested_amount_minor": 9900000
+    },
+    "financing": {
+      "interest_installments": [
+        {
+          "date": "2026-02-28",
+          "amount_minor": 250000
+        },
+        {
+          "date": "2026-03-31",
+          "amount_minor": 250000
+        }
+      ],
+      "final_principal": {
+        "date": "2026-12-31",
+        "amount_minor": 9000000
+      },
+      "extraordinary_payments": [
+        {
+          "date": "2026-05-31",
+          "amount_minor": 500000
+        },
+        {
+          "date": "2026-09-30",
+          "amount_minor": 300000
+        }
+      ],
+      "extraordinary_from_signature": true,
+      "extraordinary_payment_count": 2,
+      "insurance_installment_count": 3
+    }
+  },
+  "company": {
+    "name": "Comercial Sintética",
+    "values": {
+      "empresa_razon_social": "Comercial Sintética, S.R.L.",
+      "empresa_nombre": "Comercial Sintética, S.R.L.",
+      "empresa_direccion": "Edificio de Ensayo, Santiago",
+      "empresa_notario_nombre": "LIC. PERSONA DE PRUEBA",
+      "empresa_testigo_richard": "TESTIGO A DE PRUEBA",
+      "empresa_testigo_usuario": "TESTIGO B DE PRUEBA"
+    }
+  },
+  "insurer": {
+    "empresa_razon_social": "INVERSIONES MARTÍNEZ ROSARIO, S.R.L.",
+    "empresa_representante_nombre": "REPRESENTANTE SINTÉTICO"
+  },
+  "cases": [
+    {
+      "type": "venta_condicional",
+      "label": "CONTRATO DE VENTA CONDICIONAL DE MUEBLES",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{vehiculo_matricula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuotas_intereses}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuota_final_capital}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{total_financiamiento}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_ancla_cuota_extraordinaria}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{abono_extraordinario_2_monto}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_abono_extraordinario_2}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_motor}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_anio}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion_transito}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{empresa_razon_social}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{porcentaje_de_mora_diaria_sobre_la_cuota}}</w:t></w:r></w:p><w:p><w:r><w:t>El comprador se compromete a pagar {{abono_extraordinario_1_monto}} el {{fecha_abono_extraordinario_1}}, según las condiciones pactadas.</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• PRB0001</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p><w:p><w:r><w:t>• 1) 28 de febrero de 2026, RD$2,500.00. 2) 31 de marzo de 2026, RD$2,500.00</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de diciembre de 2026, RD$90,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• RD$95,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• 28 de febrero de 2026</w:t></w:r></w:p><w:p><w:r><w:t>• RD$3,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• 30 de septiembre de 2026</w:t></w:r></w:p><w:p><w:r><w:t>• 000914</w:t></w:r></w:p><w:p><w:r><w:t>• 2024</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA</w:t></w:r></w:p><w:p><w:r><w:t>• Comercial Sintética, S.R.L.</w:t></w:r></w:p><w:p><w:r><w:t>• 6%</w:t></w:r></w:p><w:p><w:r><w:t>El comprador se compromete a pagar RD$5,000.00 el 31 de mayo de 2026, según las condiciones pactadas.</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {
+        "empresa_razon_social": "Comercial Sintética, S.R.L."
+      }
+    },
+    {
+      "type": "venta_condicional_seguro",
+      "label": "Venta condicional de seguro",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{fecha_de_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{placa_del_vehiculo}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_1}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_2}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_3}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_4}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_5}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_6}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_7}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_8}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_9}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_de_vencimiento_de_la_cuota_10}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_de_cada_cuota}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_total_financiado}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_total_financiado_en_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{domicilio_del_cliente}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{ocupacion_del_cliente}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{empresa_razon_social}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{representante_seguro_nombre}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• TREINTA Y UNO (31) DE ENERO DEL AÑO DOS MIL VEINTISEIS (2026)</w:t></w:r></w:p><w:p><w:r><w:t>• PRB0001</w:t></w:r></w:p><w:p><w:r><w:t>• 28/02/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31/03/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 30/04/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31/05/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 30/06/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31/07/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31/08/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 30/09/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31/10/2026</w:t></w:r></w:p><w:p><w:r><w:t>• 30/11/2026</w:t></w:r></w:p><w:p><w:r><w:t>• RD$2,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• RD$20,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• VEINTE MIL PESOS CON 00/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• DIBUJANTE</w:t></w:r></w:p><w:p><w:r><w:t>• INVERSIONES MARTÍNEZ ROSARIO, S.R.L.</w:t></w:r></w:p><w:p><w:r><w:t>• REPRESENTANTE SINTÉTICO</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "pagare_autentico",
+      "label": "Pagaré auténtico notarial",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{parrafo_compromiso_pago}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cantidad_cuotas_intereses}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cantidad_cuotas_intereses_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuota_intereses_monto}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuota_intereses_monto_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_primera_cuota_intereses_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuota_final_capital_monto}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuota_final_capital_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_cuota_final_capital_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{total_financiamiento}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{total_financiamiento_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{testigo_richard}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{testigo_usuario}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuotas_intereses}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_nacionalidad}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_estado_civil}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{testigo_usuario_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{nombre_del_notario}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• CERO CERO CERO GUION CERO CERO CERO CERO CERO CERO UNO GUION CERO</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>TREINTA Y UNO (31)</w:t></w:r><w:r><w:t xml:space=\"preserve\"> días del mes de </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>ENERO</w:t></w:r><w:r><w:t xml:space=\"preserve\"> del año </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>2026</w:t></w:r></w:p><w:p><w:r><w:t>• se compromete a pagar RD$5,000.00 el 31 de mayo de 2026, según las condiciones pactadas</w:t></w:r></w:p><w:p><w:r><w:t>• 2</w:t></w:r></w:p><w:p><w:r><w:t>• DOS</w:t></w:r></w:p><w:p><w:r><w:t>• RD$2,500.00</w:t></w:r></w:p><w:p><w:r><w:t>• DOS MIL QUINIENTOS PESOS CON 00/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p><w:p><w:r><w:t>• VEINTIOCHO (28) DE FEBRERO DEL AÑO DOS MIL VEINTISEIS (2026)</w:t></w:r></w:p><w:p><w:r><w:t>• RD$90,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• NOVENTA MIL PESOS CON 00/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) DE DICIEMBRE DEL AÑO DOS MIL VEINTISEIS (2026)</w:t></w:r></w:p><w:p><w:r><w:t>• RD$95,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• NOVENTA Y CINCO MIL PESOS CON 00/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p><w:p><w:r><w:t>• TESTIGO A DE PRUEBA</w:t></w:r></w:p><w:p><w:r><w:t>• TESTIGO B DE PRUEBA</w:t></w:r></w:p><w:p><w:r><w:t>• DOS (2) CUOTAS DE DOS MIL QUINIENTOS PESOS CON 00/100 CENTAVOS DOMINICANOS (RD$2,500.00) CADA UNA. VENCIMIENTOS EL VEINTIOCHO (28) DE FEBRERO DEL AÑO DOS MIL VEINTISEIS (2026) y TREINTA Y UNO (31) DE MARZO DEL AÑO DOS MIL VEINTISEIS (2026)</w:t></w:r></w:p><w:p><w:r><w:t>• dominicano</w:t></w:r></w:p><w:p><w:r><w:t>• soltero</w:t></w:r></w:p><w:p><w:r><w:t>• 402-3415245-8</w:t></w:r></w:p><w:p><w:r><w:t>• LIC. PERSONA DE PRUEBA</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "entrega_voluntaria",
+      "label": "Entrega voluntaria",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• CERO CERO CERO GUION CERO CERO CERO CERO CERO CERO UNO GUION CERO</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "acto_seguro",
+      "label": "CONTRATO DE VENTA CONDICIONAL DE MUEBLES (SEGURO)",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cantidad_cuotas_seguro}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuotas_seguro_numeros}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuotas_seguro_fechas}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cuotas_seguro_montos}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_total_seguro}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_total_seguro_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{representante_seguro_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{nombre_del_notario}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t>• 3</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p><w:p><w:r><w:t>• 1</w:t><w:br/><w:t>2</w:t><w:br/><w:t>3</w:t></w:r></w:p><w:p><w:r><w:t>• 28/02/2026</w:t><w:br/><w:t>31/03/2026</w:t><w:br/><w:t>30/04/2026</w:t></w:r></w:p><w:p><w:r><w:t>• RD$2,000.00</w:t><w:br/><w:t>RD$2,000.00</w:t><w:br/><w:t>RD$2,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• RD$6,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• SEIS MIL PESOS CON 00/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p><w:p><w:r><w:t>• REPRESENTANTE SINTÉTICO</w:t></w:r></w:p><w:p><w:r><w:t>• LIC. PERSONA DE PRUEBA</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "pagare_seguro",
+      "label": "Pagaré auténtico notarial (SEGURO)",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cantidad_cuotas_seguro}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{empresa_seguro_razon_social}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_cuota_seguro}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_total_seguro_letras}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_primera_cuota_seguro}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_ultima_cuota_seguro}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t>• 3</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>TREINTA Y UNO (31)</w:t></w:r><w:r><w:t xml:space=\"preserve\"> días del mes de </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>ENERO</w:t></w:r><w:r><w:t xml:space=\"preserve\"> del año </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>2026</w:t></w:r></w:p><w:p><w:r><w:t>• INVERSIONES MARTÍNEZ ROSARIO, S.R.L.</w:t></w:r></w:p><w:p><w:r><w:t>• RD$2,000.00</w:t></w:r></w:p><w:p><w:r><w:t>• SEIS MIL PESOS CON 00/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p><w:p><w:r><w:t>• VEINTIOCHO (28) DE FEBRERO DEL AÑO DOS MIL VEINTISEIS (2026)</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA (30) DE ABRIL DEL AÑO DOS MIL VEINTISEIS (2026)</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "declaracion_jurada",
+      "label": "DECLARACION JURADA DE PERSONA FISICA",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_telefono}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_correo}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_origen_ingresos}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_contrato}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_ocupacion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_nombre_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{empresa_direccion}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• 809-555-0100</w:t></w:r></w:p><w:p><w:r><w:t>• dario@example.test</w:t></w:r></w:p><w:p><w:r><w:t>• ANIMACIÓN</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p><w:p><w:r><w:t>• ANIMACIÓN</w:t></w:r></w:p><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>EDIFICIO DE ENSAYO, SANTIAGO</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {
+        "empresa_direccion": "EDIFICIO DE ENSAYO, SANTIAGO"
+      }
+    },
+    {
+      "type": "gps",
+      "label": "CONTRATO DE ACUERDO ENTRE LAS PARTES - GPS",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "autorizacion_data",
+      "label": "Autorización de revisión del buró de crédito",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_nombre_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion_transito}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{nombre_del_notario}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>TREINTA Y UNO (31)</w:t></w:r><w:r><w:t xml:space=\"preserve\"> días del mes de </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>ENERO</w:t></w:r><w:r><w:t xml:space=\"preserve\"> del año </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>2026</w:t></w:r></w:p><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE Y DE TRÁNSITO POR LA CAPITAL DE LA REPÚBLICA DOMINICANA</w:t></w:r></w:p><w:p><w:r><w:t>• LIC. PERSONA DE PRUEBA</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "acuerdo_seguro",
+      "label": "Acuerdo de renovación anual de seguro",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• treinta y uno de enero del año dos mil veintiséis</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "autorizacion_asegurar_vehiculo",
+      "label": "Carta de autorización para asegurar vehículo",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de enero de 2026</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "autorizacion_desembolso",
+      "label": "Autorización de desembolso",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_desembolso}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{distribucion_desembolso}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{empresa_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_nombre_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {
+        "distribucion_desembolso": "  Taller Sintético: RD$40,000.00.\nDarío: RD$50,000.00.  "
+      },
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p><w:p><w:r><w:t>• 31/01/2026</w:t></w:r></w:p><w:p><w:r><w:t>• NOVENTA MIL PESOS CON 00/100 CENTAVOS DOMINICANOS (RD$90,000.00)</w:t></w:r></w:p><w:p><w:r><w:t>• Taller Sintético: RD$40,000.00. Darío: RD$50,000.00.</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>EDIFICIO DE ENSAYO, SANTIAGO</w:t></w:r></w:p><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {
+        "empresa_direccion": "EDIFICIO DE ENSAYO, SANTIAGO"
+      }
+    },
+    {
+      "type": "designacion_cuenta",
+      "label": "Designación de cuenta",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{monto_desembolso}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{distribucion_desembolso}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{nombre_del_notario}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_contrato}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {
+        "distribucion_desembolso": "  Taller Sintético: RD$40,000.00.\nDarío: RD$50,000.00.  "
+      },
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• TREINTA Y UNO (31) días del mes de ENERO del año 2026</w:t></w:r></w:p><w:p><w:r><w:t>• NOVENTA MIL PESOS CON 00/100 CENTAVOS DOMINICANOS (RD$90,000.00)</w:t></w:r></w:p><w:p><w:r><w:t>• Taller Sintético: RD$40,000.00. Darío: RD$50,000.00.</w:t></w:r></w:p><w:p><w:r><w:t>• LIC. PERSONA DE PRUEBA</w:t></w:r></w:p><w:p><w:r><w:t>• 31/01/2026</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "levantamiento_oposicion",
+      "label": "PODER ESPECIAL PARA LEVANTAMIENTO DE OPOSICION EN LA DGII",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_direccion}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">• </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>CALLE DEL ENSAYO, EDIFICIO NUBE</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "entrega_vehiculo",
+      "label": "Entrega de vehículo",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p><w:p><w:r><w:t>• treinta y uno de enero del año dos mil veintiséis</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "entrega_vehiculo_fines_saldo",
+      "label": "Entrega de vehículo con fines de saldo",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• TIPO AUTOMÓVIL, MARCA ENSAYO, MODELO BRÚJULA, AÑO 2024, COLOR AZUL, CHASIS PRUEBA00000000001, PLACA PRB0001, MOTOR 000914</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de enero de 2026</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "entrega_documentos",
+      "label": "Entrega de documentos",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{operacion_referencia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_contrato}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {},
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t>• ENSAYO-1</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de enero de 2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de enero de 2026</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    },
+    {
+      "type": "carta_saldo",
+      "label": "Carta de saldo",
+      "document_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• {{cliente_nombre}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{cliente_cedula}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{vehiculo_garantia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{operacion_referencia}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_contrato}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_firma}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{saldo_confirmado}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{fecha_saldo}}</w:t></w:r></w:p><w:p><w:r><w:t>• {{saldo_confirmado_letras}}</w:t></w:r></w:p></w:body></w:document>",
+      "operator_values": {
+        "saldo_confirmado": " RD$ 1,405.25 ",
+        "fecha_saldo": "2026-11-16"
+      },
+      "expected_xml": "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>• DARÍO NÚÑEZ FICTICIO</w:t></w:r></w:p><w:p><w:r><w:t>• 000-0000001-0</w:t></w:r></w:p><w:p><w:r><w:t>• Tipo AUTOMÓVIL, Marca ENSAYO, Modelo BRÚJULA, Año 2024, Color AZUL, Chasis PRUEBA00000000001, Placa PRB0001, Motor 000914</w:t></w:r></w:p><w:p><w:r><w:t>• ENSAYO-1</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de enero de 2026</w:t></w:r></w:p><w:p><w:r><w:t>• 31 de enero de 2026</w:t></w:r></w:p><w:p><w:r><w:t>• RD$1,405.25</w:t></w:r></w:p><w:p><w:r><w:t>• 16 de noviembre de 2026</w:t></w:r></w:p><w:p><w:r><w:t>• MIL CUATROCIENTOS CINCO PESOS CON 25/100 CENTAVOS DOMINICANOS</w:t></w:r></w:p></w:body></w:document>",
+      "company_values": {}
+    }
+  ]
+}

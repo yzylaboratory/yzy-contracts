@@ -1,4 +1,5 @@
 mod dashboard;
+mod documents;
 mod dto;
 mod history;
 mod loan_pdf;
@@ -28,6 +29,8 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(dashboard::summary))
         .routes(routes!(list_cases))
         .routes(routes!(get_case))
+        .routes(routes!(documents::available_documents))
+        .routes(routes!(documents::generate_document))
         .routes(routes!(loan_pdf::download))
         .routes(routes!(loan_pdf::download_docx))
         .routes(routes!(list_clients, create_client))
@@ -77,12 +80,24 @@ async fn list_cases(
 )]
 async fn get_case(
     State(state): State<AppState>,
+    Extension(user): Extension<AuthUser>,
     ApiPath(id): ApiPath<Uuid>,
 ) -> Result<Json<Operation>, ApiError> {
-    repository::find_case(&state.db, id)
+    let case = repository::find_case(&state.db, id)
         .await?
-        .map(Json)
-        .ok_or(ApiError::ClientOperationNotFound)
+        .ok_or(ApiError::ClientOperationNotFound)?;
+    // Members never read case files of an archived company. Same gate as the list.
+    if !user.superadmin {
+        let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
+            .bind(user.id)
+            .bind(case.company_id)
+            .fetch_one(&state.db)
+            .await?;
+        if !allowed {
+            return Err(ApiError::ClientOperationNotFound);
+        }
+    }
+    Ok(Json(case))
 }
 
 /// Case-based generation requires the operation's current source and the

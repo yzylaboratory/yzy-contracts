@@ -1,0 +1,19 @@
+{
+  "097b53b34888111d48aef39a739057455e5ecedf81321eb5c10260c661836c8c": "autorizacion_desembolso",
+  "26e4d6e9e74998d21a8f8f736cfa062f921a935c9d9241166950186c5dc5e370": "levantamiento_oposicion",
+  "59ee044f2cd58d8593d62b549ab4be336d08d00a55e805640ae15ee2b8af9f13": "entrega_vehiculo_fines_saldo",
+  "78d22c39066ac9ccd6f68b6fef2e1594df31de8c922696694baccd2606af37e8": "designacion_cuenta",
+  "a7fb1fd852f3db9dd586dec37421f19b8a8cad3f1437e2d736e5a0de53ad538c": "autorizacion_asegurar_vehiculo",
+  "ac9d28dca842f48da51a48d56a7f468e002aa1043ff68506599e15d3937330d8": "pagare_autentico",
+  "ae59f5b5bf115ac9b67a24fed54dfc85efc34b6808d890d736b1998684fdb5d3": "pagare_seguro",
+  "c1e1109025ffa0e6cb2302878642a17b5f83a97a09944a129923af1401b614ad": "venta_condicional",
+  "c202e7e98da62765d70daa5b8a56f92771cbeeab4ac5fdf4f7113230039ace40": "gps",
+  "cdbd37e9296246bf9ac5855bb2b1608294a632f939f539d730f2a5eae296c0ca": "declaracion_jurada",
+  "e0af02a6041e4ed15584548ffc1117509a9be5e145f3ec5955620e261fe5902e": "entrega_vehiculo",
+  "ead32bbf2ebefba5982ed8feb70f41addcd90e3921482fe938f0a0551070c08c": "acto_seguro",
+  "ec70570cbd8197f239906f0233e34996b21bfa814902cc312dd97742c106cb0f": "entrega_voluntaria",
+  "f4d14c8e76b27fd1faceb3de0f4cae8058ff297999743b862e0a2ec4db7c1cde": "venta_condicional_seguro",
+  "f5128cd6b9f802e0bcf5b31a417935f1e420095ab03fda85dcb9d4b980d32ad7": "acuerdo_seguro",
+  "f758a9206cfc24f770b1ecbd922065b7ea4a012f48a62175ba3613c84f029987": "venta_condicional",
+  "fbec63d48cea5d07e78ca25c5552ab4a28efd563609221c184d0b60c9dd34945": "autorizacion_data"
+}

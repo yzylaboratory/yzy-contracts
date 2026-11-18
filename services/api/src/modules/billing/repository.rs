@@ -1078,6 +1078,10 @@ pub async fn verify_transfer(
             .bind(&drafts)
             .execute(&mut *db)
             .await?;
+        sqlx::query("DELETE FROM billing_reminders WHERE invoice_id = ANY($1)")
+            .bind(&drafts)
+            .execute(&mut *db)
+            .await?;
         sqlx::query("DELETE FROM billing_invoices WHERE id = ANY($1)")
             .bind(&drafts)
             .execute(db)

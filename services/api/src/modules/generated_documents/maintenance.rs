@@ -180,6 +180,7 @@ pub async fn replace_words(config: &Config, apply: bool) -> anyhow::Result<()> {
             &body,
             None,
             Some((FileKind::Docx, &artifact)),
+            None,
         )
         .await?;
         ensure!(saved.is_some(), "could not replace {kind}");

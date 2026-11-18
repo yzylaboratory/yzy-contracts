@@ -742,6 +742,21 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
     let visible = app.get(manager, BILLING).await.1;
     assert_eq!(visible["invoices"].as_array().unwrap().len(), 1);
 
+    // A due reminder can already exist when the pending renewal is rejected.
+    let original_invoice = Uuid::parse_str(id).unwrap();
+    let reminders = sqlx::query(
+        "INSERT INTO yzy_contracts.billing_reminders (invoice_id, kind, scheduled_for)
+         SELECT id, 'issued', period FROM yzy_contracts.billing_invoices
+         WHERE id = $1 OR (id = $2 AND renewal_generated)
+         ON CONFLICT (invoice_id, kind) DO NOTHING",
+    )
+    .bind(original_invoice)
+    .bind(covered_invoice)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+    assert_eq!(reminders.rows_affected(), 2);
+
     let rejected = app
         .put(
             admin,
@@ -752,6 +767,22 @@ async fn renewal_reserves_months_and_covers_them_once_the_transfer_is_confirmed(
     assert_eq!(rejected.0, StatusCode::OK, "{}", rejected.1);
     assert_eq!(rejected.1["months"], 1);
     assert_eq!(rejected.1["total_minor"], 1_800_000);
+    let remaining_draft: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM yzy_contracts.billing_invoices WHERE id = $1)",
+    )
+    .bind(covered_invoice)
+    .fetch_one(&app.admin)
+    .await
+    .unwrap();
+    assert!(!remaining_draft);
+    let remaining_reminders: Vec<Uuid> = sqlx::query_scalar(
+        "SELECT invoice_id FROM yzy_contracts.billing_reminders WHERE invoice_id = ANY($1)",
+    )
+    .bind([original_invoice, covered_invoice])
+    .fetch_all(&app.admin)
+    .await
+    .unwrap();
+    assert_eq!(remaining_reminders, [original_invoice]);
 
     let year = json!({"reference":"DEMO-DOCE-MESES","months":12,"expected_total_minor":19_440_000});
     let (status, reported) = app.put(manager, &report_url, year).await;

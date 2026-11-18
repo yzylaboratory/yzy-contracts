@@ -321,14 +321,12 @@ async fn case_directory_lists_each_purchase_and_searches_across_clients_and_vehi
             .all(|item| item["company_id"] == json!(company))
     );
 
+    // Members never list case files of an archived company.
     let (status, archived_page) = app.get(member, &archived_cases).await;
-    assert_eq!(status, StatusCode::OK, "{archived_page}");
-    assert_eq!(archived_page["total"], 1);
-    assert_eq!(archived_page["items"][0]["id"], ids[1]);
-    assert_eq!(
-        archived_page["items"][0]["company_name"],
-        "Financiera histórica"
-    );
+    assert_eq!(status, StatusCode::NOT_FOUND, "{archived_page}");
+    assert_eq!(error_code(&archived_page), "COMPANY_NOT_FOUND");
+    assert!(!archived_page.to_string().contains("Financiera histórica"));
+    assert!(!archived_page.to_string().contains("Compra número dos"));
 
     let mut expected: Vec<_> = ids.iter().filter(|&id| *id != ids[1]).cloned().collect();
     expected.sort_by(|left, right| right.as_str().cmp(&left.as_str()));
@@ -355,12 +353,11 @@ async fn case_directory_lists_each_purchase_and_searches_across_clients_and_vehi
         assert_eq!(status, StatusCode::OK, "{result}");
         assert_eq!(result["total"], total, "{query}: {result}");
     }
-    assert_eq!(
-        app.get(member, &format!("{archived_cases}&q=numero%20dos"))
-            .await
-            .1["total"],
-        1
-    );
+    let (status, searched) = app
+        .get(member, &format!("{archived_cases}&q=numero%20dos"))
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{searched}");
+    assert_eq!(error_code(&searched), "COMPANY_NOT_FOUND");
     for query in ["per_page=101", "page=0", "q=%00"] {
         assert_eq!(
             app.get(member, &format!("{active_cases}&{query}")).await.0,
@@ -368,18 +365,142 @@ async fn case_directory_lists_each_purchase_and_searches_across_clients_and_vehi
         );
     }
 
-    let (status, case) = app.get(member, &detail).await;
+    // Members never read a case file of an archived company, even by its UUID.
+    let (status, hidden) = app.get(member, &detail).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{hidden}");
+    assert_eq!(error_code(&hidden), "CLIENT_OPERATION_NOT_FOUND");
+    assert!(!hidden.to_string().to_lowercase().contains("corolla"));
+    assert!(!hidden.to_string().contains("Compra número dos"));
+
+    let (status, case) = app.get(admin, &detail).await;
     assert_eq!(status, StatusCode::OK, "{case}");
     assert_eq!(case["id"], ids[1]);
     assert_eq!(case["client_id"], client["id"]);
     assert_eq!(case["company_id"], json!(archived));
-    assert_eq!(case["vehicle"]["model"], "Corolla");
+    assert_eq!(case["vehicle"]["model"], "COROLLA");
     assert_eq!(
         app.get(member, &format!("{CASES}/{}", Uuid::new_v4()))
             .await
             .0,
         StatusCode::NOT_FOUND
     );
+}
+
+#[tokio::test]
+async fn case_directory_filters_by_status_within_the_company() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Financiera de estados").await;
+    let other = app.legacy_company(admin, "Financiera de control").await;
+    let client = add_client(&app, admin, "Cliente de estados").await;
+    let client_id = client["id"].as_str().unwrap();
+    let mut firma_ids = Vec::new();
+    for (company_id, reference, status) in [
+        (company, "ESTADO-1", "solicitud"),
+        (company, "ESTADO-2", "firma"),
+        (company, "ESTADO-3", "firma"),
+        (company, "ESTADO-4", "desembolso"),
+        (other, "ESTADO-5", "firma"),
+    ] {
+        let (code, case) = app
+            .post(
+                admin,
+                &format!("{CLIENTS}/{client_id}/operations"),
+                json!({
+                    "company_id": company_id,
+                    "reference": reference,
+                    "status": status,
+                    "vehicle": {"make": "Honda", "model": "Civic"},
+                }),
+            )
+            .await;
+        assert_eq!(code, StatusCode::CREATED, "{case}");
+        if company_id == company && status == "firma" {
+            firma_ids.push(case["id"].as_str().unwrap().to_owned());
+        }
+    }
+
+    let (status, all) = app.get(admin, &cases_for(company)).await;
+    assert_eq!(status, StatusCode::OK, "{all}");
+    assert_eq!(all["total"], 4);
+
+    for (value, total) in [
+        ("solicitud", 1),
+        ("en_proceso", 0),
+        ("firma", 2),
+        ("desembolso", 1),
+        ("cerrado", 0),
+    ] {
+        let (status, page) = app
+            .get(admin, &format!("{}&status={value}", cases_for(company)))
+            .await;
+        assert_eq!(status, StatusCode::OK, "{page}");
+        assert_eq!(page["total"], total, "{value}: {page}");
+        assert!(
+            page["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|item| item["status"] == value && item["company_id"] == json!(company))
+        );
+    }
+
+    let (status, firma) = app
+        .get(admin, &format!("{}&status=firma", cases_for(company)))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{firma}");
+    let mut listed: Vec<String> = firma["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["id"].as_str().unwrap().to_owned())
+        .collect();
+    listed.sort();
+    firma_ids.sort();
+    assert_eq!(listed, firma_ids);
+
+    let (status, paged) = app
+        .get(
+            admin,
+            &format!("{}&status=firma&per_page=1&page=2", cases_for(company)),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{paged}");
+    assert_eq!(paged["total"], 2);
+    assert_eq!(paged["items"].as_array().unwrap().len(), 1);
+
+    let (status, searched) = app
+        .get(
+            admin,
+            &format!("{}&status=firma&q=estado-2", cases_for(company)),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{searched}");
+    assert_eq!(searched["total"], 1);
+    assert_eq!(searched["items"][0]["reference"], "ESTADO-2");
+
+    let (status, unknown) = app
+        .get(admin, &format!("{}&status=desconocido", cases_for(company)))
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{unknown}");
+    assert_eq!(error_code(&unknown), "VALIDATION_ERROR");
+}
+
+// Pending decision (Randy): whether an empty `status=` should mean "all statuses".
+// Until decided, it is rejected as a validation error.
+#[tokio::test]
+async fn case_directory_rejects_an_empty_status_filter_as_validation_error() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app
+        .legacy_company(admin, "Financiera de filtro vacío")
+        .await;
+
+    let (status, empty) = app
+        .get(admin, &format!("{}&status=", cases_for(company)))
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{empty}");
+    assert_eq!(error_code(&empty), "VALIDATION_ERROR");
 }
 
 #[tokio::test]

@@ -22,7 +22,8 @@ pub(super) async fn list_cases(db: &PgPool, query: &ListCases) -> sqlx::Result<C
            JOIN clients c ON c.id = o.client_id
            JOIN companies co ON co.id = o.company_id
            CROSS JOIN search
-           WHERE o.deleted_at IS NULL AND o.company_id = $1 AND (search.text IS NULL
+           WHERE o.deleted_at IS NULL AND o.company_id = $1
+             AND ($5::text IS NULL OR o.status = $5::text) AND (search.text IS NULL
              OR strpos(translate(lower(concat_ws(' ', o.reference, c.name,
                   o.vehicle->>'make', o.vehicle->>'model', o.vehicle->>'plate',
                   o.vehicle->>'registration_number', o.vehicle->>'chassis_number')),
@@ -41,6 +42,7 @@ pub(super) async fn list_cases(db: &PgPool, query: &ListCases) -> sqlx::Result<C
     .bind(query.q.as_deref().map(str::trim).filter(|q| !q.is_empty()))
     .bind(query.per_page)
     .bind((query.page - 1).saturating_mul(query.per_page))
+    .bind(query.status)
     .fetch_one(db)
     .await?;
     Ok(CasePage {

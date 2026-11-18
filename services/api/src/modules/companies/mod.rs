@@ -1,4 +1,4 @@
-mod repository;
+pub(super) mod repository;
 
 use std::collections::BTreeMap;
 
@@ -29,7 +29,7 @@ use crate::{
 const LEGAL_NAME: &str = "empresa_razon_social";
 const LEGAL_NAME_ALIAS: &str = "empresa_nombre";
 const MAX_VALUES: usize = 100;
-const MAX_VALUE_CHARACTERS: usize = 1000;
+pub(super) const MAX_VALUE_CHARACTERS: usize = 1000;
 const MAX_VALUES_BYTES: usize = 64 * 1024;
 /// Space for JSON escaping, separators, names and the snapshot UUID.
 pub(super) const COMPANY_JSON_LIMIT: usize = MAX_VALUES_BYTES * 6 + 16 * 1024;
@@ -37,13 +37,13 @@ pub(super) const COMPANY_JSON_LIMIT: usize = MAX_VALUES_BYTES * 6 + 16 * 1024;
 type CompanyValues = BTreeMap<String, String>;
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, sqlx::FromRow)]
-struct Company {
-    id: Uuid,
+pub(super) struct Company {
+    pub(super) id: Uuid,
     /// Internal name shown in the company selector.
-    name: String,
+    pub(super) name: String,
     /// Saved Word variables plus the derived read-only alias empresa_nombre.
     #[sqlx(rename = "variable_values", json)]
-    values: BTreeMap<String, String>,
+    pub(super) values: BTreeMap<String, String>,
     is_default: bool,
     /// Whether the signed-in user can modify this company profile.
     can_manage: bool,
@@ -53,7 +53,7 @@ struct Company {
 }
 
 impl Company {
-    fn with_alias(mut self) -> Self {
+    pub(super) fn with_alias(mut self) -> Self {
         if let Some(name) = self.values.get(LEGAL_NAME).cloned() {
             self.values.insert(LEGAL_NAME_ALIAS.to_owned(), name);
         }

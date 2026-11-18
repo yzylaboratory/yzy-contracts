@@ -1,4 +1,4 @@
-mod dto;
+pub(super) mod dto;
 pub mod maintenance;
 mod repository;
 
@@ -198,6 +198,74 @@ async fn persist(
         return Err(ApiError::GeneratedDocumentConflict);
     }
     Ok((StatusCode::OK, Json(existing.metadata)))
+}
+
+/// Replays a server generation independently of mutable template and case data.
+pub(super) async fn replay_case_document(
+    state: &AppState,
+    owner: Uuid,
+    id: Uuid,
+    fingerprint: &[u8],
+) -> Result<Option<DocumentMetadata>, ApiError> {
+    if let Some(saved) = repository::find_case_request(&state.db, owner, id).await? {
+        return if saved.fingerprint.as_deref() == Some(fingerprint) {
+            Ok(Some(saved.metadata))
+        } else {
+            Err(ApiError::GeneratedDocumentConflict)
+        };
+    }
+    if repository::id_is_used(&state.db, id).await? {
+        // The row may have committed between the two reads.
+        if let Some(saved) = repository::find_case_request(&state.db, owner, id).await?
+            && saved.fingerprint.as_deref() == Some(fingerprint)
+        {
+            return Ok(Some(saved.metadata));
+        }
+        return Err(ApiError::GeneratedDocumentConflict);
+    }
+    Ok(None)
+}
+
+pub(super) async fn persist_case_document(
+    state: &AppState,
+    owner: Uuid,
+    id: Uuid,
+    body: &SaveDocument,
+    artifact: (FileKind, &[u8]),
+    fingerprint: &[u8],
+) -> Result<(StatusCode, Json<DocumentMetadata>), ApiError> {
+    validate(body, state.config.template_max_bytes, false)?;
+    if let Some(company) = &body.company {
+        company.validate()?;
+    }
+    let mut tx = state.db.begin().await?;
+    if let Some(saved) = repository::insert_in_transaction(
+        &mut tx,
+        owner,
+        id,
+        body,
+        None,
+        Some(artifact),
+        Some(fingerprint),
+    )
+    .await?
+    {
+        tx.commit().await?;
+        return Ok((StatusCode::CREATED, Json(saved)));
+    }
+    tx.rollback().await?;
+    if let Some(saved) = replay_case_document(state, owner, id, fingerprint).await? {
+        return Ok((StatusCode::OK, Json(saved)));
+    }
+    billing::require_generation_access(
+        &state.db,
+        owner,
+        body.contract_id,
+        body.company.as_ref().map(|company| company.id),
+        body.operation_id,
+    )
+    .await?;
+    Err(ApiError::ContractNotFound)
 }
 
 #[utoipa::path(

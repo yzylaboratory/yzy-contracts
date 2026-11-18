@@ -1,0 +1,3531 @@
+[
+  {
+    "name": "split_marker",
+    "docx": "cases/split_marker.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Ana Pérez"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "repeated_and_rd",
+    "docx": "cases/repeated_and_rd.docx",
+    "variables": [
+      {
+        "key": "monto_desembolso",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      }
+    ],
+    "fields": [
+      {
+        "key": "monto_desembolso",
+        "label": "Monto",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "monto_desembolso": "RD$25,000.00",
+      "cliente_nombre": "Luis Mora"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "address_bold_uppercase_text",
+    "docx": "cases/address_bold_uppercase_text.docx",
+    "variables": [
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_ciudad",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_direccion",
+        "label": "Dirección",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_ciudad",
+        "label": "Ciudad",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_direccion": "calle 1, santiago",
+      "cliente_ciudad": "santiago"
+    },
+    "allowIncomplete": false,
+    "uppercase": true,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "pagare_dates_bold",
+    "docx": "cases/pagare_dates_bold.docx",
+    "variables": [
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_de_firma",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_firma",
+        "label": "Fecha de firma",
+        "kind": "date",
+        "required": true,
+        "dateStyle": "long"
+      },
+      {
+        "key": "fecha_de_firma",
+        "label": "Fecha del acto",
+        "kind": "date",
+        "required": true,
+        "dateStyle": "notarialAct"
+      }
+    ],
+    "values": {
+      "fecha_firma": "2026-11-16",
+      "fecha_de_firma": "2026-10-13"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": true,
+    "expectError": false
+  },
+  {
+    "name": "payment_columns_multiline",
+    "docx": "cases/payment_columns_multiline.docx",
+    "variables": [
+      {
+        "key": "cuotas_intereses_montos",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_numeros",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cuotas_intereses_montos",
+        "label": "Montos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_numeros",
+        "label": "Números",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cuotas_intereses_montos": "RD$100.00\nRD$200.00",
+      "cuotas_intereses_numeros": "1\n2"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "vehicle_identifier_lines",
+    "docx": "cases/vehicle_identifier_lines.docx",
+    "variables": [
+      {
+        "key": "vehiculo_matricula",
+        "occurrences": 1
+      },
+      {
+        "key": "numero_de_serie_del_motor",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "vehiculo_matricula",
+        "label": "Placa",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "numero_de_serie_del_motor",
+        "label": "Motor",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "vehiculo_matricula": "",
+      "numero_de_serie_del_motor": ""
+    },
+    "allowIncomplete": true,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "protected_and_field_results",
+    "docx": "cases/protected_and_field_results.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Carla Díaz"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "header_part_and_body",
+    "docx": "cases/header_part_and_body.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Pedro Gil"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "incomplete_required_allowed",
+    "docx": "cases/incomplete_required_allowed.docx",
+    "variables": [
+      {
+        "key": "cliente_telefono",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_telefono",
+        "label": "Teléfono",
+        "kind": "phone",
+        "required": true
+      }
+    ],
+    "values": {},
+    "allowIncomplete": true,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "identity_and_nationality",
+    "docx": "cases/identity_and_nationality.docx",
+    "variables": [
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_cedula",
+        "label": "Cédula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "Nacionalidad",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_cedula": "40212345678",
+      "cliente_nacionalidad": "DOMINICANO"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "final_capital_numeric_date",
+    "docx": "cases/final_capital_numeric_date.docx",
+    "variables": [
+      {
+        "key": "fecha_cuota_final_capital",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_cuota_final_capital",
+        "label": "Fecha",
+        "kind": "date",
+        "required": true
+      }
+    ],
+    "values": {
+      "fecha_cuota_final_capital": "2027-01-05"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "line_breaks_collapse",
+    "docx": "cases/line_breaks_collapse.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Ana\tPérez\nLínea dos"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "bare_brace_is_rejected",
+    "docx": "cases/bare_brace_is_rejected.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Ana"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": true
+  },
+  {
+    "name": "package_repairs",
+    "docx": "cases/package_repairs.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "Nombre",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Rosa Ruiz"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "venta_condicional_pdf",
+    "docx": "cases/venta_condicional_pdf.docx",
+    "variables": [
+      {
+        "key": "fecha_contrato",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_numeros",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_fechas",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_montos",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_tipo",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_matricula",
+        "occurrences": 1
+      },
+      {
+        "key": "parrafo_compromiso_pago",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_final_capital",
+        "occurrences": 1
+      },
+      {
+        "key": "total_financiamiento",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_cuota_final_capital",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_final_capital_monto",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion_transito",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_desembolso",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_cuota_final_capital_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_primera_cuota_intereses_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_intereses_monto",
+        "occurrences": 1
+      },
+      {
+        "key": "total_financiamiento_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_tratamiento",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_ano",
+        "occurrences": 1
+      },
+      {
+        "key": "operacion_referencia",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_telefono",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_correo",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_origen_ingresos",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_intereses",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_contrato",
+        "label": "fecha_contrato",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "cliente_nacionalidad",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_numeros",
+        "label": "cuotas_intereses_numeros",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_fechas",
+        "label": "cuotas_intereses_fechas",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_montos",
+        "label": "cuotas_intereses_montos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "vehiculo_tipo",
+        "label": "vehiculo_tipo",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_matricula",
+        "label": "vehiculo_matricula",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "parrafo_compromiso_pago",
+        "label": "parrafo_compromiso_pago",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuota_final_capital",
+        "label": "cuota_final_capital",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "total_financiamiento",
+        "label": "total_financiamiento",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_cuota_final_capital",
+        "label": "fecha_cuota_final_capital",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cuota_final_capital_monto",
+        "label": "cuota_final_capital_monto",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion_transito",
+        "label": "cliente_direccion_transito",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "monto_desembolso",
+        "label": "monto_desembolso",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas",
+        "label": "cantidad_cuotas",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_letras",
+        "label": "cantidad_cuotas_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "label": "cliente_cedula_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_cuota_final_capital_letras",
+        "label": "fecha_cuota_final_capital_letras",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_primera_cuota_intereses_letras",
+        "label": "fecha_primera_cuota_intereses_letras",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cuota_intereses_monto",
+        "label": "cuota_intereses_monto",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "total_financiamiento_letras",
+        "label": "total_financiamiento_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_tratamiento",
+        "label": "cliente_tratamiento",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_ano",
+        "label": "vehiculo_ano",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "operacion_referencia",
+        "label": "operacion_referencia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_telefono",
+        "label": "cliente_telefono",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_correo",
+        "label": "cliente_correo",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_origen_ingresos",
+        "label": "cliente_origen_ingresos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_intereses",
+        "label": "cantidad_cuotas_intereses",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "fecha_contrato": "2026-11-16",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_nacionalidad": "DOMINICANO",
+      "cuotas_intereses_numeros": "1\n2\n3",
+      "cuotas_intereses_fechas": "16/12/2026\n16/01/2027\n16/02/2027",
+      "cuotas_intereses_montos": "RD$ 100.00\nRD$ 100.00\nRD$ 100.00",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "fecha_firma": "2026-11-16",
+      "vehiculo_tipo": "Camioneta",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "vehiculo_matricula": "REG-000123",
+      "parrafo_compromiso_pago": "se compromete a pagar la suma sintetica de prueba",
+      "cuota_final_capital": "2027-01-05, RD$ 1,000.00",
+      "total_financiamiento": "RD$ 1,300.00",
+      "fecha_cuota_final_capital": "2027-01-05",
+      "cuota_final_capital_monto": "RD$ 1,000.00",
+      "cliente_direccion_transito": "calle sintetica 1, santo domingo y de tránsito por la capital de la República Dominicana",
+      "monto_desembolso": "RD$ 1,000.00",
+      "cantidad_cuotas": "4",
+      "cantidad_cuotas_letras": "CUATRO",
+      "cliente_cedula_letras": "cuatro cero dos guion uno dos tres cuatro cinco seis siete guion ocho",
+      "fecha_cuota_final_capital_letras": "CINCO (05) DE ENERO DEL AÑO DOS MIL VEINTISIETE (2027)",
+      "fecha_primera_cuota_intereses_letras": "DIECISÉIS (16) DE DICIEMBRE DEL AÑO DOS MIL VEINTISÉIS (2026)",
+      "cuota_intereses_monto": "RD$ 100.00",
+      "total_financiamiento_letras": "MIL TRESCIENTOS PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "cliente_tratamiento": "Sr.",
+      "vehiculo_ano": "2020",
+      "operacion_referencia": "REF-000001",
+      "cliente_telefono": "809-000-0000",
+      "cliente_correo": "sintetico@example.com",
+      "cliente_origen_ingresos": "SALARIO",
+      "cantidad_cuotas_intereses": "3"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "conditionalSale": "pdf",
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "venta_condicional",
+    "docx": "cases/venta_condicional.docx",
+    "variables": [
+      {
+        "key": "fecha_contrato",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_numeros",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_fechas",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_intereses_montos",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_tipo",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_matricula",
+        "occurrences": 1
+      },
+      {
+        "key": "parrafo_compromiso_pago",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_final_capital",
+        "occurrences": 1
+      },
+      {
+        "key": "total_financiamiento",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_cuota_final_capital",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_final_capital_monto",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion_transito",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_desembolso",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_cuota_final_capital_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_primera_cuota_intereses_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_intereses_monto",
+        "occurrences": 1
+      },
+      {
+        "key": "total_financiamiento_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_tratamiento",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_ano",
+        "occurrences": 1
+      },
+      {
+        "key": "operacion_referencia",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_telefono",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_correo",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_origen_ingresos",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_intereses",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_contrato",
+        "label": "fecha_contrato",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "cliente_nacionalidad",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_numeros",
+        "label": "cuotas_intereses_numeros",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_fechas",
+        "label": "cuotas_intereses_fechas",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_intereses_montos",
+        "label": "cuotas_intereses_montos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "vehiculo_tipo",
+        "label": "vehiculo_tipo",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_matricula",
+        "label": "vehiculo_matricula",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "parrafo_compromiso_pago",
+        "label": "parrafo_compromiso_pago",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuota_final_capital",
+        "label": "cuota_final_capital",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "total_financiamiento",
+        "label": "total_financiamiento",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_cuota_final_capital",
+        "label": "fecha_cuota_final_capital",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cuota_final_capital_monto",
+        "label": "cuota_final_capital_monto",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion_transito",
+        "label": "cliente_direccion_transito",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "monto_desembolso",
+        "label": "monto_desembolso",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas",
+        "label": "cantidad_cuotas",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_letras",
+        "label": "cantidad_cuotas_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "label": "cliente_cedula_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_cuota_final_capital_letras",
+        "label": "fecha_cuota_final_capital_letras",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_primera_cuota_intereses_letras",
+        "label": "fecha_primera_cuota_intereses_letras",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cuota_intereses_monto",
+        "label": "cuota_intereses_monto",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "total_financiamiento_letras",
+        "label": "total_financiamiento_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_tratamiento",
+        "label": "cliente_tratamiento",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_ano",
+        "label": "vehiculo_ano",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "operacion_referencia",
+        "label": "operacion_referencia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_telefono",
+        "label": "cliente_telefono",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_correo",
+        "label": "cliente_correo",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_origen_ingresos",
+        "label": "cliente_origen_ingresos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_intereses",
+        "label": "cantidad_cuotas_intereses",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "fecha_contrato": "2026-11-16",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_nacionalidad": "DOMINICANO",
+      "cuotas_intereses_numeros": "1\n2\n3",
+      "cuotas_intereses_fechas": "16/12/2026\n16/01/2027\n16/02/2027",
+      "cuotas_intereses_montos": "RD$ 100.00\nRD$ 100.00\nRD$ 100.00",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "fecha_firma": "2026-11-16",
+      "vehiculo_tipo": "Camioneta",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "vehiculo_matricula": "REG-000123",
+      "parrafo_compromiso_pago": "se compromete a pagar la suma sintetica de prueba",
+      "cuota_final_capital": "2027-01-05, RD$ 1,000.00",
+      "total_financiamiento": "RD$ 1,300.00",
+      "fecha_cuota_final_capital": "2027-01-05",
+      "cuota_final_capital_monto": "RD$ 1,000.00",
+      "cliente_direccion_transito": "calle sintetica 1, santo domingo y de tránsito por la capital de la República Dominicana",
+      "monto_desembolso": "RD$ 1,000.00",
+      "cantidad_cuotas": "4",
+      "cantidad_cuotas_letras": "CUATRO",
+      "cliente_cedula_letras": "cuatro cero dos guion uno dos tres cuatro cinco seis siete guion ocho",
+      "fecha_cuota_final_capital_letras": "CINCO (05) DE ENERO DEL AÑO DOS MIL VEINTISIETE (2027)",
+      "fecha_primera_cuota_intereses_letras": "DIECISÉIS (16) DE DICIEMBRE DEL AÑO DOS MIL VEINTISÉIS (2026)",
+      "cuota_intereses_monto": "RD$ 100.00",
+      "total_financiamiento_letras": "MIL TRESCIENTOS PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "cliente_tratamiento": "Sr.",
+      "vehiculo_ano": "2020",
+      "operacion_referencia": "REF-000001",
+      "cliente_telefono": "809-000-0000",
+      "cliente_correo": "sintetico@example.com",
+      "cliente_origen_ingresos": "SALARIO",
+      "cantidad_cuotas_intereses": "3"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "conditionalSale": "docx",
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "venta_condicional_seguro",
+    "docx": "cases/venta_condicional_seguro.docx",
+    "variables": [
+      {
+        "key": "fecha_de_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "placa_del_vehiculo",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_de_cada_cuota",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_total_financiado",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_total_financiado_en_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_1",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_2",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_3",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_10",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_de_firma",
+        "label": "fecha_de_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "placa_del_vehiculo",
+        "label": "placa_del_vehiculo",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "monto_de_cada_cuota",
+        "label": "monto_de_cada_cuota",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "monto_total_financiado",
+        "label": "monto_total_financiado",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "monto_total_financiado_en_letras",
+        "label": "monto_total_financiado_en_letras",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_1",
+        "label": "fecha_de_vencimiento_de_la_cuota_1",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_2",
+        "label": "fecha_de_vencimiento_de_la_cuota_2",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_3",
+        "label": "fecha_de_vencimiento_de_la_cuota_3",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_de_vencimiento_de_la_cuota_10",
+        "label": "fecha_de_vencimiento_de_la_cuota_10",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "fecha_de_firma": "2026-11-16",
+      "placa_del_vehiculo": "A000001",
+      "monto_de_cada_cuota": "RD$ 100.00",
+      "monto_total_financiado": "RD$ 1,000.00",
+      "monto_total_financiado_en_letras": "MIL PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "fecha_de_vencimiento_de_la_cuota_1": "2026-12-16",
+      "fecha_de_vencimiento_de_la_cuota_2": "2026-01-16",
+      "fecha_de_vencimiento_de_la_cuota_3": "2026-01-16",
+      "fecha_de_vencimiento_de_la_cuota_10": "2026-01-16",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_direccion": "calle sintetica 1, santo domingo"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "conditionalSale": "docx",
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "pagare_autentico",
+    "docx": "cases/pagare_autentico.docx",
+    "variables": [
+      {
+        "key": "fecha_firma",
+        "occurrences": 2
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "testigo_richard",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "parrafo_compromiso_pago",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_intereses",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_intereses_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_intereses_monto",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_intereses_monto_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_primera_cuota_intereses_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_final_capital_monto",
+        "occurrences": 1
+      },
+      {
+        "key": "cuota_final_capital_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_cuota_final_capital_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "total_financiamiento",
+        "occurrences": 1
+      },
+      {
+        "key": "total_financiamiento_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_tratamiento",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_estado_civil",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_ocupacion",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "testigo_richard",
+        "label": "testigo_richard",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "label": "cliente_cedula_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "parrafo_compromiso_pago",
+        "label": "parrafo_compromiso_pago",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_intereses",
+        "label": "cantidad_cuotas_intereses",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_intereses_letras",
+        "label": "cantidad_cuotas_intereses_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuota_intereses_monto",
+        "label": "cuota_intereses_monto",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuota_intereses_monto_letras",
+        "label": "cuota_intereses_monto_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_primera_cuota_intereses_letras",
+        "label": "fecha_primera_cuota_intereses_letras",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "cuota_final_capital_monto",
+        "label": "cuota_final_capital_monto",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuota_final_capital_letras",
+        "label": "cuota_final_capital_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_cuota_final_capital_letras",
+        "label": "fecha_cuota_final_capital_letras",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "total_financiamiento",
+        "label": "total_financiamiento",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "total_financiamiento_letras",
+        "label": "total_financiamiento_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_tratamiento",
+        "label": "cliente_tratamiento",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "cliente_nacionalidad",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_estado_civil",
+        "label": "cliente_estado_civil",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_ocupacion",
+        "label": "cliente_ocupacion",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "fecha_firma": "2026-11-16",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "testigo_richard": "Testigo Sintetico Richard Uno",
+      "cliente_cedula_letras": "cuatro cero dos guion uno dos tres cuatro cinco seis siete guion ocho",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "parrafo_compromiso_pago": "se compromete a pagar la suma sintetica de prueba",
+      "cantidad_cuotas_intereses": "3",
+      "cantidad_cuotas_intereses_letras": "TRES",
+      "cuota_intereses_monto": "RD$ 100.00",
+      "cuota_intereses_monto_letras": "CIEN PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "fecha_primera_cuota_intereses_letras": "DIECISÉIS (16) DE DICIEMBRE DEL AÑO DOS MIL VEINTISÉIS (2026)",
+      "cuota_final_capital_monto": "RD$ 1,000.00",
+      "cuota_final_capital_letras": "MIL PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "fecha_cuota_final_capital_letras": "CINCO (05) DE ENERO DEL AÑO DOS MIL VEINTISIETE (2027)",
+      "total_financiamiento": "RD$ 1,300.00",
+      "total_financiamiento_letras": "MIL TRESCIENTOS PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "cliente_tratamiento": "Sr.",
+      "cliente_nacionalidad": "DOMINICANO",
+      "cliente_estado_civil": "SOLTERO",
+      "cliente_ocupacion": "COMERCIANTE"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": true,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "entrega_voluntaria",
+    "docx": "cases/entrega_voluntaria.docx",
+    "variables": [
+      {
+        "key": "fecha_firma",
+        "occurrences": 2
+      },
+      {
+        "key": "testigo_richard",
+        "occurrences": 1
+      },
+      {
+        "key": "testigo_usuario",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_estado_civil",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_ocupacion",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "testigo_richard",
+        "label": "testigo_richard",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "testigo_usuario",
+        "label": "testigo_usuario",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "label": "cliente_cedula_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "cliente_nacionalidad",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_estado_civil",
+        "label": "cliente_estado_civil",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_ocupacion",
+        "label": "cliente_ocupacion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "fecha_firma": "2026-11-16",
+      "testigo_richard": "Testigo Sintetico Richard Uno",
+      "testigo_usuario": "Testigo Sintetico Usuario Dos",
+      "cliente_cedula_letras": "cuatro cero dos guion uno dos tres cuatro cinco seis siete guion ocho",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_nacionalidad": "DOMINICANO",
+      "cliente_estado_civil": "SOLTERO",
+      "cliente_ocupacion": "COMERCIANTE",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "acto_seguro",
+    "docx": "cases/acto_seguro.docx",
+    "variables": [
+      {
+        "key": "cuotas_seguro_numeros",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_seguro_fechas",
+        "occurrences": 1
+      },
+      {
+        "key": "cuotas_seguro_montos",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 2
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 2
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_seguro",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_total_seguro",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_total_seguro_letras",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cuotas_seguro_numeros",
+        "label": "cuotas_seguro_numeros",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_seguro_fechas",
+        "label": "cuotas_seguro_fechas",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cuotas_seguro_montos",
+        "label": "cuotas_seguro_montos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_seguro",
+        "label": "cantidad_cuotas_seguro",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "monto_total_seguro",
+        "label": "monto_total_seguro",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "monto_total_seguro_letras",
+        "label": "monto_total_seguro_letras",
+        "kind": "money",
+        "required": false
+      }
+    ],
+    "values": {
+      "cuotas_seguro_numeros": "1\n2\n3",
+      "cuotas_seguro_fechas": "16/12/2026\n16/01/2027\n16/02/2027",
+      "cuotas_seguro_montos": "RD$ 50.00\nRD$ 50.00\nRD$ 50.00",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "cantidad_cuotas_seguro": "3",
+      "fecha_firma": "2026-11-16",
+      "monto_total_seguro": "RD$ 150.00",
+      "monto_total_seguro_letras": "CIENTO CINCUENTA PESOS CON 00/100 CENTAVOS DOMINICANOS"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "pagare_seguro",
+    "docx": "cases/pagare_seguro.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "cantidad_cuotas_seguro",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_cuota_seguro",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_cuota_seguro_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_total_seguro",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_total_seguro_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_primera_cuota_seguro",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_ultima_cuota_seguro",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cantidad_cuotas_seguro",
+        "label": "cantidad_cuotas_seguro",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "monto_cuota_seguro",
+        "label": "monto_cuota_seguro",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "monto_cuota_seguro_letras",
+        "label": "monto_cuota_seguro_letras",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "monto_total_seguro",
+        "label": "monto_total_seguro",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "monto_total_seguro_letras",
+        "label": "monto_total_seguro_letras",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "fecha_primera_cuota_seguro",
+        "label": "fecha_primera_cuota_seguro",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_ultima_cuota_seguro",
+        "label": "fecha_ultima_cuota_seguro",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "cantidad_cuotas_seguro": "3",
+      "fecha_firma": "2026-11-16",
+      "monto_cuota_seguro": "RD$ 50.00",
+      "monto_cuota_seguro_letras": "CINCUENTA PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "monto_total_seguro": "RD$ 150.00",
+      "monto_total_seguro_letras": "CIENTO CINCUENTA PESOS CON 00/100 CENTAVOS DOMINICANOS",
+      "fecha_primera_cuota_seguro": "2026-12-16",
+      "fecha_ultima_cuota_seguro": "2027-03-16"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": true,
+    "expectError": false,
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "declaracion_jurada",
+    "docx": "cases/declaracion_jurada.docx",
+    "variables": [
+      {
+        "key": "testigo_richard",
+        "occurrences": 1
+      },
+      {
+        "key": "testigo_usuario",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_telefono",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_correo",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_origen_ingresos",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_contrato",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_estado_civil",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_ocupacion",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "testigo_richard",
+        "label": "testigo_richard",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "testigo_usuario",
+        "label": "testigo_usuario",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_telefono",
+        "label": "cliente_telefono",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_correo",
+        "label": "cliente_correo",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_origen_ingresos",
+        "label": "cliente_origen_ingresos",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_contrato",
+        "label": "fecha_contrato",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "cliente_nacionalidad",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_estado_civil",
+        "label": "cliente_estado_civil",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_ocupacion",
+        "label": "cliente_ocupacion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "label": "cliente_cedula_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "testigo_richard": "Testigo Sintetico Richard Uno",
+      "testigo_usuario": "Testigo Sintetico Usuario Dos",
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_telefono": "809-000-0000",
+      "cliente_correo": "sintetico@example.com",
+      "cliente_origen_ingresos": "SALARIO",
+      "fecha_contrato": "2026-11-16",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16",
+      "cliente_nacionalidad": "DOMINICANO",
+      "cliente_estado_civil": "SOLTERO",
+      "cliente_ocupacion": "COMERCIANTE",
+      "cliente_cedula_letras": "cuatro cero dos guion uno dos tres cuatro cinco seis siete guion ocho",
+      "cliente_direccion": "calle sintetica 1, santo domingo"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "gps",
+    "docx": "cases/gps.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_estado_civil",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_ocupacion",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "cliente_cedula_letras",
+        "label": "cliente_cedula_letras",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nacionalidad",
+        "label": "cliente_nacionalidad",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_estado_civil",
+        "label": "cliente_estado_civil",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_ocupacion",
+        "label": "cliente_ocupacion",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16",
+      "cliente_cedula_letras": "cuatro cero dos guion uno dos tres cuatro cinco seis siete guion ocho",
+      "cliente_nacionalidad": "DOMINICANO",
+      "cliente_estado_civil": "SOLTERO",
+      "cliente_ocupacion": "COMERCIANTE"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "autorizacion_data",
+    "docx": "cases/autorizacion_data.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion_transito",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion_transito",
+        "label": "cliente_direccion_transito",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "cliente_direccion_transito": "calle sintetica 1, santo domingo y de tránsito por la capital de la República Dominicana",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": true,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "acuerdo_seguro",
+    "docx": "cases/acuerdo_seguro.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "fecha_firma": "2026-11-16"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "autorizacion_asegurar_vehiculo",
+    "docx": "cases/autorizacion_asegurar_vehiculo.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "autorizacion_desembolso",
+    "docx": "cases/autorizacion_desembolso.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_desembolso",
+        "occurrences": 1
+      },
+      {
+        "key": "distribucion_desembolso",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "monto_desembolso",
+        "label": "monto_desembolso",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "distribucion_desembolso",
+        "label": "distribucion_desembolso",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16",
+      "monto_desembolso": "RD$ 1,000.00",
+      "distribucion_desembolso": "distribucion sintetica de prueba"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "designacion_cuenta",
+    "docx": "cases/designacion_cuenta.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "monto_desembolso",
+        "occurrences": 1
+      },
+      {
+        "key": "distribucion_desembolso",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "monto_desembolso",
+        "label": "monto_desembolso",
+        "kind": "money",
+        "required": false
+      },
+      {
+        "key": "distribucion_desembolso",
+        "label": "distribucion_desembolso",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "fecha_firma": "2026-11-16",
+      "monto_desembolso": "RD$ 1,000.00",
+      "distribucion_desembolso": "distribucion sintetica de prueba"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "levantamiento_oposicion",
+    "docx": "cases/levantamiento_oposicion.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_direccion",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "cliente_direccion",
+        "label": "cliente_direccion",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "cliente_direccion": "calle sintetica 1, santo domingo",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42"
+    },
+    "allowIncomplete": false,
+    "uppercase": true,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "entrega_vehiculo",
+    "docx": "cases/entrega_vehiculo.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_nombre_firma",
+        "occurrences": 2
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "operacion_referencia",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_nombre_firma",
+        "label": "cliente_nombre_firma",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "operacion_referencia",
+        "label": "operacion_referencia",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_nombre_firma": "Cliente Sintetico Uno",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16",
+      "operacion_referencia": "REF-000001"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "entrega_vehiculo_fines_saldo",
+    "docx": "cases/entrega_vehiculo_fines_saldo.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 2
+      },
+      {
+        "key": "operacion_referencia",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "operacion_referencia",
+        "label": "operacion_referencia",
+        "kind": "text",
+        "required": false
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "fecha_firma": "2026-11-16",
+      "operacion_referencia": "REF-000001"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false,
+    "company": {
+      "name": "Empresa Sintetica de Prueba",
+      "values": {
+        "empresa_razon_social": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_rnc": "101000001",
+        "empresa_direccion": "CALLE SINTETICA UNO, SANTO DOMINGO, PRUEBA",
+        "empresa_representante_nombre": "Representante Sintetico Uno Dos",
+        "empresa_representante_nombre_firma": "Representante S. Uno Dos",
+        "empresa_representante_cargo": "GERENTE",
+        "empresa_representante_nacionalidad": "DOMINICANO",
+        "empresa_representante_estado_civil": "SOLTERO",
+        "empresa_representante_ocupacion": "COMERCIANTE",
+        "empresa_representante_cedula": "402-1234567-8",
+        "empresa_representante_cedula_letras": "",
+        "empresa_representante_direccion": "calle sintetica dos, santo domingo",
+        "empresa_testigo_richard": "Testigo Sintetico Richard Uno",
+        "empresa_testigo_usuario": "Testigo Sintetico Usuario Dos",
+        "empresa_testigo_usuario_nombre_declaracion": "Testigo Usuario Sintetico Cuatro",
+        "empresa_banco": "BANCO SINTETICO",
+        "empresa_cuenta": "000-000001",
+        "empresa_tipo_cuenta": "corriente",
+        "empresa_titular_cuenta": "EMPRESA SINTETICA DE PRUEBA SRL",
+        "empresa_horario_pagos": "lunes a viernes, de 8:00 a. m. a 5:00 p. m."
+      }
+    },
+    "vehicle": {
+      "vehicle_type": "Camioneta",
+      "make": "MARCA-SINTETICA",
+      "model": "MODELO-X",
+      "year": "2020",
+      "color": "GRIS",
+      "registration_number": "REG-000123",
+      "chassis_number": "CHS-000999",
+      "plate": "A000001",
+      "engine_number": "MOT-42"
+    }
+  },
+  {
+    "name": "entrega_documentos",
+    "docx": "cases/entrega_documentos.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "operacion_referencia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_contrato",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "operacion_referencia",
+        "label": "operacion_referencia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_contrato",
+        "label": "fecha_contrato",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "operacion_referencia": "REF-000001",
+      "fecha_contrato": "2026-11-16",
+      "fecha_firma": "2026-11-16"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  },
+  {
+    "name": "carta_saldo",
+    "docx": "cases/carta_saldo.docx",
+    "variables": [
+      {
+        "key": "cliente_nombre",
+        "occurrences": 1
+      },
+      {
+        "key": "cliente_cedula",
+        "occurrences": 1
+      },
+      {
+        "key": "vehiculo_garantia",
+        "occurrences": 1
+      },
+      {
+        "key": "operacion_referencia",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_contrato",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_firma",
+        "occurrences": 1
+      },
+      {
+        "key": "saldo_confirmado",
+        "occurrences": 1
+      },
+      {
+        "key": "fecha_saldo",
+        "occurrences": 1
+      }
+    ],
+    "fields": [
+      {
+        "key": "cliente_nombre",
+        "label": "cliente_nombre",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "cliente_cedula",
+        "label": "cliente_cedula",
+        "kind": "identity",
+        "required": false
+      },
+      {
+        "key": "vehiculo_garantia",
+        "label": "vehiculo_garantia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "operacion_referencia",
+        "label": "operacion_referencia",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_contrato",
+        "label": "fecha_contrato",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "numeric"
+      },
+      {
+        "key": "fecha_firma",
+        "label": "fecha_firma",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      },
+      {
+        "key": "saldo_confirmado",
+        "label": "saldo_confirmado",
+        "kind": "text",
+        "required": false
+      },
+      {
+        "key": "fecha_saldo",
+        "label": "fecha_saldo",
+        "kind": "date",
+        "required": false,
+        "dateStyle": "long"
+      }
+    ],
+    "values": {
+      "cliente_nombre": "Cliente Sintetico Uno",
+      "cliente_cedula": "40212345678",
+      "vehiculo_garantia": "Tipo Camioneta, Marca MARCA-SINTETICA, Modelo MODELO-X, Año 2020, Color GRIS, Matrícula REG-000123, Chasis CHS-000999, Placa A000001, Motor MOT-42",
+      "operacion_referencia": "REF-000001",
+      "fecha_contrato": "2026-11-16",
+      "fecha_firma": "2026-11-16",
+      "saldo_confirmado": "RD$ 1,000.00",
+      "fecha_saldo": "2026-11-16"
+    },
+    "allowIncomplete": false,
+    "uppercase": false,
+    "boldPagareDate": false,
+    "expectError": false
+  }
+]
