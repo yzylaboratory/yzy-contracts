@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import gsap from "gsap";
+import { FolderOpen, UserRound } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { Button } from "@/components/arc/button/button";
 import { applicationAmountLabel, applicationDateLabel, hasCaseApplication } from "@/components/case-application/case-application";
 import { LoadingContent } from "@/components/loading/loading-ui";
@@ -181,12 +184,24 @@ function RecordContents({ accountId, companies, activeCompanyId, clientId, exped
     ["Otros ingresos", client.profile?.other_income?.trim()],
   ].filter(([, value]) => Boolean(value));
 
-  const clientPanel = <section id="datos-del-cliente" className={styles.panel} aria-labelledby="expediente-client-title">
-    <div className={styles.header}>
-      <h2 id="expediente-client-title">Datos del cliente</h2>
-      <Button id="edit-client" type="button" onClick={() => openEditor({ kind: "client" })}>Editar cliente</Button>
+  const clientPanel = <section id="datos-del-cliente" className={styles.recordCard} aria-labelledby="expediente-client-title">
+    <div className={styles.recordCardHeader}>
+      <div className={styles.recordCardHeaderLabel}>
+        <span className={styles.recordCardIcon} data-record-card-icon aria-hidden="true">
+          <UserRound size={21} />
+        </span>
+        <div className={styles.recordCardTitleGroup}>
+          <h2 id="expediente-client-title">Datos del cliente</h2>
+          <span className={styles.recordCardMeta}>Información del titular</span>
+        </div>
+      </div>
+      <div className={styles.recordCardActions}>
+        <Button id="edit-client" type="button" onClick={() => openEditor({ kind: "client" })}>Editar cliente</Button>
+      </div>
     </div>
-    <dl className={styles.summary}>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    <div className={styles.recordCardBody}>
+      <dl className={styles.summary}>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    </div>
   </section>;
 
   return <div className={`${styles.stack} ${styles.recordFrame}`}>
@@ -220,48 +235,76 @@ function ExpedienteDetail({ accountId, operation, client, companyName, clientPan
     typeof window !== "undefined" && window.location.hash === "#plan-de-pagos" && Boolean(operation.financing));
   const heading = useRef<HTMLHeadingElement>(null);
   const planTrigger = useRef<HTMLButtonElement>(null);
+  const overviewRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
   const { label, vehicle, date } = expedienteDetails(operation);
 
   useEffect(() => {
     heading.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (!overviewRef.current || reducedMotion !== false) return;
+    const context = gsap.context(() => {
+      gsap.from("[data-record-card-icon]", {
+        scale: 0.76,
+        y: 4,
+        duration: 0.42,
+        stagger: 0.08,
+        ease: "back.out(1.6)",
+      });
+    }, overviewRef);
+    return () => context.revert();
+  }, [reducedMotion]);
+
   return <>
-    <section className={styles.panel} aria-labelledby="expediente-title">
-      <div className={styles.header}>
-        <h2 id="expediente-title" ref={heading} tabIndex={-1}>{label}</h2>
-        <div className={styles.actions}>
-          {operation.financing && <Button ref={planTrigger} id="view-payment-plan" type="button" variant="secondary"
-            aria-haspopup="dialog" onClick={() => setPlanOpen(true)}>Ver plan de pagos</Button>}
-          <Button id="edit-expediente" type="button" onClick={onEdit}>Editar expediente</Button>
-        </div>
-      </div>
-      <dl className={styles.summary}>
-        <div><dt>Estado</dt><dd>{operationStatusLabel(operation.status)}</dd></div>
-        <div><dt>Empresa</dt><dd>{companyName}</dd></div>
-        {vehicle && <div><dt>Vehículo</dt><dd>{vehicle}</dd></div>}
-        {date && <div><dt>Fecha del contrato</dt><dd>{date}</dd></div>}
-        {operation.application?.requested_amount_minor != null && operation.application.requested_amount_minor > 0 && (
-          <div><dt>Monto solicitado</dt><dd>{applicationAmountLabel(operation.application.requested_amount_minor)}</dd></div>
-        )}
-        <div>
-          <dt>Fecha de firma</dt>
-          <dd>{operation.signature_date ? applicationDateLabel(operation.signature_date) : "Sin indicar"}</dd>
-        </div>
-        {operation.insurance_paid ? (
-          <div>
-            <dt>Seguro</dt>
-            <dd>Saldo (sin documentos del seguro)</dd>
+    <div ref={overviewRef} className={styles.recordOverviewCards}>
+      <section className={styles.recordCard} aria-labelledby="expediente-title">
+        <div className={styles.recordCardHeader}>
+          <div className={styles.recordCardHeaderLabel}>
+            <span className={styles.recordCardIcon} data-record-card-icon aria-hidden="true">
+              <FolderOpen size={21} />
+            </span>
+            <div className={styles.recordCardTitleGroup}>
+              <h2 id="expediente-title" ref={heading} tabIndex={-1}>{label}</h2>
+              <span className={styles.recordCardMeta}>Resumen del expediente</span>
+            </div>
           </div>
-        ) : operation.insurance_installment_minor != null && operation.insurance_installment_minor > 0 && (
-          <div>
-            <dt>Monto de cada cuota del seguro</dt>
-            <dd>{applicationAmountLabel(operation.insurance_installment_minor)}</dd>
+          <div className={styles.recordCardActions}>
+            {operation.financing && <Button ref={planTrigger} id="view-payment-plan" type="button" variant="secondary"
+              aria-haspopup="dialog" onClick={() => setPlanOpen(true)}>Ver plan de pagos</Button>}
+            <Button id="edit-expediente" type="button" onClick={onEdit}>Editar expediente</Button>
           </div>
-        )}
-      </dl>
-    </section>
-    {clientPanel}
+        </div>
+        <div className={styles.recordCardBody}>
+          <dl className={styles.summary}>
+            <div><dt>Estado</dt><dd>{operationStatusLabel(operation.status)}</dd></div>
+            <div><dt>Empresa</dt><dd>{companyName}</dd></div>
+            {vehicle && <div><dt>Vehículo</dt><dd>{vehicle}</dd></div>}
+            {date && <div><dt>Fecha del contrato</dt><dd>{date}</dd></div>}
+            {operation.application?.requested_amount_minor != null && operation.application.requested_amount_minor > 0 && (
+              <div><dt>Monto solicitado</dt><dd>{applicationAmountLabel(operation.application.requested_amount_minor)}</dd></div>
+            )}
+            <div>
+              <dt>Fecha de firma</dt>
+              <dd>{operation.signature_date ? applicationDateLabel(operation.signature_date) : "Sin indicar"}</dd>
+            </div>
+            {operation.insurance_paid ? (
+              <div>
+                <dt>Seguro</dt>
+                <dd>Saldo (sin documentos del seguro)</dd>
+              </div>
+            ) : operation.insurance_installment_minor != null && operation.insurance_installment_minor > 0 && (
+              <div>
+                <dt>Monto de cada cuota del seguro</dt>
+                <dd>{applicationAmountLabel(operation.insurance_installment_minor)}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      </section>
+      {clientPanel}
+    </div>
     <ExpedienteDocuments accountId={accountId} clientId={client.id} operationId={operation.id} onRegenerated={onRegenerated}
       loan={operation.application && hasCaseApplication(operation.application) && operation.application.application_date
         ? { client, operation, application: operation.application, onCompleteClient, onCompleteApplication: onEdit }

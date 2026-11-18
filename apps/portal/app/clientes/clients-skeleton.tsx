@@ -63,24 +63,40 @@ export function ClientRecordSkeleton() {
     <div className={styles.recordFrame}>
       <div className={styles.recordLayout}>
         <div className={styles.stack}>
-          <div className={styles.panel}>
-            <div className={styles.header}>
-              <LoadingBlock width={185} height={20} />
-              <LoadingBlock width={120} height={44} />
+          <div className={styles.recordCard}>
+            <div className={styles.recordCardHeader}>
+              <div className={styles.recordCardHeaderLabel}>
+                <LoadingBlock width={42} height={42} />
+                <div className={styles.recordCardTitleGroup}>
+                  <LoadingBlock width={140} height={18} />
+                  <LoadingBlock width={96} height={12} />
+                </div>
+              </div>
+              <LoadingBlock width={120} height={40} />
             </div>
-            <div className={styles.summary}>
-              <LoadingBlock width={142} height={36} />
-              <LoadingBlock width={112} height={36} />
+            <div className={styles.recordCardBody}>
+              <div className={styles.summary}>
+                <LoadingBlock width={142} height={36} />
+                <LoadingBlock width={112} height={36} />
+              </div>
             </div>
           </div>
-          <div className={styles.panel}>
-            <div className={styles.header}>
-              <LoadingBlock width={142} height={20} />
-              <LoadingBlock width={112} height={44} />
+          <div className={styles.recordCard}>
+            <div className={styles.recordCardHeader}>
+              <div className={styles.recordCardHeaderLabel}>
+                <LoadingBlock width={42} height={42} />
+                <div className={styles.recordCardTitleGroup}>
+                  <LoadingBlock width={140} height={18} />
+                  <LoadingBlock width={96} height={12} />
+                </div>
+              </div>
+              <LoadingBlock width={112} height={40} />
             </div>
-            <div className={styles.summary}>
-              <LoadingBlock width={158} height={36} />
-              <LoadingBlock width={116} height={36} />
+            <div className={styles.recordCardBody}>
+              <div className={styles.summary}>
+                <LoadingBlock width={158} height={36} />
+                <LoadingBlock width={116} height={36} />
+              </div>
             </div>
           </div>
           <div className={styles.panel}>
