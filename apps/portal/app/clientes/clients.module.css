@@ -398,14 +398,6 @@
 }
 @media (max-width: 480px) { .inlineField { grid-template-columns: minmax(0, 1fr); } }
 
-.documentsTable {
-  min-inline-size: 560px;
-}
-
-.documentsTable time {
-  white-space: nowrap;
-}
-
 .documentName,
 .documentMeta {
   display: block;
@@ -446,24 +438,6 @@
 
 .documentAction {
   min-inline-size: 44px;
-}
-
-.documentsMobile {
-  display: none;
-}
-
-@media (max-width: 960px) {
-  .documentsTable {
-    min-inline-size: 0;
-  }
-
-  .documentsDetail {
-    display: none;
-  }
-
-  .documentsMobile {
-    display: block;
-  }
 }
 
 .formatChoice {
@@ -666,8 +640,57 @@
   font-size: 0.95rem;
 }
 
-.documentsTable .documentGroupRow > th {
-  background: var(--surface-muted);
+.documentStageIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 42px;
+  block-size: 42px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--brand-ink) 12%, var(--surface));
   color: var(--foreground);
-  font-weight: 650;
+}
+
+.documentStageList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.documentStageEntry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-block: 12px;
+  border-block-start: 1px solid var(--border);
+}
+
+.documentStageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-block-start: 5px;
+  font-size: 12px;
+}
+
+.documentStageEntry .documentName {
+  font-weight: 600;
+}
+
+.documentStageSkeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.documentStagePlaceholder {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-block-size: 68px;
+  padding-inline: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
 }

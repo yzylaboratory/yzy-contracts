@@ -31,15 +31,15 @@ export function ClientDirectorySkeleton() {
 }
 
 export function DocumentsRowsSkeleton() {
-  return <ul className={styles.rows}>
-    {[176, 134].map(width => <li key={width} className={`${styles.operation} ${styles.header}`}>
+  return <div className={styles.documentStageSkeleton}>
+    {[176, 134, 158].map(width => <div key={width} className={styles.documentStagePlaceholder}>
+      <LoadingBlock width={42} height={42} />
       <div className={styles.rowPlaceholder}>
-        <LoadingBlock width={width} height={18} />
-        <LoadingBlock width={100} height={14} />
+        <LoadingBlock width={width} height={16} />
+        <LoadingBlock width={86} height={12} />
       </div>
-      <LoadingBlock width={92} height={44} />
-    </li>)}
-  </ul>;
+    </div>)}
+  </div>;
 }
 
 export function TimelineSkeleton() {
