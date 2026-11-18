@@ -2,8 +2,8 @@
   --font-geist: "Geist Variable", system-ui, sans-serif;
   --font-inter: "Inter Variable", system-ui, sans-serif;
 
-  /* Brand: Stone Gray · Ink Navy · Burgundy — no other chromatic accents */
-  --brand-stone: #e7e3dc;
+  /* Brand: cool gray · navy · green from the IIM logo — no other chromatic accents */
+  --brand-stone: #eceef4;
   --brand-ink: #1b1f57;
   --brand-navy: #2a3084;
   --brand-green: #00803e;
@@ -49,9 +49,9 @@
 
 :root:not([data-theme="dark"]) {
   --background: var(--brand-stone);
-  --surface: #fbf9f6;
+  --surface: #f8f9fc;
   --surface-raised: #ffffff;
-  --surface-muted: #ddd8cf;
+  --surface-muted: #dfe2eb;
   --foreground: var(--brand-ink);
   --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
   --text-muted: color-mix(in oklab, var(--brand-ink) 52%, var(--brand-stone));

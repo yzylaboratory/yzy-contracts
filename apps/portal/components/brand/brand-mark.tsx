@@ -7,8 +7,8 @@ const GAP_B = "M34 37.5H43.12";
 const OVER_B = "M34 37.5H44.12";
 
 const VARIANTS = {
-  ink: { plate: "#2a3084", linkA: "#e7e3dc", linkB: "#2fb36a", gap: "#2a3084" },
-  stone: { plate: "#f4f1ec", linkA: "#2a3084", linkB: "#00803e", gap: "#e7e3dc" },
+  ink: { plate: "#2a3084", linkA: "#eceef4", linkB: "#2fb36a", gap: "#2a3084" },
+  stone: { plate: "#f7f8fb", linkA: "#2a3084", linkB: "#00803e", gap: "#eceef4" },
 } as const;
 
 export type BrandMarkVariant = keyof typeof VARIANTS;
