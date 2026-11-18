@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { operationStatusLabel } from "@/app/clientes/expediente-status";
 import { Button } from "@/components/arc/button/button";
-import { MetricCard } from "@/components/arc/metric-card/metric-card";
+import { DashboardHero } from "./dashboard-hero";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { ApiError, isActiveAccount } from "@/lib/api";
 import { usePortalAccess } from "@/lib/portal-access";
@@ -111,40 +111,33 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
   const charts = chartData(stats);
   const savedCounter = timeSavedCounter(stats.time_saved_minutes);
 
-  const metrics = [
-    {
+  const heroMetrics = {
+    timeSaved: {
       label: "Tiempo ahorrado",
       value: savedCounter.value,
       suffix: savedCounter.suffix,
       context: `Tu ahorro: ${formatMinutes(stats.user_time_saved_minutes)} · ${stats.documents_total} docs`,
-      tone: styles.ink,
       href: "/docs-generados",
     },
-    {
+    unsigned: {
       label: "Sin firmar",
       value: stats.unsigned_cases,
-      suffix: undefined,
       context: `${stats.status_counts.solicitud} en solicitud · ${stats.status_counts.en_proceso} en proceso`,
-      tone: styles.green,
       href: "/clientes",
     },
-    {
+    pendingDisbursement: {
       label: "Sin desembolsar",
       value: stats.pending_disbursement_cases,
-      suffix: undefined,
       context: `${stats.status_counts.firma} en firma · ${stats.cases_without_plan} sin plan de pagos`,
-      tone: styles.stone,
       href: "/clientes",
     },
-    {
+    disbursed: {
       label: "Desembolsados",
       value: stats.disbursed_cases,
-      suffix: undefined,
       context: `${stats.user_disbursements_total} hechos por ti · ${stats.disbursed_this_month} este mes`,
-      tone: styles.ink,
       href: "/clientes",
     },
-  ];
+  };
 
   const pipelineStages = [
     {
@@ -186,18 +179,7 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
 
   return (
     <>
-      <section className={styles.metrics} aria-label="Indicadores operativos">
-        {metrics.map(metric => (
-          <Link key={metric.label} href={metric.href} className={`${styles.metric} ${metric.tone}`}>
-            <MetricCard
-              label={metric.label}
-              value={metric.value}
-              suffix={metric.suffix}
-              context={metric.context}
-            />
-          </Link>
-        ))}
-      </section>
+      <DashboardHero {...heroMetrics} />
 
       <div className={styles.analytics}>
         <section className={`${styles.panel} ${styles.pipeline}`} aria-labelledby="pipeline-title">
