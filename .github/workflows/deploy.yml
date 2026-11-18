@@ -4,17 +4,13 @@ on:
   push:
     branches: [main]
     paths:
+      - .github/workflows/deploy.yml
       - services/api/**
       - apps/portal/**
       - supabase/migrations/**
       - package.json
       - pnpm-lock.yaml
   workflow_dispatch:
-
-# One production deploy at a time; newer pushes wait in line.
-concurrency:
-  group: production-deploy
-  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -57,6 +53,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
+    # Serialize production deploys without blocking builds.
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
     permissions:
       packages: read
     steps:
