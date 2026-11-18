@@ -36,8 +36,8 @@ export function LoanApplicationIncompleteActions({ client, operation, onComplete
 }
 
 /** Icon actions for the documents table row. */
-export function LoanApplicationDownload({ accountId, client, operation, format }: {
-  accountId: string; client: Client; operation: Operation; format: "pdf" | "docx";
+export function LoanApplicationDownload({ accountId, client, operation, format, filename }: {
+  accountId: string; client: Client; operation: Operation; format: "pdf" | "docx"; filename?: string;
 }) {
   const downloadButton = useRef<HTMLButtonElement>(null);
   const previewButton = useRef<HTMLButtonElement>(null);
@@ -45,7 +45,7 @@ export function LoanApplicationDownload({ accountId, client, operation, format }
   const [failure, setFailure] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { blocked } = loanApplicationDocumentState(client, operation);
-  const filename = loanApplicationFilename(operation, format);
+  const downloadFilename = filename ?? loanApplicationFilename(operation, format);
 
   useEffect(() => {
     if (!previewUrl) return;
@@ -63,7 +63,7 @@ export function LoanApplicationDownload({ accountId, client, operation, format }
     setBusy("download");
     try {
       const blob = await load(format);
-      if (blob && downloadButton.current) downloadBlob(blob, filename);
+      if (blob && downloadButton.current) downloadBlob(blob, downloadFilename);
     } catch {
       setFailure(true);
     } finally {
@@ -106,7 +106,7 @@ export function LoanApplicationDownload({ accountId, client, operation, format }
     {previewUrl && (
       <DocumentPreviewDialog
         pdfUrl={previewUrl}
-        documentName={loanApplicationFilename(operation, "pdf")}
+        documentName={filename ? "Solicitud de préstamo" : loanApplicationFilename(operation, "pdf")}
         onOpen={() => recordPortalActivity(accountId, "document_previewed", "client_record")}
         onClose={() => {
           setPreviewUrl(null);

@@ -17,7 +17,7 @@ import { clientErrorMessage, type Client, type Operation } from "./clients-api";
 import { ExpedienteDocumentRegeneration } from "./expediente-document-regeneration";
 import { expedienteDocumentGroups, expedienteDocumentPosition } from "./expediente-document-groups";
 import { documentTypeFromName } from "./document-template-match";
-import { expedienteDocumentLabel } from "./expediente-document-label";
+import { expedienteDocumentLabel, expedienteDownloadFilename } from "./expediente-document-label";
 import { DocumentsRowsSkeleton } from "./clients-skeleton";
 import { LoanApplicationDownload, LoanApplicationIncompleteActions } from "./loan-application-download";
 import styles from "./clients.module.css";
@@ -127,12 +127,13 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
         setPreview({ url: URL.createObjectURL(pdf), name: expedienteDocumentLabel(record.contractName) });
         return;
       }
-      let filename = record.filename;
+      let extension: "docx" | "pdf" = record.format === "pdf" ? "pdf" : "docx";
       if (record.format === "email") {
         const { email } = await getGeneratedDocument(accountId, record.id);
         if (!email) throw new Error("Missing attachment format");
-        filename = filename.replace(/\.eml$/i, `.${email.attachmentFormat}`);
+        extension = email.attachmentFormat;
       }
+      const filename = expedienteDownloadFilename(record.contractName || record.filename, extension);
       const blob = await getGeneratedArtifact(accountId, record.id);
       if (await isActiveAccount(accountId) && section.current) downloadBlob(blob, filename);
     } catch (error) {
@@ -181,12 +182,11 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
                   {loanDate && <time dateTime={loanDate}>{applicationDateLabel(loanDate)}</time>}
                 </div>
               </div>
-              <div><LoanApplicationDownload accountId={accountId} client={loan.client} operation={loan.operation} format={loanFormat} /></div>
+              <div><LoanApplicationDownload accountId={accountId} client={loan.client} operation={loan.operation} format={loanFormat} filename={`Solicitud de préstamo.${loanFormat}`} /></div>
             </li>}
             {group.items.map(record => <li key={record.id} className={styles.documentStageEntry}>
               <div>
                 <span className={styles.documentName}>{expedienteDocumentLabel(record.contractName)}</span>
-                <span className={styles.documentMeta}>{expedienteDocumentLabel(record.filename, true)}</span>
                 <div className={styles.documentStageMeta}>
                   <span className={styles.documentFormat} data-format={record.format}>{formatLabel[record.format]}</span>
                   <time dateTime={record.createdAt}>{dateFormat.format(new Date(record.createdAt))}</time>
