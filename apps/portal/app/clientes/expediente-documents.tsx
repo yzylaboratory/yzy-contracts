@@ -14,6 +14,7 @@ import { recordPortalActivity } from "@/lib/activity";
 import table from "@/app/contratos/contracts.module.css";
 import { clientErrorMessage, type Client, type Operation } from "./clients-api";
 import { ExpedienteDocumentRegeneration } from "./expediente-document-regeneration";
+import { expedienteDocumentLabel } from "./expediente-document-label";
 import { DocumentsRowsSkeleton } from "./clients-skeleton";
 import { LoanApplicationDownload, LoanApplicationIncompleteActions } from "./loan-application-download";
 import styles from "./clients.module.css";
@@ -102,7 +103,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
         if (pdf.type !== "application/pdf" || !pdf.size) throw new Error("Invalid PDF");
         if (!(await isActiveAccount(accountId)) || !section.current) return;
         previewTrigger.current = trigger;
-        setPreview({ url: URL.createObjectURL(pdf), name: record.contractName });
+        setPreview({ url: URL.createObjectURL(pdf), name: expedienteDocumentLabel(record.contractName) });
         return;
       }
       let filename = record.filename;
@@ -174,8 +175,8 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
           </tr>}
           {items.map(record => <tr key={record.id}>
             <th scope="row">
-              <span className={styles.documentName}>{record.contractName}</span>
-              <span className={styles.documentMeta}>{record.filename}</span>
+              <span className={styles.documentName}>{expedienteDocumentLabel(record.contractName)}</span>
+              <span className={styles.documentMeta}>{expedienteDocumentLabel(record.filename, true)}</span>
               <span className={`${styles.documentMeta} ${styles.documentsMobile}`}>
                 {formatLabel[record.format]} · <time dateTime={record.createdAt}>{dateFormat.format(new Date(record.createdAt))}</time>
               </span>
@@ -191,7 +192,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
                 {record.hasArtifact && <>
                   <Tooltip content="Vista previa">
                     <Button type="button" variant="ghost" className={`${table.rowAction} ${styles.documentAction}`}
-                      aria-label={`Vista previa de ${record.contractName}`} aria-haspopup="dialog"
+                      aria-label={`Vista previa de ${expedienteDocumentLabel(record.contractName)}`} aria-haspopup="dialog"
                       loading={isBusy(record.id, "preview")}
                       disabled={Boolean(busy) && !isBusy(record.id, "preview")}
                       onClick={event => void openDocument(record, "preview", event.currentTarget)}>
@@ -200,7 +201,7 @@ export function ExpedienteDocuments({ accountId, clientId, operationId, action, 
                   </Tooltip>
                   <Tooltip content={record.format === "email" ? "Descargar adjunto" : "Descargar"}>
                     <Button type="button" variant="ghost" className={`${table.rowAction} ${styles.documentAction}`}
-                      aria-label={`${record.format === "email" ? "Descargar adjunto de" : "Descargar"} ${record.contractName}`}
+                      aria-label={`${record.format === "email" ? "Descargar adjunto de" : "Descargar"} ${expedienteDocumentLabel(record.contractName)}`}
                       loading={isBusy(record.id, "download")}
                       disabled={Boolean(busy) && !isBusy(record.id, "download")}
                       onClick={event => void openDocument(record, "download", event.currentTarget)}>
