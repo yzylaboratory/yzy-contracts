@@ -33,8 +33,13 @@ export const insuranceSaleCaseFields = {
 const vehicleReceipt = [...customer, ...vehicle, ...signature] as const;
 const receipt = [...customer, ...vehicle, "operacion_referencia", "fecha_contrato", ...signature] as const;
 
+export const CONDITIONAL_SALE_TITLE = "CONTRATO DE VENTA CONDICIONAL DE MUEBLES";
+export const SWORN_DECLARATION_TITLE = "DECLARACION JURADA DE PERSONA FISICA";
+export const OPPOSITION_RELEASE_TITLE = "PODER ESPECIAL PARA LEVANTAMIENTO DE OPOSICION EN LA DGII";
+export const GPS_AGREEMENT_TITLE = "CONTRATO DE ACUERDO ENTRE LAS PARTES - GPS";
+
 export const DOCUMENT_TYPES = [
-  { id: "venta_condicional", label: "Venta condicional", requiredFields: [
+  { id: "venta_condicional", label: CONDITIONAL_SALE_TITLE, requiredFields: [
     "vehiculo_matricula", ...signature,
     "cuotas_intereses", "cuota_final_capital", "total_financiamiento",
   ] },
@@ -56,10 +61,10 @@ export const DOCUMENT_TYPES = [
     "cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature, ...insuranceScheduleFields,
   ] },
   { id: "pagare_seguro", label: "Pagaré de seguro", requiresInsuranceCompany: true, requiredFields: ["cliente_nombre", ...vehicle, "cantidad_cuotas_seguro", ...signature] },
-  { id: "declaracion_jurada", label: "Declaración jurada", requiredFields: [
+  { id: "declaracion_jurada", label: SWORN_DECLARATION_TITLE, requiredFields: [
     ...customer, "cliente_telefono", "cliente_correo", "cliente_origen_ingresos", "fecha_contrato", ...vehicle, ...signature,
   ] },
-  { id: "gps", label: "GPS", requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
+  { id: "gps", label: GPS_AGREEMENT_TITLE, requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
   { id: "autorizacion_data", label: "Autorización de datos", requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
   { id: "acuerdo_seguro", label: "Acuerdo de seguro", requiredFields: [...customer, ...signature] },
   { id: "autorizacion_asegurar_vehiculo", label: "Autorización para asegurar vehículo", requiredFields: [
@@ -71,7 +76,7 @@ export const DOCUMENT_TYPES = [
   { id: "designacion_cuenta", label: "Designación de cuenta", requiredFields: [
     ...customer, "cliente_direccion", ...signature, "monto_desembolso", "distribucion_desembolso",
   ] },
-  { id: "levantamiento_oposicion", label: "Levantamiento de oposición", requiredFields: [...customer, "cliente_direccion", ...vehicle] },
+  { id: "levantamiento_oposicion", label: OPPOSITION_RELEASE_TITLE, requiredFields: [...customer, "cliente_direccion", ...vehicle] },
   { id: "entrega_vehiculo", label: "Entrega de vehículo", requiredFields: vehicleReceipt },
   { id: "entrega_vehiculo_fines_saldo", label: "Entrega de vehículo con fines de saldo", requiredFields: vehicleReceipt },
   { id: "entrega_documentos", label: "Entrega de documentos", requiredFields: receipt },

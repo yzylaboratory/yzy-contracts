@@ -10,6 +10,7 @@ type CompanyField = {
 export const companyNameKey = "empresa_razon_social";
 export const companyNameAlias = "empresa_nombre";
 export const companyNotaryNameKey = "empresa_notario_nombre";
+export const declarationWitnessNameKey = "empresa_testigo_usuario_nombre_declaracion";
 export const companyFieldLimit = 100;
 export const companyValueLimit = 1000;
 export const companyProfileLimit = 64 * 1024;
@@ -355,7 +356,14 @@ export const companyFieldGroups: { label: string; anchor?: string; description?:
     },
   ] },
   { label: "Testigos", anchor: "testigos", description: "Los documentos usan los testigos guardados para esta empresa.",
-    fields: Object.entries(witnessFields).map(([marker, field]) => ({ key: `empresa_${marker}`, ...field })),
+    fields: [
+      ...Object.entries(witnessFields).map(([marker, field]) => ({ key: `empresa_${marker}`, ...field })),
+      {
+        key: declarationWitnessNameKey,
+        label: "Nombre completo del segundo testigo para la declaración jurada",
+        description: "Si el nombre del segundo testigo está abreviado, escribe aquí el nombre completo de la misma persona.",
+      },
+    ],
   },
   { label: "Notario", anchor: "notario", description: "Los documentos notariales usan estos datos en lugar de un nombre fijo en la plantilla.",
     fields: Object.values(notaryFields).map(({ key, ...field }) => ({ key, ...field })),

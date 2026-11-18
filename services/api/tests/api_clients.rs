@@ -1318,9 +1318,9 @@ async fn loan_pdf_checks_company_and_requires_complete_data_before_rendering() {
     let render_requests = app.extractor.received_requests().await.unwrap();
     let expected_descriptions = [
         "COLOR: BLANCO, PLACA: SINT-0002, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: SINT-0004",
-        "COLOR: BLANCO, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: SINT-0004",
-        "COLOR: BLANCO, CHASIS N.º: SINT-0003",
-        "COLOR: BLANCO, PLACA: SINT-0002, CHASIS N.º: SINT-0003",
+        "COLOR: BLANCO, PLACA: ________________, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: SINT-0004",
+        "COLOR: BLANCO, PLACA: ________________, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: ________________",
+        "COLOR: BLANCO, PLACA: SINT-0002, CHASIS N.º: SINT-0003, MOTOR O N.º DE SERIE: ________________",
     ];
     assert_eq!(render_requests.len(), expected_descriptions.len());
     for (request, description) in render_requests.iter().zip(expected_descriptions) {

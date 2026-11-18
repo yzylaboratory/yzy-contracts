@@ -2,7 +2,7 @@ import type { CompanySnapshot } from "@/app/configuracion/empresas/companies-api
 import { companyContractClauseField, companyNotaryField, companyProfileValue, companyWitnessField, isCompanyContractClauseField, isCompanyField } from "@/app/configuracion/empresas/company-fields";
 import type { Vehicle } from "@/app/clientes/clients-api";
 import type { NativeVariable } from "./contracts-api";
-import { conditionalSaleHandwrittenFields, getDocumentType, type DocumentType } from "./document-catalog";
+import { CONDITIONAL_SALE_TITLE, GPS_AGREEMENT_TITLE, OPPOSITION_RELEASE_TITLE, SWORN_DECLARATION_TITLE, conditionalSaleHandwrittenFields, getDocumentType, type DocumentType } from "./document-catalog";
 import { documentClauseCase, usesNotarialDocumentStyle } from "./expediente-fields";
 import { formatWordTemplateValue, normalizeWordTemplateLine } from "./native-document";
 import { nativeFieldKind, wordsFor, wordsSource } from "./native-field-kinds";
@@ -21,6 +21,7 @@ export function isInsuranceIssuerField(key: string) {
 }
 
 export function fileBase(title: string) {
+  if (title === CONDITIONAL_SALE_TITLE || title === SWORN_DECLARATION_TITLE || title === OPPOSITION_RELEASE_TITLE || title === GPS_AGREEMENT_TITLE) return title;
   const slug = title.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-").slice(0, 80).replace(/^-+|-+$/g, "");
 

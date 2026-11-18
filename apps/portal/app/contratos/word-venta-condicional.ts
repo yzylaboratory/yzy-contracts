@@ -41,7 +41,6 @@ export function formatVentaCondicional(doc: Document): void {
     const originalRun = field && textNodes(field)[0]?.parentElement;
     if (!field || !originalRun) continue;
 
-    // Put the writing line below its label to use the full width of the cell.
     const labelRun = originalRun.cloneNode(false) as Element;
     const style = originalRun.getElementsByTagNameNS(ns, "rPr").item(0);
     if (style) labelRun.appendChild(style.cloneNode(true));
@@ -50,10 +49,5 @@ export function formatVentaCondicional(doc: Document): void {
     labelRun.appendChild(labelText);
     for (const run of Array.from(field.getElementsByTagNameNS(ns, "r"))) run.remove();
     field.appendChild(labelRun);
-
-    const lineBreak = doc.createElementNS(ns, labelRun.prefix ? `${labelRun.prefix}:br` : "br");
-    const writingLine = labelText.cloneNode(false) as Element;
-    writingLine.textContent = "____________________";
-    labelRun.append(lineBreak, writingLine);
   }
 }

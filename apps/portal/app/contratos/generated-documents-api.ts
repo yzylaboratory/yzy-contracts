@@ -78,8 +78,13 @@ export async function saveGeneratedArtifact(
   if (saved.id !== id || saved.has_artifact !== true) throw new Error("The saved document did not match the request");
 }
 
-export const getGeneratedArtifact = (accountId: string, id: string) =>
-  apiBlob(`${documentsPath}/${encodeURIComponent(id)}/artifact`, { expectedAccountId: accountId });
+export async function getGeneratedArtifact(accountId: string, id: string) {
+  const artifact = await apiBlob(`${documentsPath}/${encodeURIComponent(id)}/artifact`, { expectedAccountId: accountId });
+  if (artifact.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return artifact;
+  const { repairStoredWordProperties } = await import("./native-document");
+  try { return await repairStoredWordProperties(artifact); }
+  catch { return artifact; } // Preserve access to historical formats the native editor cannot unpack.
+}
 
 export const renderGeneratedPdf = (accountId: string, id: string) =>
   apiBlob(`${documentsPath}/${encodeURIComponent(id)}/render-pdf`, { method: "POST", expectedAccountId: accountId });

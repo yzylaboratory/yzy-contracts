@@ -25,7 +25,7 @@ process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-key";
 const { buildCompanySnapshot, buildContractTemplateFields, isInsuranceIssuerField, resolveCompanyAndDerivedValues } = await import("../app/contratos/contract-template-fields.ts");
-const { emptyLabelRange, extractSalesCommitment, formatWordTemplateValue, pagareDateRuns } = await import("../app/contratos/native-document.ts");
+const { extractSalesCommitment, formatWordTemplateValue, pagareDateRuns, wordVehicleIdentifierValue } = await import("../app/contratos/native-document.ts");
 const { missingLoanVehicleFields, vehicleWrite } = await import("../app/clientes/vehicle-fields.ts");
 const { getClient, listClients, listClientTimeline, listOperations, saveClient, saveOperation } =
   await import("../app/clientes/clients-api.ts");
@@ -311,10 +311,13 @@ test("the promissory note writes identity and every payment in numbers and words
   assert.equal(values.total_financiamiento_letras, "CINCUENTA Y DOS MIL TRESCIENTOS CUARENTA Y CINCO PESOS CON 68/100 CENTAVOS DOMINICANOS");
 });
 
-test("the company profile stores the six witness variables used by the promissory note", () => {
+test("the company profile stores the witness fields used by the promissory note and declaration", () => {
   const group = companyFieldGroups.find(({ label }) => label === "Testigos");
   const markers = ["testigo_richard", "testigo_richard_cedula", "testigo_usuario", "testigo_usuario_cedula", "testigo_usuario_estado_civil", "testigo_usuario_nacionalidad"];
-  assert.deepEqual(new Set(group.fields.map(field => field.key)), new Set(markers.map(marker => companyWitnessField(marker).key)));
+  assert.deepEqual(new Set(group.fields.map(field => field.key)), new Set([
+    ...markers.map(marker => companyWitnessField(marker).key),
+    "empresa_testigo_usuario_nombre_declaracion",
+  ]));
   assert.equal(companyWitnessField("testigo_richard_cedula").identity, true);
   assert.equal(companyWitnessField("testigo_usuario_cedula").identity, true);
   assert.equal(companyWitnessField("testigo_otro"), undefined);
@@ -1102,31 +1105,20 @@ test("second witness comes from company configuration and defaults to CINDY C. D
   assert.deepEqual(insuranceSaleFields.map(field => field.required), [true, true, true]);
 });
 
-test("un vehículo con bill of lading no imprime las etiquetas de placa ni motor", () => {
-  const text = "COLOR: {{color_del_vehiculo}}, NO. DE REGISTRO Y PLACA: {{placa_del_vehiculo}} CHASIS NO: {{numero_de_chasis_del_vehiculo}}, MOTOR O NO. DE SERIE:{{numero_de_serie_del_motor}}";
-  const values = { color_del_vehiculo: "AZUL", placa_del_vehiculo: "", numero_de_chasis_del_vehiculo: "19XFC1F32LE013448", numero_de_serie_del_motor: "" };
-  const edits = [...text.matchAll(/\{\{([a-z_0-9]+)\}\}/g)].map(match => {
-    const end = match.index + match[0].length;
-    const range = values[match[1]] ? { start: match.index, end } : emptyLabelRange(match[1], text, match.index, end);
-    return { ...range, value: values[match[1]] };
-  }).reverse();
-  let result = text;
-  for (const { start, end, value } of edits) result = result.slice(0, start) + value + result.slice(end);
-  assert.equal(result, "COLOR: AZUL, CHASIS NO: 19XFC1F32LE013448");
-  assert.deepEqual(emptyLabelRange("color_del_vehiculo", text, 7, 29), { start: 7, end: 29 });
-});
-
-test("la venta condicional con bill of lading no imprime las etiquetas de matrícula ni motor", () => {
-  const text = "COLOR: {{vehiculo_color}}, NO. DE REGISTRO Y PLACA: {{vehiculo_matricula}} CHASIS NO: {{vehiculo_chasis}}, MOTOR O NO. DE SERIE:{{vehiculo_motor}}";
-  const values = { vehiculo_color: "AZUL", vehiculo_matricula: "", vehiculo_chasis: "19XFC1F32LE013448", vehiculo_motor: "" };
-  const edits = [...text.matchAll(/\{\{([a-z_0-9]+)\}\}/g)].map(match => {
-    const end = match.index + match[0].length;
-    const range = values[match[1]] ? { start: match.index, end } : emptyLabelRange(match[1], text, match.index, end);
-    return { ...range, value: values[match[1]] };
-  }).reverse();
-  let result = text;
-  for (const { start, end, value } of edits) result = result.slice(0, start) + value + result.slice(end);
-  assert.equal(result, "COLOR: AZUL, CHASIS NO: 19XFC1F32LE013448");
+test("both conditional sale templates provide writing space for missing vehicle identifiers", () => {
+  for (const [plate, engine] of [
+    ["vehiculo_matricula", "vehiculo_motor"],
+    ["placa_del_vehiculo", "numero_de_serie_del_motor"],
+  ]) {
+    const clause = `NO. DE REGISTRO Y PLACA: {{${plate}}} CHASIS NO: EJEMPLO, MOTOR O NO. DE SERIE:{{${engine}}}`;
+    const render = (values = {}) => clause.replace(/\{\{([a-z_]+)\}\}/g, (_token, key, offset) =>
+      wordVehicleIdentifierValue(key, values[key] ?? "", clause.slice(0, offset)));
+    assert.equal(render(), "NO. DE REGISTRO Y PLACA: ____________________ CHASIS NO: EJEMPLO, MOTOR O NO. DE SERIE: ____________________");
+    assert.equal(render({ [plate]: "ABC123" }), "NO. DE REGISTRO Y PLACA: ABC123 CHASIS NO: EJEMPLO, MOTOR O NO. DE SERIE: ____________________");
+    assert.equal(render({ [plate]: "ABC123", [engine]: "XYZ123" }), clause.replace(`{{${plate}}}`, "ABC123").replace(`{{${engine}}}`, "XYZ123"));
+  }
+  assert.equal(wordVehicleIdentifierValue("color_del_vehiculo", "", "COLOR: "), "");
+  assert.equal(wordVehicleIdentifierValue("vehiculo_matricula", "", "Documento aduanal: "), "");
 });
 
 test("reviewed Word bodies apply their own case, preserve pending signatures, and accept feminine treatment", async () => {
@@ -1147,12 +1139,12 @@ test("reviewed Word bodies apply their own case, preserve pending signatures, an
 test("reviewed Word dates follow the specific occurrence in the source template", async () => {
   const { referenceWordValue } = await import("../app/contratos/reference-word.ts");
   const value = (type, key = "fecha_firma", occurrence = 0) => referenceWordValue(type, key, occurrence, "2026-11-16", "16/11/2026");
-  assert.equal(value("venta_condicional"), "los DIECISÉIS (16) días del mes de NOVIEMBRE del año 2026");
+  assert.equal(value("venta_condicional"), "los DIECISÉIS (16) DÍAS DEL MES DE NOVIEMBRE DEL AÑO 2026");
   assert.equal(value("acuerdo_seguro", "fecha_firma", 1), "DIECISÉIS (16) días del mes de NOVIEMBRE del año 2026");
   assert.equal(value("entrega_vehiculo_fines_saldo"), "los DIECISÉIS (16) DÍAS DEL MES DE NOVIEMBRE DEL AÑO DOS MIL VEINTISÉIS (2026)");
-  assert.equal(value("entrega_vehiculo_fines_saldo", "fecha_firma", 1), value("venta_condicional"));
+  assert.equal(value("entrega_vehiculo_fines_saldo", "fecha_firma", 1), "los DIECISÉIS (16) días del mes de NOVIEMBRE del año 2026");
   assert.equal(value("autorizacion_desembolso"), "16/11/2026");
-  assert.equal(value("venta_condicional", "fecha_abono_extraordinario_1"), "16 de noviembre del año 2026");
+  assert.equal(value("venta_condicional", "fecha_abono_extraordinario_1"), "16 DE NOVIEMBRE DEL AÑO 2026");
 });
 
 test("reviewed guarantees keep the recorded use and distinguish registration from plate", async () => {
@@ -1254,4 +1246,21 @@ test("regeneration keeps the original template and returns every pending format 
   assert.deepEqual(accessChecks, ["/api/v1/contracts/original-gps/generation-access"]);
   assert.deepEqual(result.failed.map(item => item.savedDocumentId), documents.map(item => item.id));
   assert.ok(result.failed.every(item => item.billingBlocked));
+});
+
+test("the declaration keeps the witness's full name in the body and abbreviates it only for the signature", async () => {
+  const { declaracionJuradaSignatureName, declaracionJuradaWitnessValue } = await import("../app/contratos/word-declaracion-jurada.ts");
+  const key = "empresa_testigo_usuario";
+  const profile = {
+    [key]: "ELENA M. REYES VEGA",
+    empresa_testigo_usuario_nombre_declaracion: "ELENA MARÍA REYES VEGA",
+  };
+
+  const fullName = declaracionJuradaWitnessValue(profile, key);
+  assert.equal(fullName, "ELENA MARÍA REYES VEGA");
+  assert.equal(declaracionJuradaSignatureName(fullName), "ELENA M. REYES VEGA");
+  assert.equal(declaracionJuradaSignatureName("ELENA REYES VEGA"), "ELENA REYES VEGA");
+  assert.equal(declaracionJuradaSignatureName("ELENA DE LA CRUZ"), "ELENA DE LA CRUZ");
+  assert.equal(declaracionJuradaWitnessValue({ ...profile, [key]: "SOFÍA REYES VEGA" }, key), "SOFÍA REYES VEGA");
+  assert.equal(declaracionJuradaWitnessValue(profile, "empresa_razon_social"), undefined);
 });

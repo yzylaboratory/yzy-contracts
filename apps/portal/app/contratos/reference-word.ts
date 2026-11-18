@@ -55,12 +55,16 @@ function referenceDate(model: Reference, key: string, date: Date, occurrence: nu
     if (model === "entrega_vehiculo_fines_saldo" && occurrence === 0) {
       return `los ${dayWords} (${dayNumber}) DÍAS DEL MES DE ${monthUpper} DEL AÑO ${integerWords(year).toLocaleUpperCase("es")} (${year})`;
     }
+    if (model === "venta_condicional") return `los ${dayWords} (${dayNumber}) DÍAS DEL MES DE ${monthUpper} DEL AÑO ${year}`;
     if (model === "entrega_vehiculo") return `los ${dayWords} (${dayNumber}) DÍAS del mes de ${monthUpper} DEL AÑO ${year}`;
     const article = model === "designacion_cuenta" || (model === "acuerdo_seguro" && occurrence === 1) ? "" : "los ";
     return `${article}${dayWords} (${dayNumber}) días del mes de ${monthUpper} del año ${year}`;
   }
   if (key === "fecha_contrato" || key === "fecha_cuota_final_capital") return numericDate.format(date);
-  if (/^fecha_(?:abono_extraordinario_[12]|ancla_cuota_extraordinaria)$/.test(key)) return `${day} de ${monthName} del año ${year}`;
+  if (/^fecha_(?:abono_extraordinario_[12]|ancla_cuota_extraordinaria)$/.test(key)) {
+    const dateText = `${day} de ${monthName} del año ${year}`;
+    return model === "venta_condicional" ? dateText.toLocaleUpperCase("es") : dateText;
+  }
   return `${dayWords} (${dayNumber}) DE ${monthUpper} DEL AÑO ${integerWords(year).toLocaleUpperCase("es")} (${year})`;
 }
 

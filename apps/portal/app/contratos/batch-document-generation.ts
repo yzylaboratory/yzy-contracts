@@ -397,7 +397,10 @@ export async function generateInitialExpedienteDocuments(input: {
         vehicle: operation.vehicle,
       });
 
-      const filename = target.saved?.filename ?? `${fileBase(contract.name)}.${effectiveOutput}`;
+      const extension = target.saved?.format === "email" ? "eml" : effectiveOutput;
+      const filename = contract.catalog_key === "venta_condicional" || contract.catalog_key === "declaracion_jurada"
+        || contract.catalog_key === "levantamiento_oposicion" || contract.catalog_key === "gps" || !target.saved
+        ? `${fileBase(contract.name)}.${extension}` : target.saved.filename;
       const record: GeneratedOutput = {
         format: target.saved?.format ?? effectiveOutput,
         ...(email && { email }),

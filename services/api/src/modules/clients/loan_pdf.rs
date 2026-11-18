@@ -153,8 +153,8 @@ fn template_values(
     ] {
         values[key] = json!(required(&profile[key], key)?);
     }
-    // Imported vehicles can lack a type. The plate and engine labels are
-    // omitted whenever their values are unavailable.
+    // Imported vehicles can lack a type. Leave space for the plate and engine
+    // number to be entered by hand when they are unavailable.
     let imported = vehicle["source_document"] == "bill_of_lading";
     for key in [
         "vehicle_type",
@@ -166,12 +166,10 @@ fn template_values(
         "chassis_number",
         "engine_number",
     ] {
-        let optional =
-            matches!(key, "plate" | "engine_number") || (imported && key == "vehicle_type");
-        let value = if optional && blank(&vehicle[key]) {
-            String::new()
-        } else {
-            required(&vehicle[key], key)?.to_uppercase()
+        let value = match key {
+            "plate" | "engine_number" if blank(&vehicle[key]) => "________________".to_owned(),
+            "vehicle_type" if imported && blank(&vehicle[key]) => String::new(),
+            _ => required(&vehicle[key], key)?.to_uppercase(),
         };
         values[key] = json!(value);
     }
@@ -297,13 +295,6 @@ fn fill_template(values: &Value) -> anyhow::Result<Vec<u8>> {
                 let value = values[key]
                     .as_str()
                     .ok_or_else(|| anyhow::anyhow!("unknown marker: {key}"))?;
-                let before = match (key, value) {
-                    ("plate", "") => before.strip_suffix(", PLACA: ").unwrap_or(before),
-                    ("engine_number", "") => before
-                        .strip_suffix(", MOTOR O N.º DE SERIE: ")
-                        .unwrap_or(before),
-                    _ => before,
-                };
                 output.write_all(before.as_bytes())?;
                 for character in value.chars() {
                     match character {

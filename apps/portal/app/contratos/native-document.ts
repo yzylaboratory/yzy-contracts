@@ -1,3 +1,5 @@
+import { declaracionJuradaWitnessValue } from "./word-declaracion-jurada";
+import { repairWordPackage } from "./word-package-compatibility";
 import { reviewedWordLayout } from "./reviewed-word-layout";
 import { companyReferenceRanges } from "./company-reference-ranges";
 import { companyFieldLabel } from "../configuracion/empresas/company-fields";
@@ -18,6 +20,8 @@ const wordNamespaces = [
   "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
   "http://purl.oclc.org/ooxml/wordprocessingml/main",
 ];
+const extendedPropertiesPart = "docProps/app.xml";
+const extendedPropertiesNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
 const wordParts = /^word\/(?:document|header\d+|footer\d+|footnotes|endnotes)\.xml$/;
 const protectedContainers = new Set([
   "del", "ins", "moveFrom", "moveTo", "fldSimple", "hyperlink", "sdt", "AlternateContent",
@@ -45,24 +49,19 @@ type Replacement = Match & { value: string; bold?: boolean; runs?: readonly Text
 const salePaymentColumns = ["cuotas_intereses_numeros", "cuotas_intereses_fechas", "cuotas_intereses_montos"];
 const pagareDateKeys = new Set(["fecha_firma", "fecha_de_firma"]);
 
-// Un vehículo importado con bill of lading no tiene placa ni motor: sin valor, su etiqueta tampoco se imprime.
-const plateLabel = { before: /NO\.\s*DE\s+REGISTRO\s+Y\s+PLACA:\s*$/i, after: /^\s+/ };
-const engineLabel = { before: /,\s*MOTOR\s+O\s+NO\.\s*DE\s+SERIE:\s*$/i };
-const emptyVehicleLabels: Record<string, { before: RegExp; after?: RegExp }> = {
+const plateLabel = /NO\.\s*DE\s+REGISTRO\s+Y\s+PLACA:\s*$/i;
+const engineLabel = /MOTOR\s+O\s+NO\.\s*DE\s+SERIE:\s*$/i;
+const vehicleIdentifierLabels: Record<string, RegExp> = {
   placa_del_vehiculo: plateLabel,
   vehiculo_matricula: plateLabel,
   numero_de_serie_del_motor: engineLabel,
   vehiculo_motor: engineLabel,
 };
 
-/** Amplía el rango de un marcador vacío para incluir la etiqueta que lo describe en el Word. */
-export function emptyLabelRange(key: string, text: string, start: number, end: number) {
-  const label = emptyVehicleLabels[key];
-  if (!label) return { start, end };
-  const before = label.before.exec(text.slice(0, start));
-  if (!before) return { start, end };
-  const after = label.after?.exec(text.slice(end));
-  return { start: before.index, end: end + (after?.[0].length ?? 0) };
+/** Deja una línea manuscrita cuando la plantilla identifica el dato del vehículo. */
+export function wordVehicleIdentifierValue(key: string, value: string, prefix: string) {
+  if (value || !Object.hasOwn(vehicleIdentifierLabels, key) || !vehicleIdentifierLabels[key].test(prefix)) return value;
+  return prefix.endsWith(":") ? " ____________________" : "____________________";
 }
 
 function isBoldAddressField(key: string) {
@@ -295,15 +294,15 @@ function resolveNativeTargets(
       const formatted = reference
         ? referenceWordValue(reference, match[1], occurrence, values[match[1]] ?? "", field.value)
         : field.value;
-      const value = prefix.endsWith("RD$") && formatted.startsWith("RD$") ? formatted.slice(3) : formatted;
+      const value = prefix.endsWith("RD$") && formatted.startsWith("RD$")
+        ? formatted.slice(3)
+        : wordVehicleIdentifierValue(match[1], formatted, prefix);
       const bold = boldFields?.includes(match[1]);
       const runs = bold ? undefined : pagareDateRuns(match[1], value, boldPagareDate);
-      const range = value
-        ? { start: match.index, end: match.index + match[0].length }
-        : emptyLabelRange(match[1], segment.text, match.index, match.index + match[0].length);
       edits.push({
         segment,
-        ...range,
+        start: match.index,
+        end: match.index + match[0].length,
         value,
         bold: bold || (!reference && isBoldAddressField(match[1])),
         ...(runs && { runs }),
@@ -542,7 +541,7 @@ async function unpackOriginalWord(original: Blob) {
       filter(entry) {
         expanded += entry.originalSize;
         if (names.has(entry.name) || /(?:^|\/)(?:\.\.|__proto__|constructor|prototype)(?:\/|$)|[\\\u0000]|^\//.test(entry.name) ||
-            names.size >= 4096 || expanded > zipLimit || (wordParts.test(entry.name) && entry.originalSize > xmlLimit)) {
+            names.size >= 4096 || expanded > zipLimit || ((wordParts.test(entry.name) || entry.name === extendedPropertiesPart) && entry.originalSize > xmlLimit)) {
           throw new Error("Unsupported Word archive");
         }
         names.add(entry.name);
@@ -567,6 +566,34 @@ function parseWordPart(bytes: Uint8Array) {
   const part = new DOMParser().parseFromString(xml, "application/xml");
   if (part.getElementsByTagName("parsererror").length) throw new NativeDocumentError("El XML del Word original está dañado.");
   return part;
+}
+
+function removeEmptyExtendedProperties(files: Record<string, Uint8Array>) {
+  const bytes = files[extendedPropertiesPart];
+  if (!bytes) return false;
+  const props = parseWordPart(bytes);
+  const emptyVectors = Array.from(props.documentElement.children).filter(property =>
+    property.namespaceURI === extendedPropertiesNamespace &&
+    (property.localName === "HeadingPairs" || property.localName === "TitlesOfParts") &&
+    !property.children.length && !property.textContent?.trim());
+  if (!emptyVectors.length) return false;
+  for (const property of emptyVectors) property.remove();
+  files[extendedPropertiesPart] = new TextEncoder().encode(new XMLSerializer().serializeToString(props));
+  return true;
+}
+
+async function packWord(files: Record<string, Uint8Array>) {
+  const { zipSync } = await import("fflate");
+  const result = zipSync(files, { level: 3, mtime: new Date(1980, 0, 1) });
+  if (result.byteLength > fileLimit) throw new NativeDocumentError("El Word generado supera el tamaño máximo del historial.");
+  return new Blob([result], { type: wordMime });
+}
+
+// Older stored artifacts may contain optional properties with a missing vector.
+export async function repairStoredWordProperties(original: Blob) {
+  const files = await unpackOriginalWord(original);
+  const repaired = repairWordPackage(files);
+  return removeEmptyExtendedProperties(files) || repaired ? packWord(files) : original;
 }
 
 type CompanyProfile = { name: string; values: Record<string, string> };
@@ -615,7 +642,10 @@ function addCompanyEdits(doc: Document, model: string, profile: CompanyProfile, 
         const stop = start + range.end - range.start;
         if (stop > segment.text.length) break;
         const literal = segment.text.slice(start, stop);
-        const value = companyReferenceValue(profile, range.key, literal, preview);
+        const witness = model === "declaracion_jurada" ? declaracionJuradaWitnessValue(profile.values, range.key) : undefined;
+        const value = witness === undefined
+          ? companyReferenceValue(profile, range.key, literal, preview)
+          : witness.toLocaleUpperCase("es");
         const bold = reviewedWordLayout[model]?.boldFields.includes(range.key);
         if (value !== literal || bold) {
           const list = edits.get(segment) ?? [];
@@ -692,10 +722,9 @@ export async function fillOriginalWord(
   const encoder = new TextEncoder();
   const serializer = new XMLSerializer();
   for (const name of changed) files[name] = encoder.encode(serializer.serializeToString(parts.get(name)!));
-  const { zipSync } = await import("fflate");
-  const result = zipSync(files, { level: 3, mtime: new Date(1980, 0, 1) });
-  if (result.byteLength > fileLimit) throw new NativeDocumentError("El Word generado supera el tamaño máximo del historial.");
-  return new Blob([result], { type: wordMime });
+  removeEmptyExtendedProperties(files);
+  repairWordPackage(files);
+  return packWord(files);
 }
 
 async function downloadOriginal(contractId: string, accountId: string) {
