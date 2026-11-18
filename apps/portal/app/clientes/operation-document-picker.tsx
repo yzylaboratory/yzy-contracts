@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Banknote, Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FolderOpen, Handshake, KeyRound, Landmark, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Banknote, Car, Check, ClipboardCheck, FileBadge, FileCheck, FileLock, FileSignature, FileText, FileType2, FolderOpen, Handshake, KeyRound, Landmark, MapPin, Receipt, Shield, ShieldCheck, Unlock } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, type DocumentType } from "@/app/contratos/document-catalog";
+import { downloadBlob } from "@/app/contratos/document-export";
 import { listGeneratedDocuments } from "@/app/contratos/generated-documents-api";
 import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
 import button from "@/components/arc/button/button.module.css";
+import { isActiveAccount } from "@/lib/api";
 import { canManageCompanyBilling, usePortalAccess } from "@/lib/portal-access";
 import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import { generateFromOperationHref } from "./client-paths";
-import { clientErrorMessage, type Operation } from "./clients-api";
+import { clientErrorMessage, getLoanApplicationDocument, loanApplicationFilename, type Operation } from "./clients-api";
 import { documentTypeFromName } from "./document-template-match";
 import { listDocumentTemplates, resolveDocumentTemplate } from "./operation-templates";
 import styles from "./clients.module.css";
@@ -31,11 +33,39 @@ const demos: Partial<Record<DocumentType, string>> = {
 };
 
 export function DocumentOptionsSkeleton() {
-  return <div className={styles.documentGrid}>{DOCUMENT_TYPES.map(({ id }) => <LoadingBlock key={id} height={144} />)}</div>;
+  return <div className={styles.documentGrid}><LoadingBlock height={144} />{DOCUMENT_TYPES.map(({ id }) => <LoadingBlock key={id} height={144} />)}</div>;
 }
 
 export function OperationDocumentPicker({ accountId, operation }: { accountId: string; operation: Operation }) {
   const router = useRouter();
+  const loanFormatSheet = useRef<HTMLDialogElement>(null);
+  const loanRequest = useRef<AbortController>(null);
+  const loanFormatTitle = useId();
+  const [loanBusy, setLoanBusy] = useState(false);
+  const [loanFailure, setLoanFailure] = useState("");
+
+  useEffect(() => () => loanRequest.current?.abort(), []);
+
+  async function generateLoanApplication(format: "docx" | "pdf") {
+    if (loanRequest.current) return;
+    const controller = new AbortController();
+    loanRequest.current = controller;
+    loanFormatSheet.current?.close();
+    setLoanFailure("");
+    setLoanBusy(true);
+    try {
+      const blob = await getLoanApplicationDocument(accountId, operation.id, format, controller.signal);
+      if (await isActiveAccount(accountId) && !controller.signal.aborted) {
+        downloadBlob(blob, loanApplicationFilename(operation, format));
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) setLoanFailure(clientErrorMessage(error, "No se pudo generar la solicitud de préstamo. Intenta de nuevo."));
+    } finally {
+      if (loanRequest.current === controller) loanRequest.current = null;
+      if (!controller.signal.aborted) setLoanBusy(false);
+    }
+  }
+
   const [request, setRequest] = useState<{ type: DocumentType }>();
   const [failure, setFailure] = useState<{ request: NonNullable<typeof request>; message: string; kind: "error" | "missing" | "ambiguous" }>();
   const currentFailure = failure?.request === request ? failure : undefined;
@@ -113,7 +143,16 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
         <Button type="button" variant="secondary" onClick={() => setRequest({ type: currentFailure.request.type })}>Reintentar</Button>
       </div>
     </div>}
+    {loanFailure && <p className={styles.failure} role="alert">{loanFailure}</p>}
+    <span className={styles.loanGenerationStatus} role="status">{loanBusy ? "Generando solicitud de préstamo…" : ""}</span>
     <div className={styles.documentGrid} data-tour="document-type">
+      <button className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button"
+        aria-haspopup="dialog" aria-busy={loanBusy || undefined} aria-disabled={loanBusy || undefined}
+        onClick={() => { if (!loanRequest.current) loanFormatSheet.current?.showModal(); }}>
+        <span className={styles.documentIcon}><FileText size={22} aria-hidden="true" /></span>
+        <span className={styles.documentLabel}>Solicitud de préstamo</span>
+        <span className={styles.documentStatus} aria-hidden="true">{loanBusy ? "Generando…" : ""}</span>
+      </button>
       {DOCUMENT_TYPES.map(({ id, label }) => {
         const Icon = icons[id];
         const generated = history?.types.has(id);
@@ -126,5 +165,23 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
         </button>;
       })}
     </div>
+    <dialog ref={loanFormatSheet} className={styles.formatSheet} aria-labelledby={loanFormatTitle}
+      onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }}>
+      <div className={styles.formatSheetBody}>
+        <span className={styles.formatSheetHandle} aria-hidden="true" />
+        <h2 id={loanFormatTitle}>Formato de la solicitud de préstamo</h2>
+        <div className={styles.formatChoice}>
+          <button type="button" className={`${styles.formatButton} ${styles.formatWord}`} onClick={() => void generateLoanApplication("docx")}>
+            <FileText size={22} aria-hidden="true" />
+            <span><strong>Word</strong><small>.docx editable</small></span>
+          </button>
+          <button type="button" className={`${styles.formatButton} ${styles.formatPdf}`} onClick={() => void generateLoanApplication("pdf")}>
+            <FileType2 size={22} aria-hidden="true" />
+            <span><strong>PDF</strong><small>.pdf listo para imprimir</small></span>
+          </button>
+        </div>
+        <Button type="button" variant="secondary" onClick={() => loanFormatSheet.current?.close()}>Cancelar</Button>
+      </div>
+    </dialog>
   </div>;
 }

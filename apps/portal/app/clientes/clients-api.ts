@@ -130,8 +130,13 @@ export function deleteExpediente(accountId: string, operation: Pick<Operation, "
   });
 }
 
-export function getLoanApplicationDocument(accountId: string, expedienteId: string, format: "pdf" | "docx") {
-  return apiBlob(`/expedientes/${encodeURIComponent(expedienteId)}/solicitud-prestamo.${format}`, { expectedAccountId: accountId });
+export function loanApplicationFilename(operation: Pick<Operation, "id" | "reference">, format: "pdf" | "docx") {
+  const reference = operation.reference?.replace(/[^a-z0-9-]/gi, "-") || operation.id;
+  return `solicitud-de-prestamo-${reference}.${format}`;
+}
+
+export function getLoanApplicationDocument(accountId: string, expedienteId: string, format: "pdf" | "docx", signal?: AbortSignal) {
+  return apiBlob(`/expedientes/${encodeURIComponent(expedienteId)}/solicitud-prestamo.${format}`, { expectedAccountId: accountId, signal });
 }
 
 export function getClient(accountId: string, clientId: string, signal?: AbortSignal) {

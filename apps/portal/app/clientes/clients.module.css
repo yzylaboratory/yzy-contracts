@@ -262,6 +262,15 @@
 .documentLabel { align-self: center; min-inline-size: 0; overflow-wrap: anywhere; text-wrap: balance; font-weight: 600; }
 .documentStatus { min-block-size: 22px; }
 
+.loanGenerationStatus {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .summary {
   margin: 0;
   align-items: start;

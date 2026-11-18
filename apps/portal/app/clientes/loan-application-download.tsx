@@ -8,7 +8,7 @@ import { Button } from "@/components/arc/button/button";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { isActiveAccount } from "@/lib/api";
 import { recordPortalActivity } from "@/lib/activity";
-import { getLoanApplicationDocument, type Client, type Operation } from "./clients-api";
+import { getLoanApplicationDocument, loanApplicationFilename, type Client, type Operation } from "./clients-api";
 import { missingLoanClientFields } from "./loan-application-fields";
 import { missingLoanVehicleFields } from "./vehicle-fields";
 import table from "@/app/contratos/contracts.module.css";
@@ -45,8 +45,7 @@ export function LoanApplicationDownload({ accountId, client, operation, format }
   const [failure, setFailure] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { blocked } = loanApplicationDocumentState(client, operation);
-  const reference = operation.reference?.replace(/[^a-z0-9-]/gi, "-") || operation.id;
-  const filename = `solicitud-de-prestamo-${reference}.${format}`;
+  const filename = loanApplicationFilename(operation, format);
 
   useEffect(() => {
     if (!previewUrl) return;
@@ -107,7 +106,7 @@ export function LoanApplicationDownload({ accountId, client, operation, format }
     {previewUrl && (
       <DocumentPreviewDialog
         pdfUrl={previewUrl}
-        documentName={`solicitud-de-prestamo-${reference}.pdf`}
+        documentName={loanApplicationFilename(operation, "pdf")}
         onOpen={() => recordPortalActivity(accountId, "document_previewed", "client_record")}
         onClose={() => {
           setPreviewUrl(null);
