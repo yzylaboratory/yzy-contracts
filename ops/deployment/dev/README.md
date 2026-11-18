@@ -72,7 +72,7 @@ Run on the target DEV node (**Y02** or **H02**). Never copy files or credentials
 4. **Load helper images:** Load the versioned renderer and extractor image artifacts on the host or set `CONTRACTS_RENDERER_IMAGE` and `CONTRACTS_EXTRACTOR_IMAGE` to their published registry tags.
 
 5. **Provision Cloudflare Tunnel + DNS (`yzylabs.dev` zone):**
-   - Add an ingress rule on the Y02/H02 `cloudflared` tunnel routing `yzycontracts.yzylabs.dev` → `http://yzy-contracts-dev-edge:8080` on `DEV_TUNNEL_NETWORK` (keep catch-all `http_status:404` last).
+   - Add an ingress rule in the tunnel's active Cloudflare configuration routing `yzycontracts.yzylabs.dev` → `http://yzy-contracts-dev-edge:8080` on `DEV_TUNNEL_NETWORK` (keep catch-all `http_status:404` last).
    - Create the proxied CNAME for `yzycontracts.yzylabs.dev` using **`yzylabs.dev`** zone credentials (note from `yzy-infra`: `~/.cloudflared/cert.pem` is bound to `yzylabs.com`, so `cloudflared tunnel route dns` cannot create `*.yzylabs.dev` records).
 
 6. **Configure forced-command SSH key for GitHub Actions DEV deploy:**
@@ -107,6 +107,15 @@ Run on the target DEV node (**Y02** or **H02**). Never copy files or credentials
 ## 6. Anonymized Case Copy (No Real Files / Proofs / Auth)
 
 Keep the source snapshot inside production infrastructure. Export only rewritten company, client and case values. Never import an original dump into DEV. DEV accounts and all original uploads, generated documents, and payment evidence are outside the copy.
+
+After the first DEV migration, run the read-only export and stream its output to the DEV loader. The loader requires an empty DEV database and creates synthetic billing accounts that start on the first day of the following month.
+
+```bash
+set -o pipefail
+ssh <source-host> 'docker exec -i <source-db> psql -XqAt -U <reader> -d postgres -v ON_ERROR_STOP=1' \
+  < ops/deployment/dev/scripts/export-case-shapes.sql \
+  | ssh <dev-host> 'bash /opt/yzy/stacks/yzy-contracts-dev/scripts/load-case-shapes.sh'
+```
 
 ## 7. Rollback
 
