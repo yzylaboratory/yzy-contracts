@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
-import { zipSync } from "fflate";
 
 process.env.NEXT_PUBLIC_API_URL = "http://127.0.0.1:8080";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
