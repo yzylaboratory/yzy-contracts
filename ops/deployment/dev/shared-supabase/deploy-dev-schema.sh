@@ -53,7 +53,8 @@ if [[ $(psql_dev -Atc "SELECT to_regclass('yzy_contracts_dev.profiles') IS NOT N
 fi
 
 docker run --rm --network yzylabs-supabase_default \
-  -e CONTRACTS_SUPERADMIN_ID -e CONTRACTS_DATABASE_SCHEMA -e MIGRATION_DATABASE_URL "$image" migrate
+  -e RUST_LOG=info -e CONTRACTS_SUPERADMIN_ID -e CONTRACTS_DATABASE_SCHEMA \
+  -e MIGRATION_DATABASE_URL "$image" migrate
 
 app_password=$(cat dev-runtime-password)
 [[ "$app_password" =~ ^[a-f0-9]{64}$ ]]
