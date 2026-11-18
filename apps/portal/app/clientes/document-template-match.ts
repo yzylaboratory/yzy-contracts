@@ -25,6 +25,13 @@ export function documentTypeFromName(name: string) {
   ) {
     return DOCUMENT_TYPES.find(document => document.id === "autorizacion_asegurar_vehiculo");
   }
+  if (
+    normalized === "pagare autentico" ||
+    normalized === "pagare autentico notarial" ||
+    normalized === "pagare notarial"
+  ) {
+    return DOCUMENT_TYPES.find(document => document.id === "pagare_autentico");
+  }
   return DOCUMENT_TYPES.find(document =>
     normalizeDocumentName(document.label) === normalized || normalizeDocumentName(document.id) === normalized);
 }

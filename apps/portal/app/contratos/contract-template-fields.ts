@@ -21,11 +21,13 @@ export function isInsuranceIssuerField(key: string) {
 }
 
 export function fileBase(title: string, catalogKey?: string | null) {
+  if (catalogKey === "pagare_autentico") return "pagare-autentico";
   if (catalogKey === "autorizacion_asegurar_vehiculo") return "autorizacion-para-asegurar-vehiculo";
   if (catalogKey === "acuerdo_seguro") return "acuerdo-de-seguro";
   if (title === CONDITIONAL_SALE_TITLE || title === SWORN_DECLARATION_TITLE || title === OPPOSITION_RELEASE_TITLE || title === GPS_AGREEMENT_TITLE) return title;
   const slug = title.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-").slice(0, 80).replace(/^-+|-+$/g, "");
+  if (slug === "pagare-autentico-notarial") return "pagare-autentico";
 
   return slug || "contrato";
 }

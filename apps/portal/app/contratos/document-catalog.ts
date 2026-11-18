@@ -39,6 +39,7 @@ export const SWORN_DECLARATION_TITLE = "DECLARACION JURADA DE PERSONA FISICA";
 export const OPPOSITION_RELEASE_TITLE = "PODER ESPECIAL PARA LEVANTAMIENTO DE OPOSICION EN LA DGII";
 export const GPS_AGREEMENT_TITLE = "CONTRATO DE ACUERDO ENTRE LAS PARTES - GPS";
 export const ANNUAL_INSURANCE_RENEWAL_TITLE = "Acuerdo de renovación anual de seguro";
+export const NOTARIAL_PROMISSORY_NOTE_TITLE = "Pagaré auténtico notarial";
 
 export const DOCUMENT_TYPES = [
   { id: "venta_condicional", label: CONDITIONAL_SALE_TITLE, requiredFields: [
@@ -50,7 +51,7 @@ export const DOCUMENT_TYPES = [
     ...Array.from({ length: insuranceSaleInstallmentCount }, (_, index) => insuranceSaleDueDateKey(index + 1)),
     "monto_de_cada_cuota", "monto_total_financiado", "monto_total_financiado_en_letras",
   ] },
-  { id: "pagare_autentico", label: "Pagaré auténtico", requiredFields: [
+  { id: "pagare_autentico", label: NOTARIAL_PROMISSORY_NOTE_TITLE, requiredFields: [
     ...customer, "cliente_cedula_letras", "cliente_direccion", ...vehicle, ...signature,
     "parrafo_compromiso_pago", "cantidad_cuotas_intereses", "cantidad_cuotas_intereses_letras",
     "cuota_intereses_monto", "cuota_intereses_monto_letras", "fecha_primera_cuota_intereses_letras",
