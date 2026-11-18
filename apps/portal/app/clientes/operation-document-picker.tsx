@@ -14,8 +14,9 @@ import { isActiveAccount } from "@/lib/api";
 import { canManageCompanyBilling, usePortalAccess } from "@/lib/portal-access";
 import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import { generateFromOperationHref } from "./client-paths";
-import { clientErrorMessage, getLoanApplicationDocument, loanApplicationFilename, type Operation } from "./clients-api";
+import { clientErrorMessage, getClient, getLoanApplicationDocument, loanApplicationFilename, type Operation } from "./clients-api";
 import { documentTypeFromName } from "./document-template-match";
+import { loanApplicationDocumentState } from "./loan-application-download";
 import { listDocumentTemplates, resolveDocumentTemplate } from "./operation-templates";
 import styles from "./clients.module.css";
 
@@ -43,8 +44,24 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
   const loanFormatTitle = useId();
   const [loanBusy, setLoanBusy] = useState(false);
   const [loanFailure, setLoanFailure] = useState("");
+  const [loanGeneratedFor, setLoanGeneratedFor] = useState<string>();
+  const loanScope = `${accountId}:${operation.id}:${operation.updated_at}`;
 
   useEffect(() => () => loanRequest.current?.abort(), []);
+
+  useEffect(() => {
+    if (!operation.application?.application_date || !(Number(operation.application.requested_amount_minor) > 0)) return;
+    const controller = new AbortController();
+    // The loan application is rendered from the saved data instead of having a history row.
+    void getClient(accountId, operation.client_id, controller.signal).then(client => {
+      if (!controller.signal.aborted && !loanApplicationDocumentState(client, operation).blocked) {
+        setLoanGeneratedFor(loanScope);
+      }
+    }).catch(() => {
+      // Download remains available and reports its own error if readiness couldn't be checked.
+    });
+    return () => controller.abort();
+  }, [accountId, loanScope, operation]);
 
   async function generateLoanApplication(format: "docx" | "pdf") {
     if (loanRequest.current) return;
@@ -57,6 +74,7 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
       const blob = await getLoanApplicationDocument(accountId, operation.id, format, controller.signal);
       if (await isActiveAccount(accountId) && !controller.signal.aborted) {
         downloadBlob(blob, loanApplicationFilename(operation, format));
+        setLoanGeneratedFor(loanScope);
       }
     } catch (error) {
       if (!controller.signal.aborted) setLoanFailure(clientErrorMessage(error, "No se pudo generar la solicitud de préstamo. Intenta de nuevo."));
@@ -151,7 +169,10 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
         onClick={() => { if (!loanRequest.current) loanFormatSheet.current?.showModal(); }}>
         <span className={styles.documentIcon}><FileText size={22} aria-hidden="true" /></span>
         <span className={styles.documentLabel}>Solicitud de préstamo</span>
-        <span className={styles.documentStatus} aria-hidden="true">{loanBusy ? "Generando…" : ""}</span>
+        <span className={styles.documentStatus}>
+          {loanBusy ? <span aria-hidden="true">Generando…</span> : loanGeneratedFor === loanScope &&
+            <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
+        </span>
       </button>
       {DOCUMENT_TYPES.map(({ id, label }) => {
         const Icon = icons[id];
