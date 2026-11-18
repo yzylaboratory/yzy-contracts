@@ -586,3 +586,67 @@
 .uppercaseForm textarea:not(:placeholder-shown) {
   text-transform: uppercase;
 }
+
+.regenerationDialog {
+  width: min(960px, 100%);
+  max-block-size: 94dvh;
+  overflow: auto;
+}
+
+.regenerationDialog .formatSheetBody {
+  padding-inline: clamp(16px, 3vw, 28px);
+  padding-block-start: clamp(16px, 3vw, 24px);
+}
+
+.regenerationHeading,
+.regenerationSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.regenerationHeading > span {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.regenerationHeading p {
+  margin: 4px 0 0;
+}
+
+.regenerationResult {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.regenerationSummary {
+  margin: 0;
+  font-weight: 650;
+}
+
+.regenerationSummary svg {
+  flex: none;
+}
+
+@media (min-width: 720px) {
+  .regenerationDialog {
+    inset: 0;
+    width: min(960px, calc(100% - 32px));
+    margin: auto;
+    border-bottom: 1px solid var(--border);
+    border-radius: 18px;
+  }
+
+  .regenerationDialog[open] {
+    animation: none;
+  }
+}

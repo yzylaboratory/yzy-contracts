@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { AlertCircle, CheckCircle2, Files } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Textarea } from "@/components/arc/textarea/textarea";
@@ -9,6 +11,7 @@ import { downloadBlob } from "@/app/contratos/document-export";
 import { listGeneratedDocuments, type GeneratedDocumentMetadata } from "@/app/contratos/generated-documents-api";
 import { parseAmountMinor } from "./amount-input";
 import { clientErrorMessage, getClient, getExpediente, getLoanApplicationDocument, loanApplicationFilename } from "./clients-api";
+import { ExpedienteGenerationStage } from "./expediente-generation-stage";
 import styles from "./clients.module.css";
 
 type ManualData = { distribution: string; balance: string; balanceDate: string };
@@ -51,6 +54,8 @@ export function ExpedienteDocumentRegeneration({ accountId, clientId, operationI
   const manualData = useRef<ManualData>(noManualData);
   const title = useId();
   const description = useId();
+  const reducedMotion = useReducedMotion();
+  const [preparingLoan, setPreparingLoan] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [report, setReport] = useState<Report | null>(null);
@@ -115,6 +120,7 @@ export function ExpedienteDocumentRegeneration({ accountId, clientId, operationI
       const pending = { documents: documents.filter(document => failedIds.has(document.id)), loan: false };
       let loan = prior?.loan;
       if (only?.loan ?? hasLoan) {
+        setPreparingLoan(true);
         try {
           const blob = await getLoanApplicationDocument(accountId, operationId, "docx", signal);
           loan = { blob, filename: loanApplicationFilename(operation, "docx") };
@@ -137,6 +143,7 @@ export function ExpedienteDocumentRegeneration({ accountId, clientId, operationI
       if (active.current === controller) active.current = null;
       if (dialog.current) {
         setBusy(false);
+        setPreparingLoan(false);
         setPrompt(null);
         onRefreshed();
       }
@@ -157,15 +164,18 @@ export function ExpedienteDocumentRegeneration({ accountId, clientId, operationI
         setNotice("");
         dialog.current?.showModal();
       }}>Regenerar todos</Button>
-    <dialog ref={dialog} className={styles.formatSheet} aria-labelledby={title} aria-describedby={description}
+    <dialog ref={dialog} className={`${styles.formatSheet} ${styles.regenerationDialog}`} aria-labelledby={title} aria-describedby={description}
       onCancel={event => { if (busy) event.preventDefault(); }}>
       <div className={styles.formatSheetBody}>
-        <h2 id={title}>Regenerar documentos</h2>
-        <p id={description} className={styles.muted}>
-          {busy || report
-            ? "Cada documento anterior se reemplaza al guardar su nueva versión."
-            : "Se regenerarán los documentos emitidos con los datos guardados en el expediente y su formato original."}
-        </p>
+        <header className={styles.regenerationHeading}>
+          <span aria-hidden="true"><Files size={22} /></span>
+          <div>
+            <h2 id={title}>Regenerar documentos</h2>
+            <p id={description} className={styles.muted}>
+              Genera nuevas versiones con los datos guardados en el expediente.
+            </p>
+          </div>
+        </header>
         {prompt ? <form className={styles.stack} onSubmit={event => {
           event.preventDefault();
           if (validPrompt) prompt.resolve({ ...draft, distribution: draft.distribution.trim() });
@@ -182,22 +192,29 @@ export function ExpedienteDocumentRegeneration({ accountId, clientId, operationI
             <Button type="button" variant="secondary" onClick={() => active.current?.abort()}>Cancelar</Button>
             <Button type="submit" disabled={!validPrompt}>Continuar</Button>
           </div>
-        </form> : busy ? <p role="status" className={styles.muted}>
-          {progress?.currentLabel ? `${progress.completed} de ${progress.total} procesados. ${progress.currentLabel}`
-            : "Preparando documentos…"}
-        </p> : <>
+        </form> : busy ? <ExpedienteGenerationStage
+          phase={!preparingLoan && progress && progress.phase !== "preparing" ? "generating" : "preparing"}
+          preferredFormat="docx" progress={progress} clientName=""
+          regenerating preparingLoan={preparingLoan}
+        /> : <>
           {notice && <p role="status">{notice}</p>}
           {fatal && <p className={styles.failure} role="alert">{fatal}</p>}
-          {report && <>
-            <p role="status" className={styles.muted}>
-              {report.generated > 0 ? `Documentos regenerados: ${report.generated}.` : report.failures.length
-                ? "Revisa los documentos pendientes."
-                : report.loan ? "Solicitud de préstamo lista." : "Aún no hay documentos emitidos."}
+          {report && <motion.div className={styles.regenerationResult}
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.22 }}>
+            <p role="status" className={styles.regenerationSummary}>
+              {report.failures.length ? <AlertCircle size={22} aria-hidden="true" />
+                : report.generated || report.loan ? <CheckCircle2 size={22} aria-hidden="true" /> : <Files size={22} aria-hidden="true" />}
+              <span>
+                {report.generated > 0 ? `${report.generated} ${report.generated === 1 ? "documento regenerado" : "documentos regenerados"}.` : report.failures.length
+                  ? "Revisa los documentos pendientes."
+                  : report.loan ? "Solicitud de préstamo lista." : "Aún no hay documentos emitidos."}
+              </span>
             </p>
             {report.failures.length > 0 && <ul className={styles.regenerationFailures} aria-label="Documentos pendientes">
               {report.failures.map((item, index) => <li key={index}><strong>{item.label}</strong><br />{item.message}</li>)}
             </ul>}
-          </>}
+          </motion.div>}
           <div className={styles.actions}>
             <Button type="button" variant="secondary" onClick={() => dialog.current?.close()}>{report || fatal ? "Cerrar" : "Cancelar"}</Button>
             {report?.loan && <Button type="button" variant="secondary"

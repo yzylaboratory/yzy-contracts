@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AlertTriangle, Check, CheckCheck, FileCheck2, FileText, Loader2, Stamp } from "lucide-react";
+import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import { Button } from "@/components/arc/button/button";
 import type { BatchProgress, BatchQueueItem } from "@/app/contratos/batch-document-generation";
 import { initialExpedienteDocumentTypes, getDocumentType } from "@/app/contratos/document-catalog";
@@ -22,6 +23,8 @@ export function ExpedienteGenerationStage({
   operationReference,
   insurancePaid,
   onOpenExpediente,
+  regenerating = false,
+  preparingLoan = false,
 }: {
   phase: StagePhase;
   clientName: string;
@@ -30,6 +33,8 @@ export function ExpedienteGenerationStage({
   operationReference?: string | null;
   insurancePaid?: boolean;
   onOpenExpediente?: () => void;
+  regenerating?: boolean;
+  preparingLoan?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const rootRef = useRef<HTMLElement>(null);
@@ -48,7 +53,7 @@ export function ExpedienteGenerationStage({
   const activeRowRef = useRef<HTMLLIElement>(null);
   const prevDoneCount = useRef(0);
 
-  const seededItems: BatchQueueItem[] = initialExpedienteDocumentTypes({ insurancePaid }).map(type => ({
+  const seededItems: BatchQueueItem[] = (regenerating ? [] : initialExpedienteDocumentTypes({ insurancePaid })).map(type => ({
     type,
     label: getDocumentType(type)?.label ?? type,
     status: "pending",
@@ -57,7 +62,9 @@ export function ExpedienteGenerationStage({
   const total = progress?.total ?? items.length;
   const completed = phase === "complete" ? total : (progress?.completed ?? 0);
   const doneCount = items.filter(item => item.status === "done").length;
-  const targetPercent = phase === "complete"
+  const targetPercent = regenerating && total > 0 && !preparingLoan
+    ? Math.round((completed / total) * 100)
+    : phase === "complete"
     ? 100
     : phase === "saving"
       ? 6
@@ -71,6 +78,7 @@ export function ExpedienteGenerationStage({
     ?? items.find(item => item.status === "pending")
     ?? items.at(-1);
   const formatLabel = preferredFormat === "docx" ? "DOCX" : "PDF";
+  const folioFormat = preparingLoan ? "DOCX" : regenerating ? activeItem?.format?.toUpperCase() ?? "Original" : formatLabel;
 
   // Mount-level ambient GSAP choreography (stage entrance, orbital rings, float, scan beam, sheen).
   useEffect(() => {
@@ -229,7 +237,7 @@ export function ExpedienteGenerationStage({
     }, activeSheetRef);
 
     return () => ctx.revert();
-  }, [activeItem?.type, phase, reducedMotion]);
+  }, [activeItem?.label, phase, preparingLoan, reducedMotion]);
 
   // Notary seal slam + ripple whenever a document finishes and gets saved.
   useEffect(() => {
@@ -262,7 +270,10 @@ export function ExpedienteGenerationStage({
     return () => ctx.revert();
   }, [doneCount, phase, reducedMotion]);
 
-  const titleCopy = phase === "saving"
+  const titleCopy = regenerating
+    ? preparingLoan ? "Preparando solicitud de préstamo" : phase === "preparing"
+      ? "Preparando documentos" : activeItem?.label ?? "Regenerando documentos"
+    : phase === "saving"
     ? "Registrando expediente"
     : phase === "preparing"
       ? "Preparando taller documental"
@@ -270,7 +281,11 @@ export function ExpedienteGenerationStage({
         ? "Expediente completo y sellado"
         : `Generando: ${activeItem?.label ?? "Documentos iniciales"}`;
 
-  const subtitleCopy = phase === "saving"
+  const subtitleCopy = regenerating
+    ? preparingLoan ? "Generando el Word con los datos del expediente."
+      : phase === "preparing" ? "Cargando los documentos emitidos y los datos del expediente."
+        : "Actualizando los documentos en sus formatos originales."
+    : phase === "saving"
     ? `Creando el expediente de ${clientName} y asignando referencia…`
     : phase === "preparing"
       ? "Verificando plantillas Word compatibles y cláusulas legales de la empresa…"
@@ -282,30 +297,28 @@ export function ExpedienteGenerationStage({
     <section
       ref={rootRef}
       className={`${styles.stage} ${phase === "complete" ? styles.stageComplete : ""}`}
-      aria-live="polite"
-      aria-busy={phase !== "complete"}
-      aria-label="Generación automática de documentos iniciales"
+      aria-label={regenerating ? "Regeneración de documentos" : "Generación automática de documentos iniciales"}
     >
       <div className={styles.topBar}>
-        <div className={styles.headingGroup}>
+        <div className={styles.headingGroup} role="status">
           <span className={`${styles.liveBadge} ${phase === "complete" ? styles.liveBadgeComplete : ""}`}>
             <span className={styles.liveDot} aria-hidden="true">
               {phase !== "complete" && <span ref={dotPulseRef} className={styles.liveDotPulse} />}
             </span>
-            {phase === "complete" ? "Emisión completada" : "Generación en vivo"}
+            {phase === "complete" ? "Emisión completada" : regenerating ? "Regeneración en curso" : "Generación en vivo"}
           </span>
           <h3 className={styles.stageTitle}>{titleCopy}</h3>
           <p className={styles.stageSubtitle}>{subtitleCopy}</p>
         </div>
 
-        <div className={styles.metrics}>
+        {(!regenerating || (total > 0 && !preparingLoan)) && <div className={styles.metrics}>
           <span className={styles.metricCount}>
             {String(completed).padStart(2, "0")} / {String(total).padStart(2, "0")} docs
           </span>
           <span ref={percentTextRef} className={styles.metricPercent}>
             {targetPercent}%
           </span>
-        </div>
+        </div>}
       </div>
 
       <div className={styles.progressWrap}>
@@ -314,7 +327,7 @@ export function ExpedienteGenerationStage({
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={targetPercent}
+          aria-valuenow={regenerating && (!total || preparingLoan) ? undefined : targetPercent}
           aria-label="Progreso de generación de documentos"
         >
           <div ref={progressFillRef} className={styles.progressFill} />
@@ -337,7 +350,7 @@ export function ExpedienteGenerationStage({
                   <FileText size={13} strokeWidth={2.2} />
                   YZY · FOLIO LEGAL
                 </span>
-                <span className={styles.folioFormat}>{formatLabel}</span>
+                <span className={styles.folioFormat}>{folioFormat}</span>
               </div>
 
               {phase === "complete" ? (
@@ -360,14 +373,14 @@ export function ExpedienteGenerationStage({
                   <div className={styles.folioMeta}>
                     <AnimatePresence mode="wait">
                       <motion.p
-                        key={activeItem?.type ?? phase}
+                        key={preparingLoan ? "loan" : activeItem?.label ?? phase}
                         className={styles.folioDocTitle}
                         initial={reducedMotion ? false : { opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
                         transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
                       >
-                        {phase === "saving"
+                        {preparingLoan ? "Solicitud de préstamo" : phase === "saving"
                           ? "Expediente de financiamiento"
                           : phase === "preparing"
                             ? "Preparando plantillas"
@@ -410,6 +423,13 @@ export function ExpedienteGenerationStage({
             </span>
           </div>
 
+          {items.length === 0 && (preparingLoan
+            ? <p className={styles.footerNote}>Solicitud de préstamo en Word</p>
+            : <LoadingContent label="Cargando documentos emitidos…">
+              <LoadingBlock height={42} />
+              <LoadingBlock height={42} />
+              <LoadingBlock height={42} />
+            </LoadingContent>)}
           <ul className={styles.ledgerList}>
             {items.map((item, index) => {
               const isActive = phase === "generating" && item.status === "active";
@@ -440,7 +460,7 @@ export function ExpedienteGenerationStage({
 
               return (
                 <motion.li
-                  key={item.type}
+                  key={`${item.type}:${index}`}
                   ref={isActive ? activeRowRef : undefined}
                   layout={!reducedMotion}
                   initial={reducedMotion ? false : { opacity: 0, x: 10 }}
@@ -516,7 +536,8 @@ export function ExpedienteGenerationStage({
         <p className={styles.footerNote}>
           {phase === "complete"
             ? "Redirigiendo al expediente del cliente…"
-            : "Cada documento se genera con los datos del cliente, vehículo y plan de pagos."}
+            : regenerating ? "La versión anterior se reemplaza cuando se guarda la nueva."
+              : "Cada documento se genera con los datos del cliente, vehículo y plan de pagos."}
         </p>
         {phase === "complete" && onOpenExpediente && (
           <Button type="button" size="sm" onClick={onOpenExpediente}>
