@@ -315,7 +315,11 @@ async fn superadmin_deletes_only_archived_unused_companies() {
     assert_eq!(error_code(&error), "COMPANY_NOT_ARCHIVED");
 
     let (status, link) = app
-        .post(owner, &format!("{company_path}/prospect-links"), json!({}))
+        .post(
+            owner,
+            &format!("{company_path}/prospect-links"),
+            json!({"identity": "000-0000001-1"}),
+        )
         .await;
     assert_eq!(status, StatusCode::CREATED, "{link}");
 
@@ -328,7 +332,7 @@ async fn superadmin_deletes_only_archived_unused_companies() {
             Method::POST,
             "/api/v1/public/prospect-links/check",
             None,
-            Some(json!({"token": link["token"]})),
+            Some(json!({"token": link["token"], "identity": "000-0000001-1"})),
         )
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);

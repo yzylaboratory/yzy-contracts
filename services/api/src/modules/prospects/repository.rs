@@ -10,16 +10,18 @@ pub(super) async fn create_link(
     actor: Uuid,
     company: Uuid,
     token_hash: &[u8],
+    identity_binding: &[u8],
     expires_at: DateTime<Utc>,
 ) -> sqlx::Result<()> {
     sqlx::query(
-        "INSERT INTO prospect_links (company_id, token_hash, created_by, expires_at)
-         VALUES ($1, $2, $3, $4)",
+        "INSERT INTO prospect_links (company_id, token_hash, created_by, expires_at, identity_binding)
+         VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(company)
     .bind(token_hash)
     .bind(actor)
     .bind(expires_at)
+    .bind(identity_binding)
     .execute(db)
     .await?;
     Ok(())
@@ -38,20 +40,28 @@ pub(super) async fn list(db: &PgPool, company: Uuid) -> sqlx::Result<ProspectLis
     Ok(ProspectList { items })
 }
 
-pub(super) async fn link_is_active(db: &PgPool, token_hash: &[u8]) -> sqlx::Result<bool> {
-    sqlx::query_scalar(
-        "SELECT EXISTS (
-           SELECT 1 FROM prospect_links
-           WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
-             AND EXISTS (
-               SELECT 1 FROM companies
-               WHERE id = prospect_links.company_id AND archived_at IS NULL
-             )
-         )",
+pub(super) async fn verify_identity(
+    db: &PgPool,
+    token_hash: &[u8],
+    identity_binding: &[u8],
+) -> sqlx::Result<bool> {
+    let verified = sqlx::query_scalar(
+        "UPDATE prospect_links
+         SET failed_identity_checks = failed_identity_checks
+           + CASE WHEN identity_binding = $2 THEN 0 ELSE 1 END
+         WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+           AND identity_binding IS NOT NULL AND failed_identity_checks < 5
+           AND EXISTS (
+             SELECT 1 FROM companies
+             WHERE id = prospect_links.company_id AND archived_at IS NULL
+           )
+         RETURNING identity_binding = $2",
     )
     .bind(token_hash)
-    .fetch_one(db)
-    .await
+    .bind(identity_binding)
+    .fetch_optional(db)
+    .await?;
+    Ok(verified.unwrap_or(false))
 }
 
 /// Atomically claims the link and records the submission in one statement,
@@ -60,24 +70,30 @@ pub(super) async fn link_is_active(db: &PgPool, token_hash: &[u8]) -> sqlx::Resu
 pub(super) async fn submit(
     db: &PgPool,
     token_hash: &[u8],
+    identity_binding: &[u8],
     data: NormalizedProspect,
 ) -> sqlx::Result<bool> {
     let saved: Option<Uuid> = sqlx::query_scalar(
         "WITH link AS (
-           UPDATE prospect_links SET used_at = now()
+           UPDATE prospect_links
+           SET used_at = CASE WHEN identity_binding = $2 THEN now() ELSE NULL END,
+               failed_identity_checks = failed_identity_checks
+                 + CASE WHEN identity_binding = $2 THEN 0 ELSE 1 END
            WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+             AND identity_binding IS NOT NULL AND failed_identity_checks < 5
              AND EXISTS (
                SELECT 1 FROM companies
                WHERE id = prospect_links.company_id AND archived_at IS NULL
              )
-           RETURNING company_id
+           RETURNING company_id, used_at
          )
          INSERT INTO prospects
             (company_id, name, identity, phone, address, email, nationality, marital_status, occupation)
-         SELECT company_id, $2, $3, $4, $5, $6, $7, $8, $9 FROM link
+         SELECT company_id, $3, $4, $5, $6, $7, $8, $9, $10 FROM link WHERE used_at IS NOT NULL
          RETURNING id",
     )
     .bind(token_hash)
+    .bind(identity_binding)
     .bind(data.name)
     .bind(data.identity)
     .bind(data.phone)

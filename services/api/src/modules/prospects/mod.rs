@@ -16,7 +16,10 @@ use utoipa_axum::{
 };
 use uuid::Uuid;
 
-use self::dto::{CheckProspectLink, ConvertedProspect, ProspectLink, ProspectList, SubmitProspect};
+use self::dto::{
+    CheckProspectLink, ConvertedProspect, CreateProspectLink, ProspectLink, ProspectList,
+    SubmitProspect,
+};
 use crate::{
     app_state::AppState,
     error::{ApiError, ErrorEnvelope},
@@ -66,6 +69,7 @@ async fn require_company_scope(db: &PgPool, actor: Uuid, company: Uuid) -> Resul
     post, path = "/api/v1/companies/{company_id}/prospect-links", tag = "Prospects",
     security(("bearer_auth" = [])),
     params(("company_id" = Uuid, Path, description = "Company UUID")),
+    request_body = CreateProspectLink,
     responses(
         (status = 201, description = "One-time link, valid for 24 hours; the token is returned once and never stored or logged", body = ProspectLink),
         (status = 401, body = ErrorEnvelope), (status = 403, body = ErrorEnvelope),
@@ -77,8 +81,11 @@ async fn create_link(
     State(state): State<AppState>,
     Extension(user): Extension<AuthUser>,
     ApiPath(company_id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<CreateProspectLink>,
 ) -> Result<(StatusCode, Json<ProspectLink>), ApiError> {
     require_company_scope(&state.db, user.id, company_id).await?;
+    let identity = token::cedula_digits(&body.identity)
+        .ok_or_else(|| ApiError::Validation("Escribe una cédula de 11 dígitos.".to_owned()))?;
     let token = token::generate();
     let expires_at = Utc::now() + Duration::hours(LINK_TTL_HOURS);
     repository::create_link(
@@ -86,6 +93,7 @@ async fn create_link(
         user.id,
         company_id,
         &token::digest(&token),
+        &token::cedula_binding(&token, &identity),
         expires_at,
     )
     .await?;
@@ -142,7 +150,7 @@ async fn convert_prospect(
     request_body = CheckProspectLink,
     responses(
         (status = 204, description = "The link is still usable"),
-        (status = 404, description = "Unknown, malformed, expired or already used link", body = ErrorEnvelope),
+        (status = 404, description = "No available link matching the cédula", body = ErrorEnvelope),
         (status = 413, body = ErrorEnvelope), (status = 422, body = ErrorEnvelope)
     )
 )]
@@ -153,7 +161,14 @@ async fn check_link(
     if !token::is_well_formed(&body.token) {
         return Err(ApiError::ProspectLinkUnavailable);
     }
-    if repository::link_is_active(&state.db, &token::digest(&body.token)).await? {
+    let identity = token::cedula_digits(&body.identity).ok_or(ApiError::ProspectLinkUnavailable)?;
+    if repository::verify_identity(
+        &state.db,
+        &token::digest(&body.token),
+        &token::cedula_binding(&body.token, &identity),
+    )
+    .await?
+    {
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(ApiError::ProspectLinkUnavailable)
@@ -165,7 +180,7 @@ async fn check_link(
     request_body = SubmitProspect,
     responses(
         (status = 204, description = "Submission recorded for the company behind the link"),
-        (status = 404, description = "Unknown, malformed, expired or already used link", body = ErrorEnvelope),
+        (status = 404, description = "No available link matching the cédula", body = ErrorEnvelope),
         (status = 413, body = ErrorEnvelope), (status = 422, body = ErrorEnvelope)
     )
 )]
@@ -176,9 +191,17 @@ async fn submit_prospect(
     if !token::is_well_formed(&body.token) {
         return Err(ApiError::ProspectLinkUnavailable);
     }
+    let identity = token::cedula_digits(&body.identity).ok_or(ApiError::ProspectLinkUnavailable)?;
     let token_hash = token::digest(&body.token);
-    let data = body.normalize()?;
-    if repository::submit(&state.db, &token_hash, data).await? {
+    let binding = token::cedula_binding(&body.token, &identity);
+    let mut data = body.normalize()?;
+    data.identity = format!(
+        "{}-{}-{}",
+        &identity[..3],
+        &identity[3..10],
+        &identity[10..]
+    );
+    if repository::submit(&state.db, &token_hash, &binding, data).await? {
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(ApiError::ProspectLinkUnavailable)

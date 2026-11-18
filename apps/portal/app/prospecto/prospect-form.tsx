@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, Lock, RotateCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, Lock } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
+import { formatCedula } from "@/app/clientes/client-masks";
 import ProspectoLoading from "./loading";
 import {
   checkProspectLink,
@@ -15,11 +16,10 @@ import {
 } from "./prospect-api";
 import styles from "./prospect-form.module.css";
 
-type FormStatus = "checking" | "invalid" | "network_error" | "form" | "success";
+type FormStatus = "checking" | "invalid" | "identity" | "form" | "success";
 
 interface FormErrors {
   name?: string;
-  identity?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -48,6 +48,8 @@ const MARITAL_STATUS_OPTIONS = [
 export function ProspectForm() {
   const reducedMotion = useReducedMotion();
   const [status, setStatus] = useState<FormStatus>("checking");
+  const [validatingIdentity, setValidatingIdentity] = useState(false);
+  const [identityError, setIdentityError] = useState("");
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -70,63 +72,42 @@ export function ProspectForm() {
 
   // Focus step heading on step change for screen readers
   useEffect(() => {
-    if (status === "form" || status === "success" || status === "invalid") {
+    if (status === "identity" || status === "form" || status === "success" || status === "invalid") {
       stepHeadingRef.current?.focus();
     }
   }, [step, status]);
 
-  const verifyToken = useCallback(async (token: string) => {
-    setStatus("checking");
-    setSubmitError(null);
-    const controller = new AbortController();
+  useEffect(() => {
+    const token = extractProspectTokenFromHash(window.location.hash);
+    tokenRef.current = token;
+    const timer = setTimeout(() => setStatus(token ? "identity" : "invalid"), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  async function verifyIdentity(event: React.FormEvent) {
+    event.preventDefault();
+    const token = tokenRef.current;
+    if (!token || validatingIdentity) return;
+    if (formData.identity.replace(/-/g, "").length !== 11) {
+      setIdentityError("Escribe los 11 dígitos de tu cédula.");
+      identityInputRef.current?.focus();
+      return;
+    }
+    setIdentityError("");
+    setValidatingIdentity(true);
     try {
-      const result = await checkProspectLink(token, controller.signal);
+      const result = await checkProspectLink(token, formData.identity);
       if (result.kind === "valid") {
         setStatus("form");
-      } else if (result.kind === "not_found") {
-        tokenRef.current = null;
-        removeProspectFragment();
-        setStatus("invalid");
       } else {
-        setStatus("network_error");
+        setIdentityError(result.kind === "not_found"
+          ? "No pudimos verificar el enlace con esa cédula. Revisa el número o pide un enlace nuevo."
+          : "No pudimos conectar. Intenta de nuevo.");
       }
-    } catch {
-      setStatus("network_error");
+    } finally {
+      setValidatingIdentity(false);
     }
-  }, []);
-
-  // Initial read of token from window.location.hash in browser
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const controller = new AbortController();
-    const token = extractProspectTokenFromHash(window.location.hash);
-    if (!token) {
-      const timer = setTimeout(() => setStatus("invalid"), 0);
-      return () => clearTimeout(timer);
-    }
-
-    tokenRef.current = token;
-    checkProspectLink(token, controller.signal)
-      .then((result) => {
-        if (controller.signal.aborted) return;
-        if (result.kind === "valid") {
-          setStatus("form");
-        } else if (result.kind === "not_found") {
-          tokenRef.current = null;
-          removeProspectFragment();
-          setStatus("invalid");
-        } else {
-          setStatus("network_error");
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setStatus("network_error");
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
+  }
 
   const handleFieldChange = (field: keyof ProspectFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -140,25 +121,12 @@ export function ProspectForm() {
 
   const handleNextStep1 = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: FormErrors = {};
-    let firstInvalid: "name" | "identity" | null = null;
-
     if (!formData.name.trim()) {
-      newErrors.name = "Por favor ingresa tu nombre completo.";
-      firstInvalid = "name";
-    }
-    if (!formData.identity.trim()) {
-      newErrors.identity = "Por favor ingresa tu cédula o documento de identidad.";
-      if (!firstInvalid) firstInvalid = "identity";
-    }
-
-    setErrors(newErrors);
-
-    if (firstInvalid) {
-      if (firstInvalid === "name") nameInputRef.current?.focus();
-      else identityInputRef.current?.focus();
+      setErrors({ name: "Por favor ingresa tu nombre completo." });
+      nameInputRef.current?.focus();
       return;
     }
+    setErrors({});
 
     setStep(2);
   };
@@ -255,30 +223,24 @@ export function ProspectForm() {
     );
   }
 
-  // State: Network Error on initial verification (with Retry)
-  if (status === "network_error") {
+  if (status === "identity") {
     return (
-      <section className={styles.mainCard} role="region" aria-label="Error de conexión">
-        <div className={styles.statusCard}>
-          <div className={`${styles.statusIconWrapper} ${styles.statusIconError}`}>
-            <AlertCircle className={styles.statusIcon} aria-hidden="true" size={32} />
-          </div>
-          <h2 className={styles.statusTitle}>Problema de conexión</h2>
-          <p className={styles.statusMessage}>
-            No pudimos conectar con el servidor para verificar tu enlace. Comprueba tu conexión a internet e intenta de nuevo.
-          </p>
-
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => {
-              if (tokenRef.current) void verifyToken(tokenRef.current);
-            }}
-          >
-            <RotateCw size={16} aria-hidden="true" style={{ marginRight: 6 }} />
-            Reintentar verificación
-          </Button>
+      <section className={styles.mainCard} aria-labelledby="prospect-identity-title">
+        <div className={styles.stepIntro}>
+          <h2 id="prospect-identity-title" ref={stepHeadingRef} tabIndex={-1} className={styles.stepHeading}>
+            Confirma tu cédula
+          </h2>
+          <p className={styles.stepSubheading}>Escribe la cédula que le diste a la persona que te envió el enlace.</p>
         </div>
+        <form className={styles.fieldsContainer} onSubmit={verifyIdentity} noValidate>
+          <Input ref={identityInputRef} name="identity" label="Número de cédula" inputMode="numeric"
+            autoComplete="off" value={formData.identity} required error={identityError}
+            readOnly={validatingIdentity} onChange={event => {
+              setFormData(previous => ({ ...previous, identity: formatCedula(event.target.value) }));
+              setIdentityError("");
+            }} />
+          <Button type="submit" loading={validatingIdentity} disabled={validatingIdentity}>Continuar</Button>
+        </form>
       </section>
     );
   }
@@ -380,7 +342,7 @@ export function ProspectForm() {
               Datos personales
             </h2>
             <p className={styles.stepSubheading}>
-              Ingresa tu nombre y documento tal como aparecen en tu identificación oficial.
+              Ingresa tu nombre tal como aparece en tu cédula.
             </p>
           </div>
 
@@ -404,12 +366,10 @@ export function ProspectForm() {
               id="prospect-identity"
               name="identity"
               maxLength={64}
-              label="Cédula o documento de identidad"
-              placeholder="Ej. 001-0000000-0 o pasaporte"
+              label="Cédula verificada"
+              readOnly
               required
               value={formData.identity}
-              error={errors.identity}
-              onChange={(e) => handleFieldChange("identity", e.target.value)}
             />
 
             <Input

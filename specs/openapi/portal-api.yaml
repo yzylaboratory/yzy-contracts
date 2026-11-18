@@ -1530,6 +1530,12 @@ paths:
         schema:
           type: string
           format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProspectLink'
+        required: true
       responses:
         '201':
           description: One-time link, valid for 24 hours; the token is returned once and never stored or logged
@@ -3461,7 +3467,7 @@ paths:
         '204':
           description: The link is still usable
         '404':
-          description: Unknown, malformed, expired or already used link
+          description: No available link matching the cédula
           content:
             application/json:
               schema:
@@ -3491,7 +3497,7 @@ paths:
         '204':
           description: Submission recorded for the company behind the link
         '404':
-          description: Unknown, malformed, expired or already used link
+          description: No available link matching the cédula
           content:
             application/json:
               schema:
@@ -4677,7 +4683,10 @@ components:
       type: object
       required:
       - token
+      - identity
       properties:
+        identity:
+          type: string
         token:
           type: string
       additionalProperties: false
@@ -5278,6 +5287,15 @@ components:
         upload_id:
           type: string
           format: uuid
+      additionalProperties: false
+    CreateProspectLink:
+      type: object
+      required:
+      - identity
+      properties:
+        identity:
+          type: string
+          description: Dominican cédula, with or without hyphens.
       additionalProperties: false
     CreateUploadUrlRequest:
       type: object

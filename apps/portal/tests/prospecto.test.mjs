@@ -98,23 +98,23 @@ test("checkProspectLink sends POST to /api/v1/public/prospect-links/check with s
       return new Response(null, { status: 204 });
     };
 
-    const result = await checkProspectLink(SYNTHETIC_TOKEN);
+    const result = await checkProspectLink(SYNTHETIC_TOKEN, "000-0000000-0");
     assert.equal(result.kind, "valid");
     assert.match(capturedUrl, /\/api\/v1\/public\/prospect-links\/check$/);
     assert.equal(capturedInit?.method, "POST");
     assert.equal(capturedInit?.referrerPolicy, "no-referrer");
-    assert.deepEqual(JSON.parse(capturedInit?.body), { token: SYNTHETIC_TOKEN });
+    assert.deepEqual(JSON.parse(capturedInit?.body), { token: SYNTHETIC_TOKEN, identity: "000-0000000-0" });
 
     // Test 404 not available
     globalThis.fetch = async () => new Response(null, { status: 404 });
-    const notFoundResult = await checkProspectLink(SYNTHETIC_TOKEN);
+    const notFoundResult = await checkProspectLink(SYNTHETIC_TOKEN, "000-0000000-0");
     assert.equal(notFoundResult.kind, "not_found");
 
     // Test network error
     globalThis.fetch = async () => {
       throw new Error("Network offline");
     };
-    const networkErrorResult = await checkProspectLink(SYNTHETIC_TOKEN);
+    const networkErrorResult = await checkProspectLink(SYNTHETIC_TOKEN, "000-0000000-0");
     assert.equal(networkErrorResult.kind, "network_error");
   } finally {
     globalThis.fetch = originalFetch;

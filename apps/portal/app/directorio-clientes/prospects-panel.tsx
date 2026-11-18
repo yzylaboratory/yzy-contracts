@@ -12,8 +12,8 @@ import { companyPickerPath } from "@/lib/portal-access";
 import { clientScope, markClientDirectoryUpdated } from "../clientes/client-navigation";
 import { clientDirectoryRecordHref } from "../clientes/client-paths";
 import { displayClientIdentity } from "../clientes/client-masks";
-import { createProspectLink, formatProspectDate, listProspects, prospectErrorMessage, prospectLinkUrl, prospectMatches, type Prospect } from "./prospects-api";
-import { ProspectLinkDialog, type ProspectLinkView } from "./prospect-link-dialog";
+import { formatProspectDate, listProspects, prospectErrorMessage, prospectMatches, type Prospect } from "./prospects-api";
+import { ProspectLinkDialog } from "./prospect-link-dialog";
 import { ProspectReviewDialog } from "./prospect-review-dialog";
 import styles from "./prospects.module.css";
 
@@ -26,7 +26,6 @@ export function ProspectsPanel({ accountId, companyId, search }: { accountId: st
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<ProspectResult>();
   const [creatingLink, setCreatingLink] = useState(false);
-  const [link, setLink] = useState<ProspectLinkView>();
   const [review, setReview] = useState<Prospect>();
   const key = JSON.stringify([companyId, attempt]);
   const current = result?.key === key ? result : undefined;
@@ -43,19 +42,6 @@ export function ProspectsPanel({ accountId, companyId, search }: { accountId: st
       });
     return () => controller.abort();
   }, [accountId, companyId, key]);
-
-  async function createLink() {
-    if (!companyId || creatingLink) return;
-    setCreatingLink(true);
-    try {
-      const created = await createProspectLink(accountId, companyId);
-      setLink({ url: prospectLinkUrl(window.location.origin, created.token), expiresAt: created.expires_at });
-    } catch (error) {
-      toast({ type: "error", title: "No se pudo crear el enlace", description: prospectErrorMessage(error, "Vuelve a intentarlo.") });
-    } finally {
-      setCreatingLink(false);
-    }
-  }
 
   function converted(prospect: Prospect, clientId: string) {
     setReview(undefined);
@@ -78,7 +64,7 @@ export function ProspectsPanel({ accountId, companyId, search }: { accountId: st
               <RefreshCw size={16} aria-hidden="true" />
               Actualizar prospectos
             </Button>
-            <Button type="button" variant="secondary" loading={creatingLink} disabled={creatingLink} onClick={() => void createLink()}>
+            <Button type="button" variant="secondary" onClick={() => setCreatingLink(true)}>
               Crear enlace para prospecto
             </Button>
           </div>
@@ -111,7 +97,8 @@ export function ProspectsPanel({ accountId, companyId, search }: { accountId: st
         />
       )}
 
-      {link && <ProspectLinkDialog link={link} onClose={() => setLink(undefined)} />}
+      {creatingLink && companyId &&
+        <ProspectLinkDialog accountId={accountId} companyId={companyId} onClose={() => setCreatingLink(false)} />}
       {review && companyId && (
         <ProspectReviewDialog
           accountId={accountId}

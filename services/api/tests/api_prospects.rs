@@ -39,20 +39,37 @@ async fn prospect_link_lifecycle_is_single_use_and_converts_into_a_client() {
 
     // A pending (not yet enabled) account cannot create a link.
     let pending = app.pending_user().await;
-    let (status, error) = app.post(pending, &links_for(company), json!({})).await;
+    let (status, error) = app
+        .post(
+            pending,
+            &links_for(company),
+            json!({"identity": "000-0000001-1"}),
+        )
+        .await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{error}");
     assert_eq!(error_code(&error), "ACCESS_PENDING");
 
     // An unknown token behaves exactly like an invalid one: same 404.
     for bad_token in ["not-a-valid-token", &"0".repeat(64), &"f".repeat(64)] {
         let (status, error) = app
-            .request(Method::POST, CHECK, None, Some(json!({"token": bad_token})))
+            .request(
+                Method::POST,
+                CHECK,
+                None,
+                Some(json!({"token": bad_token, "identity": "000-0000001-1"})),
+            )
             .await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{bad_token}: {error}");
         assert_eq!(error_code(&error), "PROSPECT_LINK_NOT_FOUND");
     }
 
-    let (status, link) = app.post(owner, &links_for(company), json!({})).await;
+    let (status, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity": "000-0000001-1"}),
+        )
+        .await;
     assert_eq!(status, StatusCode::CREATED, "{link}");
     let expires_at = link["expires_at"]
         .as_str()
@@ -67,9 +84,24 @@ async fn prospect_link_lifecycle_is_single_use_and_converts_into_a_client() {
     assert!(token.bytes().all(|byte| byte.is_ascii_hexdigit()));
 
     let (status, _) = app
-        .request(Method::POST, CHECK, None, Some(json!({"token": token})))
+        .request(
+            Method::POST,
+            CHECK,
+            None,
+            Some(json!({"token": token, "identity": "000-0000001-1"})),
+        )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (status, _) = app
+        .request(
+            Method::POST,
+            SUBMIT,
+            None,
+            Some(submission(&token, "000-0000002-2")),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 
     // Deny-unknown-fields and required fields are enforced before touching the link.
     let mut extra = submission(&token, "000-0000001-1");
@@ -102,9 +134,14 @@ async fn prospect_link_lifecycle_is_single_use_and_converts_into_a_client() {
 
     // Single use: the same token can neither be checked nor submitted again.
     assert_eq!(
-        app.request(Method::POST, CHECK, None, Some(json!({"token": token})))
-            .await
-            .0,
+        app.request(
+            Method::POST,
+            CHECK,
+            None,
+            Some(json!({"token": token, "identity": "000-0000001-1"}))
+        )
+        .await
+        .0,
         StatusCode::NOT_FOUND
     );
     let (status, error) = app
@@ -174,7 +211,13 @@ async fn expired_link_is_reported_as_unavailable_like_an_unknown_token() {
     let app = TestApp::start().await;
     let owner = app.superadmin().await;
     let company = app.legacy_company(owner, "Empresa con enlaces").await;
-    let (_, link) = app.post(owner, &links_for(company), json!({})).await;
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity": "000-0000003-3"}),
+        )
+        .await;
     let token = link["token"].as_str().unwrap().to_owned();
 
     sqlx::query("UPDATE yzy_contracts.prospect_links SET expires_at = now() - interval '1 second'")
@@ -183,7 +226,12 @@ async fn expired_link_is_reported_as_unavailable_like_an_unknown_token() {
         .unwrap();
 
     let (status, error) = app
-        .request(Method::POST, CHECK, None, Some(json!({"token": token})))
+        .request(
+            Method::POST,
+            CHECK,
+            None,
+            Some(json!({"token": token, "identity": "000-0000003-3"})),
+        )
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{error}");
     assert_eq!(error_code(&error), "PROSPECT_LINK_NOT_FOUND");
@@ -218,7 +266,13 @@ async fn converting_a_prospect_never_overwrites_an_existing_client() {
         .await;
     assert_eq!(status, StatusCode::CREATED, "{existing}");
 
-    let (_, link) = app.post(owner, &links_for(company), json!({})).await;
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity": "000-0000009-9"}),
+        )
+        .await;
     let token = link["token"].as_str().unwrap().to_owned();
     let (status, _) = app
         .request(
@@ -254,7 +308,13 @@ async fn prospects_and_conversion_are_isolated_per_company() {
     let company_a = app.legacy_company(owner, "Empresa A").await;
     let company_b = app.legacy_company(owner, "Empresa B").await;
 
-    let (_, link) = app.post(owner, &links_for(company_a), json!({})).await;
+    let (_, link) = app
+        .post(
+            owner,
+            &links_for(company_a),
+            json!({"identity": "000-0000004-4"}),
+        )
+        .await;
     let token = link["token"].as_str().unwrap().to_owned();
     let (status, _) = app
         .request(
@@ -287,7 +347,13 @@ async fn prospects_and_conversion_are_isolated_per_company() {
     assert_eq!(status, StatusCode::OK, "{converted}");
 
     // A nonexistent company behaves the same as an inaccessible one.
-    let (status, error) = app.post(owner, &links_for(Uuid::new_v4()), json!({})).await;
+    let (status, error) = app
+        .post(
+            owner,
+            &links_for(Uuid::new_v4()),
+            json!({"identity": "000-0000004-4"}),
+        )
+        .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{error}");
     assert_eq!(error_code(&error), "COMPANY_NOT_FOUND");
 }
@@ -316,7 +382,13 @@ async fn dev_prospect_submission_stays_in_the_dev_schema() {
     .await
     .unwrap();
 
-    let (status, link) = app.post(owner, &links_for(company), json!({})).await;
+    let (status, link) = app
+        .post(
+            owner,
+            &links_for(company),
+            json!({"identity": "000-0000008-8"}),
+        )
+        .await;
     assert_eq!(status, StatusCode::CREATED, "{link}");
     let token = link["token"].as_str().unwrap();
     let (status, _) = app
@@ -324,17 +396,55 @@ async fn dev_prospect_submission_stays_in_the_dev_schema() {
             Method::POST,
             SUBMIT,
             None,
-            Some(submission(token, "DEV-001")),
+            Some(submission(token, "000-0000008-8")),
         )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let (status, list) = app.get(owner, &prospects_for(company)).await;
     assert_eq!(status, StatusCode::OK, "{list}");
-    assert_eq!(list["items"][0]["identity"], "DEV-001");
+    assert_eq!(list["items"][0]["identity"], "000-0000008-8");
     let prod_count: i64 = sqlx::query_scalar("SELECT count(*) FROM yzy_contracts.prospects")
         .fetch_one(&app.admin)
         .await
         .unwrap();
     assert_eq!(prod_count, 0);
+}
+
+#[tokio::test]
+async fn prospect_link_rejects_a_different_identity_and_limits_failed_checks() {
+    let app = TestApp::start().await;
+    let owner = app.superadmin().await;
+    let company = app.legacy_company(owner, "Empresa sintética").await;
+    let route = links_for(company);
+    assert_eq!(
+        app.post(owner, &route, json!({})).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    let (status, link) = app
+        .post(owner, &route, json!({"identity":"00000000011"}))
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    for _ in 0..5 {
+        let (status, _) = app
+            .request(
+                Method::POST,
+                CHECK,
+                None,
+                Some(json!({"token":link["token"],"identity":"000-0000002-2"})),
+            )
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+    let (status, _) = app
+        .request(
+            Method::POST,
+            CHECK,
+            None,
+            Some(json!({"token":link["token"],"identity":"000-0000001-1"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (_, list) = app.get(owner, &prospects_for(company)).await;
+    assert_eq!(list["items"], json!([]));
 }

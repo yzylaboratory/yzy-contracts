@@ -27,6 +27,29 @@ pub(super) fn digest(token: &str) -> Vec<u8> {
     Sha256::digest(token.as_bytes()).to_vec()
 }
 
+/// Cédulas can be entered with spaces or hyphens. Do not strip other
+/// characters, since an unrelated identifier must not match by accident.
+pub(super) fn cedula_digits(value: &str) -> Option<String> {
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_digit() || byte == b'-' || byte == b' ')
+    {
+        return None;
+    }
+    let digits: String = value.chars().filter(char::is_ascii_digit).collect();
+    (digits.len() == 11).then_some(digits)
+}
+
+pub(super) fn cedula_binding(token: &str, digits: &str) -> Vec<u8> {
+    // The public token itself is random and absent from the database. Binding
+    // it to the cédula avoids storing the number or a digest of the number alone.
+    let mut hash = Sha256::new();
+    hash.update(b"prospect-link-cedula:");
+    hash.update(token.as_bytes());
+    hash.update(digits.as_bytes());
+    hash.finalize().to_vec()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

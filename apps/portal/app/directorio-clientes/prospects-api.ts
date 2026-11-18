@@ -22,9 +22,10 @@ function companyPath(companyId: string) {
   return `/companies/${encodeURIComponent(companyId)}`;
 }
 
-export function createProspectLink(accountId: string, companyId: string) {
+export function createProspectLink(accountId: string, companyId: string, identity: string) {
   return api<ProspectLink>(`${companyPath(companyId)}/prospect-links`, {
     method: "POST",
+    body: { identity },
     expectedAccountId: accountId,
   });
 }

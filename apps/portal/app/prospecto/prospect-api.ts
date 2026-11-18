@@ -50,6 +50,7 @@ export function getPublicApiBase(): string {
  */
 export async function checkProspectLink(
   token: string,
+  identity: string,
   signal?: AbortSignal,
 ): Promise<CheckProspectLinkResult> {
   const apiBase = getPublicApiBase();
@@ -59,7 +60,7 @@ export async function checkProspectLink(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, identity }),
       cache: "no-store",
       credentials: "omit",
       redirect: "error",

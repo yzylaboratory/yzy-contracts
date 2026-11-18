@@ -47,6 +47,14 @@ pub(super) struct ConvertedProspect {
 #[serde(deny_unknown_fields)]
 pub(super) struct CheckProspectLink {
     pub token: String,
+    pub identity: String,
+}
+
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CreateProspectLink {
+    /// Dominican cédula, with or without hyphens.
+    pub identity: String,
 }
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
