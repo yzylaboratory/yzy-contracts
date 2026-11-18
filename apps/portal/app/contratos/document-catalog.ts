@@ -38,7 +38,7 @@ export const INSURED_CONDITIONAL_SALE_TITLE = `${CONDITIONAL_SALE_TITLE} (SEGURO
 export const SWORN_DECLARATION_TITLE = "DECLARACION JURADA DE PERSONA FISICA";
 export const OPPOSITION_RELEASE_TITLE = "PODER ESPECIAL PARA LEVANTAMIENTO DE OPOSICION EN LA DGII";
 export const GPS_AGREEMENT_TITLE = "CONTRATO DE ACUERDO ENTRE LAS PARTES - GPS";
-export const ANNUAL_INSURANCE_RENEWAL_TITLE = "ACUERDO DE RENOVACIÓN ANUAL DE SEGURO";
+export const ANNUAL_INSURANCE_RENEWAL_TITLE = "Acuerdo de renovación anual de seguro";
 
 export const DOCUMENT_TYPES = [
   { id: "venta_condicional", label: CONDITIONAL_SALE_TITLE, requiredFields: [
@@ -68,8 +68,8 @@ export const DOCUMENT_TYPES = [
   ] },
   { id: "gps", label: GPS_AGREEMENT_TITLE, requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
   { id: "autorizacion_data", label: "Autorización de datos", requiredFields: ["cliente_nombre", "cliente_direccion", ...vehicle, ...signature] },
-  { id: "acuerdo_seguro", label: "Acuerdo de seguro", requiredFields: [...customer, ...signature] },
-  { id: "autorizacion_asegurar_vehiculo", label: ANNUAL_INSURANCE_RENEWAL_TITLE, requiredFields: [
+  { id: "acuerdo_seguro", label: ANNUAL_INSURANCE_RENEWAL_TITLE, requiredFields: [...customer, ...signature] },
+  { id: "autorizacion_asegurar_vehiculo", label: "Carta de autorización para asegurar vehículo", requiredFields: [
     ...customer, "cliente_direccion", ...vehicle, ...signature,
   ] },
   { id: "autorizacion_desembolso", label: "Autorización de desembolso", requiredFields: [

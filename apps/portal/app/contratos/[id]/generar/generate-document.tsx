@@ -355,7 +355,7 @@ function DocumentForm({ accountId, expediente, companyScope, sharedCompanyIds, c
   useEffect(() => {
     if (previewUrl) return () => URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
-  const base = fileBase(title);
+  const base = fileBase(title, catalogKey);
   const attachmentName = `${base}.${attachmentFormat}`;
   const cc = isEmailAddress(copyEmail) && copyEmail.toLowerCase() !== recipient.trim().toLowerCase()
     ? copyEmail
