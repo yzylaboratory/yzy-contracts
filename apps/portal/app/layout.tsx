@@ -4,6 +4,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/inter";
 import "@/components/arc/foundation.css";
 import "./globals.css";
+import { PortalReplayNavigation } from "./portal-replay-navigation";
 import { PortalNotifications } from "./portal-notifications";
 import { PortalAccessProvider } from "@/lib/portal-access";
 import { ProductTourProvider } from "@/components/product-tour/product-tour";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         } catch {}` }} />
       </head>
       <body>
+        <PortalReplayNavigation />
         <PortalNotifications>
           <PortalAccessProvider><ProductTourProvider>{children}</ProductTourProvider></PortalAccessProvider>
         </PortalNotifications>
