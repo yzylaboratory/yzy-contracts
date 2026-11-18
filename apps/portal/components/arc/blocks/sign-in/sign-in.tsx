@@ -44,6 +44,65 @@ function navigateStep(step: Step, back = false) {
 }
 
 export function SignIn() {
+  return process.env.NEXT_PUBLIC_SITE_URL === "https://yzycontracts.yzylabs.dev"
+    ? <DevelopmentSignIn />
+    : <ProductionSignIn />;
+}
+
+function DevelopmentSignIn() {
+  const router = useRouter();
+  const accountId = useSession()?.user.id;
+  const { rememberRedirect } = usePortalAccess();
+  const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState("");
+  const requestInFlight = useRef(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    rememberRedirect(accountId, "/preacceso");
+    router.replace("/preacceso");
+  }, [accountId, rememberRedirect, router]);
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    setPending(true);
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: String(form.get("email") ?? "").trim(),
+        password: String(form.get("password") ?? ""),
+      });
+      if (error) throw error;
+    } catch {
+      setNotice("No se pudo iniciar sesión. Revisa tus credenciales de DEV.");
+    } finally {
+      requestInFlight.current = false;
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className={styles.signIn}>
+      <div className={styles.heading}>
+        <h1>Accede al entorno de pruebas</h1>
+        <p>Inicia sesión con tu cuenta de YZY Contracts DEV.</p>
+      </div>
+      <form className={styles.card} onSubmit={signIn}>
+        <Input label="Correo electrónico" name="email" type="email" autoComplete="username" required />
+        <Input label="Contraseña" name="password" type="password" autoComplete="current-password" required />
+        <Button type="submit" size="lg" className={styles.primary} loading={pending}>Iniciar sesión</Button>
+      </form>
+      <p className={styles.notice} role="status">{notice}</p>
+      <AccessLegalLinks />
+    </div>
+  );
+}
+
+function ProductionSignIn() {
   const router = useRouter();
   const session = useSession();
   const { rememberRedirect } = usePortalAccess();

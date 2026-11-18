@@ -51,7 +51,9 @@ jobs:
     needs: build-dev
     if: success() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: development
+    environment:
+      name: development
+      url: https://yzycontracts.yzylabs.dev
     permissions:
       packages: read
     steps:

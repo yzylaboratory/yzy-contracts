@@ -91,14 +91,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Optional internal-only S3 stand-in (activate with COMPOSE_PROFILES=local-s3).
-  # Note: doc-extractor requires public HTTPS:443 R2 hosts, and browsers upload directly
-  # to presigned R2 URLs; use a dedicated DEV R2 bucket for full conversion/upload parity.
+  # DEV-only object storage. The edge accepts signed object requests for this bucket.
   storage:
     profiles: ["local-s3"]
     image: chrislusf/seaweedfs:4.53
     container_name: yzy-contracts-dev-storage
-    command: ["server", "-dir=/data", "-s3", "-s3.port=9000", "-volume.max=50", "-master.volumeSizeLimitMB=64"]
+    command: ["server", "-dir=/data", "-ip.bind=0.0.0.0", "-s3", "-s3.port=9000", "-volume.max=50", "-master.volumeSizeLimitMB=64"]
     restart: unless-stopped
     env_file:
       - ./storage.env
@@ -106,7 +104,6 @@ services:
       - storage-data:/data
     networks:
       - edge-net
-      - extractor
     mem_limit: 256m
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/healthz"]
@@ -296,6 +293,7 @@ services:
     mem_limit: 128m
     networks:
       - edge-net
+      - tunnel
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/edge-healthz"]
       interval: 15s
@@ -327,3 +325,6 @@ networks:
     name: yzy-contracts-dev-edge-net
   egress-net:
     name: yzy-contracts-dev-egress-net
+  tunnel:
+    name: ${DEV_TUNNEL_NETWORK:-yzy-automation_default}
+    external: true

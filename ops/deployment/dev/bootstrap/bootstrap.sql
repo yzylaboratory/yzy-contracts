@@ -14,29 +14,6 @@ END $$;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Stub auth.users only if running on a non-Supabase Postgres image.
--- On supabase/postgres, GoTrue owns auth.* and this block is a no-op.
-DO $$
-BEGIN
-  IF to_regclass('auth.users') IS NULL THEN
-    CREATE SCHEMA IF NOT EXISTS auth;
-    CREATE TABLE auth.users (
-      id uuid PRIMARY KEY,
-      email text,
-      email_confirmed_at timestamptz,
-      deleted_at timestamptz,
-      created_at timestamptz NOT NULL DEFAULT now()
-    );
-    CREATE FUNCTION auth.uid() RETURNS uuid
-      LANGUAGE sql STABLE
-      AS $f$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $f$;
-    CREATE FUNCTION auth.role() RETURNS text
-      LANGUAGE sql STABLE
-      AS $f$ SELECT nullif(current_setting('request.jwt.claim.role', true), '') $f$;
-    GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
-  END IF;
-END $$;
-
 CREATE SCHEMA IF NOT EXISTS yzy_contracts_dev;
 ALTER SCHEMA yzy_contracts_dev OWNER TO postgres;
 

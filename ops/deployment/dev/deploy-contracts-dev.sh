@@ -6,6 +6,7 @@
 # Uses own lock (.deploy-dev.lock), pulls dev-sha-<commit> tags from the same GHCR
 # packages as PROD, backs up & migrates yzy_contracts_dev, and rolls back on health failure.
 set -euo pipefail
+umask 077
 
 STACK=${CONTRACTS_DEV_STACK_DIR:-/opt/yzy/stacks/yzy-contracts-dev}
 PROJECT=${CONTRACTS_DEV_COMPOSE_PROJECT:-yzy-contracts-dev}
@@ -115,7 +116,7 @@ set_images() {
   ' "$STACK/.env" > "$tmp"
   chmod 600 "$tmp"
   mv "$tmp" "$STACK/.env"
-  docker compose -p "$PROJECT" up -d auth renderer doc-extractor api worker portal edge
+  docker compose -p "$PROJECT" up -d auth renderer doc-extractor storage-init api worker portal edge
 }
 
 healthy() {
@@ -144,8 +145,7 @@ if healthy; then
   log "deployed DEV api=$API portal=$PORTAL"
 else
   log "health check failed; evaluating rollback"
-  if [ -n "$PREV_API" ] && [ -n "$PREV_PORTAL" ] \
-    && [ "$PREV_API" != "__SET_BY_DEPLOY__" ] && [ "$PREV_PORTAL" != "__SET_BY_DEPLOY__" ]; then
+  if docker image inspect "$PREV_API" "$PREV_PORTAL" >/dev/null 2>&1; then
     set_images "$PREV_API" "$PREV_PORTAL"
     log "rolled back DEV to api=$PREV_API portal=$PREV_PORTAL"
   else
