@@ -73,7 +73,7 @@ pub async fn replace_words(config: &Config, apply: bool) -> anyhow::Result<()> {
            WHERE o.id = $1 AND c.id = $2 AND o.reference = $3 AND o.deleted_at IS NULL
              AND o.updated_at = $4 AND cl.updated_at = $5 AND c.updated_at = $6
              AND o.vehicle - 'source_document' = $7::jsonb - 'source_document'
-             AND o.vehicle->>'source_document' IS NULL
+             AND (o.vehicle->>'source_document' IS NULL OR o.vehicle = $7::jsonb)
          )",
     )
     .bind(bundle.operation_id)
