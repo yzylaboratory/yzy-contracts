@@ -18,6 +18,7 @@ import { clientErrorMessage, getClient, getLoanApplicationDocument, loanApplicat
 import { documentTypeFromName } from "./document-template-match";
 import { loanApplicationDocumentState } from "./loan-application-download";
 import { listDocumentTemplates, resolveDocumentTemplate } from "./operation-templates";
+import { expedienteDocumentLabel } from "./expediente-document-label";
 import styles from "./clients.module.css";
 
 const icons = {
@@ -144,7 +145,7 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
 
   useEffect(() => { if (currentFailure) failureNotice.current?.focus(); }, [currentFailure]);
 
-  if (loading) return <LoadingContent label={`Cargando ${getDocumentType(request.type)?.label ?? "documento"}…`}><DocumentOptionsSkeleton /></LoadingContent>;
+  if (loading) return <LoadingContent label={`Cargando ${expedienteDocumentLabel(getDocumentType(request.type)?.label ?? "documento")}…`}><DocumentOptionsSkeleton /></LoadingContent>;
 
   const demo = currentFailure && demos[currentFailure.request.type];
   return <div className={styles.stack}>
@@ -179,7 +180,7 @@ export function OperationDocumentPicker({ accountId, operation }: { accountId: s
         const generated = history?.types.has(id);
         return <button key={id} className={`${button.button} ${button.secondary} ${styles.documentChoice}`} type="button" onClick={() => setRequest({ type: id })}>
           <span className={styles.documentIcon}><Icon size={22} aria-hidden="true" /></span>
-          <span className={styles.documentLabel}>{label}</span>
+          <span className={styles.documentLabel}>{expedienteDocumentLabel(label)}</span>
           <span className={styles.documentStatus}>
             {generated && <Badge tone="success" size="sm" pill icon={<Check size={13} aria-hidden="true" />}>Ya generado</Badge>}
           </span>

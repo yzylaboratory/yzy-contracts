@@ -9,6 +9,7 @@ import { Button } from "@/components/arc/button/button";
 import type { BatchProgress, BatchQueueItem } from "@/app/contratos/batch-document-generation";
 import { initialExpedienteDocumentTypes, getDocumentType } from "@/app/contratos/document-catalog";
 import type { GeneratedFormat } from "@/app/contratos/generated-documents-api";
+import { expedienteDocumentLabel } from "./expediente-document-label";
 import styles from "./expediente-generation-stage.module.css";
 
 type StagePhase = "saving" | "preparing" | "generating" | "complete";
@@ -77,6 +78,7 @@ export function ExpedienteGenerationStage({
   const activeItem = items.find(item => item.status === "active")
     ?? items.find(item => item.status === "pending")
     ?? items.at(-1);
+  const activeLabel = activeItem ? expedienteDocumentLabel(activeItem.label) : undefined;
   const formatLabel = preferredFormat === "docx" ? "DOCX" : "PDF";
   const folioFormat = preparingLoan ? "DOCX" : regenerating ? activeItem?.format?.toUpperCase() ?? "Original" : formatLabel;
 
@@ -272,14 +274,14 @@ export function ExpedienteGenerationStage({
 
   const titleCopy = regenerating
     ? preparingLoan ? "Preparando solicitud de préstamo" : phase === "preparing"
-      ? "Preparando documentos" : activeItem?.label ?? "Regenerando documentos"
+      ? "Preparando documentos" : activeLabel ?? "Regenerando documentos"
     : phase === "saving"
     ? "Registrando expediente"
     : phase === "preparing"
       ? "Preparando taller documental"
       : phase === "complete"
         ? "Expediente completo y sellado"
-        : `Generando: ${activeItem?.label ?? "Documentos iniciales"}`;
+        : `Generando: ${activeLabel ?? "Documentos iniciales"}`;
 
   const subtitleCopy = regenerating
     ? preparingLoan ? "Generando el Word con los datos del expediente."
@@ -384,7 +386,7 @@ export function ExpedienteGenerationStage({
                           ? "Expediente de financiamiento"
                           : phase === "preparing"
                             ? "Preparando plantillas"
-                            : (activeItem?.label ?? "Documento")}
+                            : (activeLabel ?? "Documento")}
                       </motion.p>
                     </AnimatePresence>
                     <p className={styles.folioClient}>{clientName}</p>
@@ -499,7 +501,7 @@ export function ExpedienteGenerationStage({
                     )}
                   </span>
 
-                  <span className={styles.rowLabel}>{item.label}</span>
+                  <span className={styles.rowLabel}>{expedienteDocumentLabel(item.label)}</span>
 
                   <span
                     className={`${styles.rowState} ${
