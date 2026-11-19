@@ -30,7 +30,7 @@ use crate::{
     error::{ApiError, ErrorEnvelope},
     modules::{
         access, auth, billing, clients, companies, contracts, conversions, document_readings,
-        files, generated_documents, prospects, system, templates,
+        files, generated_documents, mobile, prospects, system, templates,
     },
 };
 
@@ -86,6 +86,7 @@ impl Modify for BearerSecurity {
 fn public_routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(system::router())
+        .merge(mobile::router())
         .merge(prospects::public_router())
 }
 

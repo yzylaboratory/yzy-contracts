@@ -28,6 +28,8 @@ pub enum ApiError {
     BillingRequired,
     #[error("No se encontró el recurso de facturación.")]
     BillingNotFound,
+    #[error("La app para Android todavía no está disponible.")]
+    AppDownloadNotFound,
     #[error("Configura la cuenta bancaria de transferencias antes de activar la facturación.")]
     BillingBankRequired,
     #[error("La cuenta bancaria cambió desde que la consultaste. Actualiza e inténtalo de nuevo.")]
@@ -142,6 +144,7 @@ impl ApiError {
             Self::CompanyNotFound => "COMPANY_NOT_FOUND",
             Self::BillingRequired => "BILLING_REQUIRED",
             Self::BillingNotFound => "BILLING_NOT_FOUND",
+            Self::AppDownloadNotFound => "APP_DOWNLOAD_NOT_FOUND",
             Self::BillingBankRequired => "BILLING_BANK_REQUIRED",
             Self::BillingBankConflict => "BILLING_BANK_CONFLICT",
             Self::BillingConflict(_) => "BILLING_CONFLICT",
@@ -193,6 +196,7 @@ impl ApiError {
             Self::PaymentRequired => StatusCode::PAYMENT_REQUIRED,
             Self::ContractNotFound
             | Self::BillingNotFound
+            | Self::AppDownloadNotFound
             | Self::CompanyNotFound
             | Self::ClientNotFound
             | Self::ClientOperationNotFound

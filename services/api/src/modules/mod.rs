@@ -10,6 +10,7 @@ pub mod document_fill;
 pub mod document_readings;
 pub mod files;
 pub mod generated_documents;
+pub mod mobile;
 pub mod prospects;
 pub mod system;
 pub mod templates;

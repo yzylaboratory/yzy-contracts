@@ -3607,6 +3607,27 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/mobile/android:
+    get:
+      tags:
+      - Mobile
+      summary: Redirects to a temporary download URL for the current Android app.
+      operationId: android_download
+      responses:
+        '302':
+          description: Redirect to a temporary download URL for the APK
+        '404':
+          description: No Android release has been published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Storage is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/public/prospect-links/check:
     post:
       tags:

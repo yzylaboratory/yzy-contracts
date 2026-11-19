@@ -319,6 +319,7 @@ async fn openapi_documents_every_endpoint_with_bearer_auth_and_tags() {
         "/api/v1/generated-documents/{id}",
         "/api/v1/generated-documents/stats",
         "/api/v1/document-readings",
+        "/api/v1/mobile/android",
     ] {
         assert!(doc["paths"][path].is_object(), "{path} is undocumented");
     }
