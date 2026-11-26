@@ -6,6 +6,8 @@
 - Coordina cualquier contrato HTTP entre portal y API en `specs/openapi/`.
 - Usa datos sintéticos en fixtures, pruebas y ejemplos. Los directorios locales de expedientes quedan fuera del código versionado.
 - Al terminar un cambio solicitado, despliega en producción los servicios afectados y verifica el resultado antes de darlo por terminado, salvo que el usuario indique lo contrario.
+- «Avísame cuando esté en DEV» quiere decir que el cambio pase primero por DEV, y eso ya lo hace el pipeline: cada push a `main` publica en DEV y producción espera aprobación. No escondas funciones en producción con código (condiciones por esquema o por dominio, menús filtrados por entorno) salvo que el usuario pida expresamente que algo no llegue a producción.
+- Antes de aprobar un despliegue a producción, revisa si algo del cambio quedará oculto o inactivo allí y avísalo antes de aprobar, no como nota al final del reporte.
 - Antes de editar a mano, usa herramientas que cambien el código sin pasar por el modelo:
   - Reescrituras estructurales en muchos archivos (firma de una función y todas sus llamadas): `ast-grep run -p '<patrón>' -r '<reemplazo>' -l rust|ts -U <ruta>`. Revisa primero sin `-U`.
   - Arreglos automáticos de lint y compilador: `pnpm fix` (portal con `eslint --fix` y API con `cargo clippy --fix` + `cargo fmt`), o por separado `pnpm lint:fix` y `pnpm fix:api`.
