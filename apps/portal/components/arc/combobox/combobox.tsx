@@ -37,6 +37,18 @@ export interface ComboboxProps
   optionsLabel?: string;
   error?: string;
   className?: string;
+  /** Reports what the user types. Called with "" whenever the menu opens or a choice settles. */
+  onQueryChange?: (query: string) => void;
+  /** Set to false when `options` already come filtered (for example from a server search). Defaults to true. */
+  filterOptions?: boolean;
+  /** Shows a status row in the menu while results are on their way. */
+  loading?: boolean;
+  loadingMessage?: string;
+  /** Non-selectable line at the bottom of the menu, for result counts or search errors. */
+  note?: string;
+  noteTone?: "default" | "error";
+  /** Option displayed for `value` while it is missing from `options`, such as a client outside the current results. */
+  selectedOption?: ComboboxOption;
 }
 
 function normalize(value: string) {
@@ -71,6 +83,13 @@ export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Com
     clearLabel = "Clear selection",
     optionsLabel = `${label} options`,
     error,
+    onQueryChange,
+    filterOptions = true,
+    loading = false,
+    loadingMessage = "Loading…",
+    note,
+    noteTone = "default",
+    selectedOption: fallbackOption,
     id,
     className,
     disabled,
@@ -91,10 +110,15 @@ export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Com
   const reduceMotion = useReducedMotion();
   const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQueryState] = useState("");
+  const setQuery = (next: string) => {
+    setQueryState(next);
+    onQueryChange?.(next);
+  };
   const [activeIndex, setActiveIndex] = useState(-1);
   const selectedValue = controlledValue ?? uncontrolledValue;
-  const selectedOption = options.find((option) => option.value === selectedValue);
+  const selectedOption = options.find((option) => option.value === selectedValue)
+    ?? (fallbackOption && fallbackOption.value === selectedValue ? fallbackOption : undefined);
 
   useImperativeHandle(forwardedRef, () => inputRef.current as HTMLInputElement);
 
@@ -114,11 +138,11 @@ export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Com
 
   const filteredOptions = useMemo(() => {
     const normalizedQuery = normalize(query.trim());
-    if (!normalizedQuery) return options;
+    if (!filterOptions || !normalizedQuery) return options;
     return options.filter((option) =>
       [option.label, ...(option.keywords ?? [])].some((term) => normalize(term).includes(normalizedQuery)),
     );
-  }, [options, query]);
+  }, [options, query, filterOptions]);
 
   const enabledIndices = filteredOptions.reduce<number[]>((indices, option, index) => {
     if (!option.disabled) indices.push(index);
@@ -142,7 +166,7 @@ export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Com
     const handlePointerDown = (event: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setOpen(false);
-        setQuery("");
+        setQueryState("");
       }
     };
     document.addEventListener("pointerdown", handlePointerDown);
@@ -208,6 +232,7 @@ export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Com
   const inputValue = allowCustomValue ? selectedValue : open ? query : selectedOption?.label ?? "";
   const activeOption = activeIndex >= 0 ? filteredOptions[activeIndex] : undefined;
   const showOptions = open && !disabled && filteredOptions.length > 0;
+  const noteId = note ? `${controlId}-note` : undefined;
 
   return (
     <div ref={rootRef} className={styles.field} onBlur={event => {
@@ -301,8 +326,10 @@ export const Combobox = forwardRef<HTMLInputElement, ComboboxProps>(function Com
                   <span>{option.label}</span>
                   {option.value === selectedValue && <Check className={styles.check} size={16} strokeWidth={1.75} aria-hidden="true" />}
                 </div>
-              )) : <motion.div className={styles.empty} role="status" initial={reduceMotion ? false : { opacity: 0, y: 4, filter: `blur(${motionTokens.blur.soft}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{emptyMessage}</motion.div>}
+              )) : loading || (note && noteTone === "error") ? null : <motion.div className={styles.empty} role="status" initial={reduceMotion ? false : { opacity: 0, y: 4, filter: `blur(${motionTokens.blur.soft}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{emptyMessage}</motion.div>}
             </div>
+            {loading && <div className={styles.status} role="status">{loadingMessage}</div>}
+            {note && <div id={noteId} className={[styles.note, noteTone === "error" ? styles.noteError : ""].filter(Boolean).join(" ")} role={noteTone === "error" ? "alert" : "status"}>{note}</div>}
             </AutoHeight>
           </motion.div>
         )}

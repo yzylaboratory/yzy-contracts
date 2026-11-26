@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { MoneyInput } from "@/components/arc/money-input/money-input";
-import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
+import { Combobox } from "@/components/arc/combobox/combobox";
 import { Select } from "@/components/arc/select/select";
 import { listClients, type Client } from "../clientes/clients-api";
 import { insuranceApi, insuranceMessage, type Carrier, type Due, type PolicyDetail, type PolicyWrite, type Scope } from "./insurance-api";
@@ -92,29 +92,29 @@ function ClientPicker({ account, value, onChange, disabled }: {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [account, attempt, disabled, search]);
   const current = result?.query === search ? result : undefined;
-  const clients = new Map(current?.items.map(client => [client.id, client]));
-  const status = error?.query === search && !current ? <div className={styles.fieldNote}><InsuranceError message={error.message} retry={() => {
-    setError(undefined);
-    setAttempt(value => value + 1);
-  }} /></div> : !disabled && !current ? <div className={styles.fieldNote}><ClientSearchLoading /></div>
-    : current && current.total > current.items.length ? <p className={styles.fieldNote} role="status">Afina la búsqueda para ver otros clientes.</p>
-    : current && current.items.length === 0 ? <p className={styles.fieldNote} role="status">No se encontraron clientes con esa búsqueda.</p> : null;
+  const failed = error?.query === search && !current ? error : undefined;
+  // Keep the previous results on screen while a new search is on its way, but never next to an error.
+  const shown = current ?? (failed ? undefined : result);
+  const clients = new Map(shown?.items.map(client => [client.id, client]));
   const options = Array.from(clients.values(), client => ({ value: client.id, label: client.identity ? `${client.name} · ${client.identity}` : client.name }));
-  if (value && !clients.has(value.id)) options.unshift({ value: value.id, label: value.name });
-  return <>
-    {!disabled && <Input label="Buscar cliente" name="client_search" type="search" autoComplete="off" value={query}
-      onChange={event => setQuery(event.target.value)} />}
-    <Select name="client_id" label="Cliente" value={value?.id ?? ""} required disabled={disabled || !options.length}
-      placeholder="Selecciona un cliente" options={options} onValueChange={id => {
-        const client = clients.get(id);
-        if (client) onChange(client);
-      }} />
-    {status}
-  </>;
-}
-
-function ClientSearchLoading() {
-  return <LoadingContent label="Buscando clientes…"><LoadingBlock height={22} /></LoadingContent>;
+  const note = failed ? `${failed.message} Escribe o vuelve a abrir la lista para reintentar.`
+    : current && current.total > current.items.length ? `Mostrando ${current.items.length} de ${current.total}. Escribe para afinar la búsqueda.` : undefined;
+  return <Combobox name="client_id" label="Cliente" placeholder="Busca por nombre o cédula" autoComplete="off" required
+    value={value?.id ?? ""} disabled={disabled} options={options} selectedOption={value && { value: value.id, label: value.name }}
+    filterOptions={false} loading={!disabled && !current && !failed} loadingMessage="Buscando clientes…"
+    note={note} noteTone={failed ? "error" : "default"} emptyMessage="No se encontraron clientes con esa búsqueda."
+    clearLabel="Quitar cliente" optionsLabel="Clientes"
+    onQueryChange={next => {
+      setQuery(next);
+      if (error) {
+        setError(undefined);
+        setAttempt(count => count + 1);
+      }
+    }}
+    onValueChange={id => {
+      const client = clients.get(id);
+      if (client) onChange(client);
+    }} />;
 }
 
 export function PolicyEditor({ scope, carriers, record, cancelHref, onDirty, onSaved }: {
@@ -178,7 +178,10 @@ export function PolicyEditor({ scope, carriers, record, cancelHref, onDirty, onS
     }
   }
 
-  return <form className={styles.stack} onSubmit={submit} onChange={() => setDirty(true)}>
+  return <form className={styles.stack} onSubmit={submit} onChange={event => {
+    // Typing a client search is not an edit; choosing a client marks the form dirty itself.
+    if ((event.target as HTMLElement).getAttribute("role") !== "combobox") setDirty(true);
+  }}>
     <fieldset className={styles.panel} disabled={busy}>
       <legend>Datos de la póliza</legend>
       <div className={styles.fields}>
