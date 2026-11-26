@@ -28,6 +28,8 @@ pub(super) struct DashboardQuery {
 #[derive(Serialize, ToSchema)]
 pub(super) struct WorkspaceDashboard {
     pub clients_total: i64,
+    pub clients_this_month: i64,
+    pub prospects_pending: i64,
     pub cases_total: i64,
     pub cases_this_month: i64,
     pub cases_without_plan: i64,
@@ -41,11 +43,25 @@ pub(super) struct WorkspaceDashboard {
     pub user_time_saved_minutes: i64,
     pub user_disbursements_total: i64,
     pub user_documents_total: i64,
+    pub insurance: DashboardInsurance,
     pub status_counts: DashboardStatusCounts,
     pub user_stats: Vec<DashboardUserStat>,
     pub months: Vec<DashboardMonth>,
     pub formats: DashboardFormats,
     pub recent_cases: Vec<DashboardCase>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct DashboardInsurance {
+    pub policies_total: i64,
+    pub insured_clients: i64,
+    pub collected_this_month: DashboardAmount,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct DashboardAmount {
+    pub count: i64,
+    pub amount_minor: i64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -100,6 +116,12 @@ pub(super) struct DashboardCase {
 #[derive(sqlx::FromRow)]
 struct SummaryRow {
     clients_total: i64,
+    clients_this_month: i64,
+    prospects_pending: i64,
+    policies_total: i64,
+    insured_clients: i64,
+    insurance_collected_count: i64,
+    insurance_collected_minor: i64,
     cases_total: i64,
     cases_this_month: i64,
     cases_without_plan: i64,
@@ -303,6 +325,25 @@ pub(super) async fn summary(
          ), totals AS (
            SELECT
              (SELECT count(*) FROM clients) AS clients_total,
+             (SELECT count(*) FROM clients, clock
+              WHERE clients.created_at >= (clock.month AT TIME ZONE 'America/Santo_Domingo')
+                AND clients.created_at < ((clock.month + interval '1 month') AT TIME ZONE 'America/Santo_Domingo')
+             ) AS clients_this_month,
+             (SELECT count(*) FROM prospects WHERE company_id = $1) AS prospects_pending,
+             (SELECT count(*) FROM insurance_policies WHERE company_id = $1) AS policies_total,
+             (SELECT count(DISTINCT client_id) FROM insurance_policies WHERE company_id = $1) AS insured_clients,
+             (SELECT count(*) FROM insurance_dues d
+              JOIN insurance_policies p ON p.id = d.policy_id, clock
+              WHERE p.company_id = $1
+                AND d.paid_on >= clock.month::date
+                AND d.paid_on < (clock.month + interval '1 month')::date
+             ) AS insurance_collected_count,
+             (SELECT COALESCE(sum(d.amount_minor), 0)::bigint FROM insurance_dues d
+              JOIN insurance_policies p ON p.id = d.policy_id, clock
+              WHERE p.company_id = $1
+                AND d.paid_on >= clock.month::date
+                AND d.paid_on < (clock.month + interval '1 month')::date
+             ) AS insurance_collected_minor,
              (SELECT count(*) FROM company_cases) AS cases_total,
              (SELECT count(*) FROM company_cases, clock
               WHERE created_at >= (clock.month AT TIME ZONE 'America/Santo_Domingo')
@@ -373,6 +414,8 @@ pub(super) async fn summary(
 
     Ok(Json(WorkspaceDashboard {
         clients_total: row.clients_total,
+        clients_this_month: row.clients_this_month,
+        prospects_pending: row.prospects_pending,
         cases_total: row.cases_total,
         cases_this_month: row.cases_this_month,
         cases_without_plan: row.cases_without_plan,
@@ -386,6 +429,14 @@ pub(super) async fn summary(
         user_time_saved_minutes: row.user_time_saved_minutes,
         user_disbursements_total: row.user_disbursements_total,
         user_documents_total: row.user_documents_total,
+        insurance: DashboardInsurance {
+            policies_total: row.policies_total,
+            insured_clients: row.insured_clients,
+            collected_this_month: DashboardAmount {
+                count: row.insurance_collected_count,
+                amount_minor: row.insurance_collected_minor,
+            },
+        },
         status_counts: DashboardStatusCounts {
             solicitud: row.status_solicitud,
             en_proceso: row.status_en_proceso,

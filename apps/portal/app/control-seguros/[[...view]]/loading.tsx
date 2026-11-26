@@ -6,10 +6,9 @@ import { skeletonView, titles, type View } from "../insurance-screen";
 import { InsuranceSkeleton } from "../insurance-ui";
 
 export default function ControlSegurosLoading() {
-  const [, , section, item, action] = usePathname().split("/");
-  const view: View = section === "dashboard" ? "dashboard"
-    : action === "editar" ? "edit" : item === "nueva" ? "new" : item ? "detail" : section === "polizas" ? "policies" : "home";
-  return <PortalLoading currentPage="/control-seguros" title={titles[view]} label="Cargando Control Seguros…">
+  const [, , , item, action] = usePathname().split("/");
+  const view: View = action === "editar" ? "edit" : item === "nueva" ? "new" : item ? "detail" : "policies";
+  return <PortalLoading currentPage="/control-seguros" title={titles[view]} label="Cargando Control de Pólizas…">
     <InsuranceSkeleton view={skeletonView(view)} />
   </PortalLoading>;
 }

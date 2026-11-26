@@ -21,7 +21,7 @@ export const activityScreenLabels: Record<ActivityScreen, string> = {
   settings: "Configuración",
   administration: "Administración",
   billing: "Facturación",
-  insurance: "Control Seguros",
+  insurance: "Control de Pólizas",
   preaccess: "Acceso pendiente",
   login: "Inicio de sesión",
   not_found: "Página no encontrada",

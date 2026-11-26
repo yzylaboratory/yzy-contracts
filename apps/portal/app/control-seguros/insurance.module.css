@@ -5,13 +5,6 @@
   min-inline-size: 0;
 }
 
-.tiles,
-.metrics {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
-}
-
 /* One column grid for every form field: equal widths, top-aligned, no cell stretches to its row. */
 .fields {
   display: grid;
@@ -34,7 +27,6 @@
   line-height: var(--leading-body);
 }
 
-.tile,
 .panel,
 .tableWrap,
 .empty {
@@ -43,18 +35,6 @@
   background: var(--surface);
 }
 
-.tile {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: .75rem;
-  padding: 1.25rem;
-  color: var(--foreground);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.tile:hover,
 .tabs a:hover {
   background: var(--surface-muted);
 }
@@ -114,14 +94,7 @@
   font-size: .875rem;
 }
 
-.amount {
-  font-size: clamp(1.375rem, 3vw, 1.875rem);
-  letter-spacing: -.025em;
-}
-
-.amount,
-.table,
-.totals {
+.table {
   font-variant-numeric: tabular-nums;
 }
 
@@ -231,8 +204,7 @@
   border-block-end: 0;
 }
 
-.facts,
-.totals {
+.facts {
   display: grid;
   gap: .625rem 1rem;
   margin: 0;
@@ -242,20 +214,9 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
 }
 
-.facts dd,
-.totals dd {
+.facts dd {
   margin: 0;
   font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.totals > div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: .5rem 1rem;
-  border-block-end: 1px solid var(--border);
-  padding-block-end: .625rem;
   overflow-wrap: anywhere;
 }
 

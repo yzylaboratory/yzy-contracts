@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { operationStatusLabel } from "@/app/clientes/expediente-status";
 import { Button } from "@/components/arc/button/button";
 import { DashboardHero } from "./dashboard-hero";
+import { DashboardTotals } from "./dashboard-totals";
+import { InsuranceAttentionPanel, InsuranceCarrierPanel, InsuranceSection, useInsuranceDashboard } from "./insurance-dashboard";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { ApiError, isActiveAccount } from "@/lib/api";
 import { usePortalAccess } from "@/lib/portal-access";
@@ -15,6 +17,7 @@ import { FormatChart } from "./format-chart";
 import DashboardLoading from "./loading";
 import { MonthlyChart } from "./monthly-chart";
 import styles from "./dashboard.module.css";
+import sections from "./dashboard-insurance.module.css";
 
 const monthName = new Intl.DateTimeFormat("es-DO", { month: "long", timeZone: "UTC" });
 const monthShort = new Intl.DateTimeFormat("es-DO", { month: "short", timeZone: "UTC" });
@@ -72,6 +75,7 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
   const retryButton = useRef<HTMLButtonElement>(null);
   const casesHeading = useRef<HTMLHeadingElement>(null);
   const monthlyHeading = useRef<HTMLHeadingElement>(null);
+  const insurance = useInsuranceDashboard(accountId, companyId);
 
   useEffect(() => {
     const request = new AbortController();
@@ -175,7 +179,14 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
 
   return (
     <>
-      <DashboardHero {...heroMetrics} />
+      <DashboardTotals stats={stats} />
+
+      <section className={sections.group} aria-labelledby="contracts-title">
+        <h2 id="contracts-title" className={sections.groupTitle}>Contratos</h2>
+        <DashboardHero {...heroMetrics} />
+      </section>
+
+      <InsuranceSection state={insurance} />
 
       <div className={styles.analytics}>
         <section className={`${styles.panel} ${styles.pipeline}`} aria-labelledby="pipeline-title">
@@ -187,25 +198,6 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
               </p>
             </div>
             <Link className={styles.tableAction} href="/clientes">Ver expedientes</Link>
-          </div>
-
-          <div className={styles.summaryStrip} role="list" aria-label="Resumen operativo">
-            <div className={styles.summaryPill} role="listitem">
-              <span className={styles.summaryPillLabel}>Expedientes</span>
-              <strong className={styles.summaryPillValue}>{stats.cases_total}</strong>
-            </div>
-            <div className={styles.summaryPill} role="listitem">
-              <span className={styles.summaryPillLabel}>Este mes</span>
-              <strong className={styles.summaryPillValue}>{stats.cases_this_month}</strong>
-            </div>
-            <div className={styles.summaryPill} role="listitem">
-              <span className={styles.summaryPillLabel}>Sin plan de pagos</span>
-              <strong className={styles.summaryPillValue}>{stats.cases_without_plan}</strong>
-            </div>
-            <div className={styles.summaryPill} role="listitem">
-              <span className={styles.summaryPillLabel}>Clientes</span>
-              <strong className={styles.summaryPillValue}>{stats.clients_total}</strong>
-            </div>
           </div>
 
           <ul className={styles.stageList} aria-label="Etapas de los expedientes">
@@ -233,6 +225,78 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
           </ul>
         </section>
 
+
+        <InsuranceCarrierPanel state={insurance} />
+      </div>
+
+      <div className={styles.analytics}>
+        <InsuranceAttentionPanel state={insurance} />
+        <section className={`${styles.panel} ${styles.recent} ${sections.narrow}`} aria-labelledby="cases-title">
+          <div className={styles.panelHeader}>
+            <h2 id="cases-title" ref={casesHeading} tabIndex={-1}>Expedientes recientes</h2>
+            <Link className={styles.tableAction} href="/clientes">Ver todos</Link>
+          </div>
+          {stats.recent_cases.length === 0 ? (
+            <p className={styles.dataHint}>Todavía no hay expedientes en esta empresa.</p>
+          ) : (
+            <div className={styles.tableScroll} role="region" aria-label="Tabla de expedientes recientes" tabIndex={0}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">Expediente</th>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Responsable</th>
+                    <th scope="col">Creado</th>
+                    <th scope="col"><span className={styles.srOnly}>Acciones</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.recent_cases.map(item => (
+                    <tr key={item.id}>
+                      <th scope="row">{item.reference || "Sin referencia"}</th>
+                      <td>{item.client_name}</td>
+                      <td>
+                        <span className={styles.statusCell}>
+                          {operationStatusLabel(item.status)}
+                          {!item.has_payment_plan && <span className={styles.planHint}>Sin plan</span>}
+                        </span>
+                      </td>
+                      <td>{item.actor_name || "—"}</td>
+                      <td><time dateTime={item.created_at}>{createdDate.format(new Date(item.created_at))}</time></td>
+                      <td>
+                        <Tooltip content="Abrir expediente">
+                          <Link
+                            href={`/clientes/${item.client_id}`}
+                            className={styles.tableAction}
+                            aria-label={`Abrir expediente de ${item.client_name}`}
+                          >
+                            <ArrowRight size={18} aria-hidden="true" />
+                          </Link>
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className={styles.analytics}>
+        <section className={`${styles.panel} ${styles.monthly}`} aria-labelledby="monthly-title">
+          <h2 id="monthly-title" ref={monthlyHeading} tabIndex={-1}>Documentos generados por mes</h2>
+          <MonthlyChart months={charts.months} />
+        </section>
+
+        <section className={`${styles.panel} ${styles.formats}`} aria-labelledby="formats-title">
+          <h2 id="formats-title">Documentos por formato</h2>
+          <FormatChart formats={charts.formats} />
+        </section>
+      </div>
+
+      <div className={styles.analytics}>
         <section className={`${styles.panel} ${styles.teamPanel}`} aria-labelledby="team-title">
           <div className={styles.panelHeader}>
             <div>
@@ -280,70 +344,6 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
               </table>
             </div>
           )}
-        </section>
-      </div>
-
-      <section className={`${styles.panel} ${styles.recent}`} aria-labelledby="cases-title">
-        <div className={styles.panelHeader}>
-          <h2 id="cases-title" ref={casesHeading} tabIndex={-1}>Expedientes recientes</h2>
-          <Link className={styles.tableAction} href="/clientes">Ver todos</Link>
-        </div>
-        {stats.recent_cases.length === 0 ? (
-          <p className={styles.dataHint}>Todavía no hay expedientes en esta empresa.</p>
-        ) : (
-          <div className={styles.tableScroll} role="region" aria-label="Tabla de expedientes recientes" tabIndex={0}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Expediente</th>
-                  <th scope="col">Cliente</th>
-                  <th scope="col">Estado</th>
-                  <th scope="col">Responsable</th>
-                  <th scope="col">Creado</th>
-                  <th scope="col"><span className={styles.srOnly}>Acciones</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.recent_cases.map(item => (
-                  <tr key={item.id}>
-                    <th scope="row">{item.reference || "Sin referencia"}</th>
-                    <td>{item.client_name}</td>
-                    <td>
-                      <span className={styles.statusCell}>
-                        {operationStatusLabel(item.status)}
-                        {!item.has_payment_plan && <span className={styles.planHint}>Sin plan</span>}
-                      </span>
-                    </td>
-                    <td>{item.actor_name || "—"}</td>
-                    <td><time dateTime={item.created_at}>{createdDate.format(new Date(item.created_at))}</time></td>
-                    <td>
-                      <Tooltip content="Abrir expediente">
-                        <Link
-                          href={`/clientes/${item.client_id}`}
-                          className={styles.tableAction}
-                          aria-label={`Abrir expediente de ${item.client_name}`}
-                        >
-                          <ArrowRight size={18} aria-hidden="true" />
-                        </Link>
-                      </Tooltip>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <div className={styles.analytics}>
-        <section className={`${styles.panel} ${styles.monthly}`} aria-labelledby="monthly-title">
-          <h2 id="monthly-title" ref={monthlyHeading} tabIndex={-1}>Documentos generados por mes</h2>
-          <MonthlyChart months={charts.months} />
-        </section>
-
-        <section className={`${styles.panel} ${styles.formats}`} aria-labelledby="formats-title">
-          <h2 id="formats-title">Documentos por formato</h2>
-          <FormatChart formats={charts.formats} />
         </section>
       </div>
     </>

@@ -206,46 +206,6 @@
   flex: 1 1 360px;
 }
 
-.summaryStrip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 12px;
-}
-
-.summaryPill {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid color-mix(in oklab, var(--brand-ink) 10%, var(--border));
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: color-mix(in oklab, var(--brand-stone) 45%, var(--surface));
-  transition: border-color var(--duration-fast, 150ms) ease;
-}
-
-:global(:root[data-theme="dark"]) .summaryPill {
-  border-color: color-mix(in oklab, #ffffff 8%, var(--border));
-  background: color-mix(in oklab, var(--brand-ink) 30%, var(--surface));
-}
-
-.summaryPillLabel {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 14px;
-}
-
-.summaryPillValue {
-  color: var(--foreground);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 26px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
 .stageList {
   display: flex;
   flex-direction: column;
@@ -674,7 +634,6 @@
   .table tbody tr,
   .panelHeader .tableAction,
   .table .tableAction,
-  .summaryPill,
   .panel {
     transition: none;
   }
@@ -685,10 +644,6 @@
   .stageRowSkeleton {
     grid-template-columns: minmax(85px, 105px) minmax(0, 1fr) 56px;
     gap: 8px;
-  }
-
-  .summaryStrip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

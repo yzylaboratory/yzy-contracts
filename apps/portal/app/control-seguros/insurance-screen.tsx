@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/arc/button/button";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
@@ -10,18 +9,15 @@ import { usePortalAccess } from "@/lib/portal-access";
 import { insuranceApi, type Due, type PolicyDetail, type Scope } from "./insurance-api";
 import { PaymentForm, PolicyEditor } from "./insurance-forms";
 import { InsuranceOverview, type Filters } from "./insurance-overview";
-import { concept, dateText, DueStatus, InsuranceError, insuranceHome, InsuranceLoadingContent, money, policiesPath, policyPath, useInsuranceData, type SkeletonView } from "./insurance-ui";
+import { concept, dateText, DueStatus, InsuranceError, InsuranceLoadingContent, money, policiesPath, policyPath, useInsuranceData, type SkeletonView } from "./insurance-ui";
 import styles from "./insurance.module.css";
 
-export type View = "home" | "dashboard" | "policies" | "detail" | "new" | "edit";
+export type View = "policies" | "detail" | "new" | "edit";
 export const titles: Record<View, string> = {
-  home: "Control Seguros", dashboard: "Dashboard", policies: "Pólizas",
+  policies: "Control de Pólizas",
   detail: "Detalle de póliza", new: "Nueva póliza", edit: "Editar póliza",
 };
-export const skeletonView = (view: View): SkeletonView => {
-  if (view === "new" || view === "edit") return "editor";
-  return view;
-};
+export const skeletonView = (view: View): SkeletonView => view === "new" || view === "edit" ? "editor" : view;
 
 export function InsuranceScreen({ view, id, filters, allPolicies }: { view: View; id?: string; filters: Filters; allPolicies: boolean }) {
   const { activeCompany, state } = usePortalAccess();
@@ -30,22 +26,18 @@ export function InsuranceScreen({ view, id, filters, allPolicies }: { view: View
   const dirty = useRef(false);
   const setDirty = useCallback((value: boolean) => { dirty.current = value; }, []);
   const confirmNavigation = () => !dirty.current || window.confirm("¿Salir sin guardar los cambios?");
-  const back = view === "home" ? undefined
-    : view === "dashboard" || view === "policies" ? { href: insuranceHome, label: "Control Seguros" }
+  const back = view === "policies" ? undefined
     : view === "edit" && id ? { href: policyPath(id), label: "Póliza" }
-    : { href: policiesPath, label: "Pólizas" };
+    : { href: policiesPath, label: "Control de Pólizas" };
   return <PortalShell currentPage="/control-seguros" title={titles[view]} backLink={back} confirmNavigation={confirmNavigation} onboardingAvailable={false}
     loadingFallback={<InsuranceLoadingContent view={skeletonView(view)} />}>
-    {view === "home" ? <div className={styles.tiles}>
-      <Link className={styles.tile} href={`${insuranceHome}/dashboard`}><LayoutDashboard aria-hidden="true" /> Dashboard <ArrowRight aria-hidden="true" /></Link>
-      <Link className={styles.tile} href={policiesPath}><ShieldCheck aria-hidden="true" /> Pólizas <ArrowRight aria-hidden="true" /></Link>
-    </div> : account && company && <ScopedScreen key={JSON.stringify([account, company, view, id, allPolicies, filters])}
+    {account && company && <ScopedScreen key={JSON.stringify([account, company, view, id, allPolicies, filters])}
       scope={{ account, company }} view={view} id={id} filters={filters} allPolicies={allPolicies} onDirty={setDirty} />}
   </PortalShell>;
 }
 
 function ScopedScreen({ scope, view, id, filters, allPolicies, onDirty }: { scope: Scope; view: View; id?: string; filters: Filters; allPolicies: boolean; onDirty: (value: boolean) => void }) {
-  if (view === "dashboard" || view === "policies") return <InsuranceOverview scope={scope} dashboard={view === "dashboard"} initial={filters} allPolicies={allPolicies} />;
+  if (view === "policies") return <InsuranceOverview scope={scope} initial={filters} allPolicies={allPolicies} />;
   if (view === "detail" && id) return <PolicyRecord scope={scope} id={id} />;
   return <EditorScreen scope={scope} id={id} onDirty={onDirty} />;
 }

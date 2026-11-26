@@ -6117,6 +6117,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ScreenVisits'
+    DashboardAmount:
+      type: object
+      required:
+      - count
+      - amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
     DashboardCase:
       type: object
       required:
@@ -6206,6 +6218,21 @@ components:
           type: integer
           format: int64
         pdf:
+          type: integer
+          format: int64
+    DashboardInsurance:
+      type: object
+      required:
+      - policies_total
+      - insured_clients
+      - collected_this_month
+      properties:
+        collected_this_month:
+          $ref: '#/components/schemas/DashboardAmount'
+        insured_clients:
+          type: integer
+          format: int64
+        policies_total:
           type: integer
           format: int64
     DashboardMonth:
@@ -7975,6 +8002,8 @@ components:
       type: object
       required:
       - clients_total
+      - clients_this_month
+      - prospects_pending
       - cases_total
       - cases_this_month
       - cases_without_plan
@@ -7988,6 +8017,7 @@ components:
       - user_time_saved_minutes
       - user_disbursements_total
       - user_documents_total
+      - insurance
       - status_counts
       - user_stats
       - months
@@ -8001,6 +8031,9 @@ components:
           type: integer
           format: int64
         cases_without_plan:
+          type: integer
+          format: int64
+        clients_this_month:
           type: integer
           format: int64
         clients_total:
@@ -8020,11 +8053,16 @@ components:
           format: int64
         formats:
           $ref: '#/components/schemas/DashboardFormats'
+        insurance:
+          $ref: '#/components/schemas/DashboardInsurance'
         months:
           type: array
           items:
             $ref: '#/components/schemas/DashboardMonth'
         pending_disbursement_cases:
+          type: integer
+          format: int64
+        prospects_pending:
           type: integer
           format: int64
         recent_cases:

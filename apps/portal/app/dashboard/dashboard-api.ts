@@ -23,6 +23,8 @@ export type DashboardUserStat = {
 
 export type WorkspaceDashboard = {
   clients_total: number;
+  clients_this_month: number;
+  prospects_pending: number;
   cases_total: number;
   cases_this_month: number;
   cases_without_plan: number;
@@ -36,6 +38,11 @@ export type WorkspaceDashboard = {
   user_time_saved_minutes: number;
   user_disbursements_total: number;
   user_documents_total: number;
+  insurance: {
+    policies_total: number;
+    insured_clients: number;
+    collected_this_month: { count: number; amount_minor: number };
+  };
   status_counts: DashboardStatusCounts;
   user_stats: DashboardUserStat[];
   months: { month: string; total: number }[];

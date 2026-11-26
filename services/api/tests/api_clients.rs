@@ -2115,3 +2115,147 @@ async fn workspace_dashboard_summarizes_company_cases_and_clients() {
     assert_eq!(status, StatusCode::FORBIDDEN, "{denied}");
     assert_eq!(error_code(&denied), "ACCESS_PENDING");
 }
+
+async fn insert_policy(
+    app: &TestApp,
+    company: Uuid,
+    carrier: Uuid,
+    client: &str,
+    number: &str,
+) -> Uuid {
+    sqlx::query_scalar(
+        "INSERT INTO yzy_contracts.insurance_policies
+            (company_id, carrier_id, client_id, number, first_due_on, installment_count,
+             installment_minor, renewal_on, renewal_minor)
+         VALUES ($1, $2, $3::uuid, $4, current_date, 10, 100000, current_date + 365, 900000)
+         RETURNING id",
+    )
+    .bind(company)
+    .bind(carrier)
+    .bind(client)
+    .bind(number)
+    .fetch_one(&app.admin)
+    .await
+    .unwrap()
+}
+
+/// Inserts a due. `month_offset` is 0 for a payment in the current Santo Domingo
+/// month and -1 for one in the previous month; `None` leaves the due unpaid.
+async fn insert_due(
+    app: &TestApp,
+    policy: Uuid,
+    slot: i32,
+    amount_minor: i64,
+    paid: Option<(TestUser, i32)>,
+) {
+    let paid_by = paid.map(|(user, _)| user.id);
+    let month_offset = paid.map(|(_, offset)| offset);
+    sqlx::query(
+        "INSERT INTO yzy_contracts.insurance_dues
+            (policy_id, slot, due_on, amount_minor, paid_on, paid_by, recorded_at)
+         VALUES ($1, $2, current_date, $3,
+                 CASE WHEN $5::int IS NULL THEN NULL
+                      ELSE (date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo')
+                            + ($5::int * interval '1 month') + interval '2 days')::date END,
+                 $4, CASE WHEN $5::int IS NULL THEN NULL ELSE now() END)",
+    )
+    .bind(policy)
+    .bind(slot)
+    .bind(amount_minor)
+    .bind(paid_by)
+    .bind(month_offset)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn workspace_dashboard_counts_prospects_new_clients_and_insurance_for_the_company_only() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Dashboard Seguros SRL").await;
+    let other = app.legacy_company(admin, "Dashboard Ajena SRL").await;
+
+    let first = add_client(&app, admin, "Cliente seguro uno").await;
+    let second = add_client(&app, admin, "Cliente seguro dos").await;
+    let old = add_client(&app, admin, "Cliente antiguo").await;
+    let first_id = first["id"].as_str().unwrap();
+    let second_id = second["id"].as_str().unwrap();
+    let old_id = old["id"].as_str().unwrap();
+    sqlx::query(
+        "UPDATE yzy_contracts.clients SET created_at = now() - interval '70 days' WHERE id = $1::uuid",
+    )
+    .bind(old_id)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+
+    for (owner, name, identity) in [
+        (company, "Prospecto uno", "00100000001"),
+        (company, "Prospecto dos", "00100000002"),
+        (other, "Prospecto ajeno", "00100000003"),
+    ] {
+        sqlx::query(
+            "INSERT INTO yzy_contracts.prospects (company_id, name, identity, phone, address)
+             VALUES ($1, $2, $3, '8095550000', 'Calle sintetica 1')",
+        )
+        .bind(owner)
+        .bind(name)
+        .bind(identity)
+        .execute(&app.admin)
+        .await
+        .unwrap();
+    }
+
+    let carrier: Uuid = sqlx::query_scalar(
+        "INSERT INTO yzy_contracts.insurance_carriers (name) VALUES ($1) RETURNING id",
+    )
+    .bind(format!("Aseguradora sintetica {}", Uuid::new_v4()))
+    .fetch_one(&app.admin)
+    .await
+    .unwrap();
+
+    let policy_a = insert_policy(&app, company, carrier, first_id, "POL-A").await;
+    let policy_b = insert_policy(&app, company, carrier, second_id, "POL-B").await;
+    let policy_c = insert_policy(&app, company, carrier, first_id, "POL-C").await;
+    insert_due(&app, policy_a, 1, 100_000, Some((admin, 0))).await;
+    insert_due(&app, policy_a, 2, 50_000, Some((admin, -1))).await;
+    insert_due(&app, policy_b, 1, 250_000, Some((admin, 0))).await;
+    insert_due(&app, policy_c, 1, 70_000, None).await;
+
+    let foreign = insert_policy(&app, other, carrier, second_id, "POL-X").await;
+    insert_due(&app, foreign, 1, 999_999, Some((admin, 0))).await;
+
+    let (status, dashboard) = app
+        .get(admin, &format!("/api/v1/dashboard?company_id={company}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{dashboard}");
+    assert_eq!(dashboard["prospects_pending"], 2);
+    assert_eq!(dashboard["insurance"]["policies_total"], 3);
+    assert_eq!(dashboard["insurance"]["insured_clients"], 2);
+    assert_eq!(dashboard["insurance"]["collected_this_month"]["count"], 2);
+    assert_eq!(
+        dashboard["insurance"]["collected_this_month"]["amount_minor"],
+        350_000
+    );
+    let clients_total = dashboard["clients_total"].as_i64().unwrap();
+    let clients_this_month = dashboard["clients_this_month"].as_i64().unwrap();
+    assert!(clients_this_month >= 2, "{dashboard}");
+    assert!(clients_total - clients_this_month >= 1, "{dashboard}");
+
+    let (status, foreign_dashboard) = app
+        .get(admin, &format!("/api/v1/dashboard?company_id={other}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{foreign_dashboard}");
+    assert_eq!(foreign_dashboard["prospects_pending"], 1);
+    assert_eq!(foreign_dashboard["insurance"]["policies_total"], 1);
+    assert_eq!(foreign_dashboard["insurance"]["insured_clients"], 1);
+    assert_eq!(
+        foreign_dashboard["insurance"]["collected_this_month"]["count"],
+        1
+    );
+    assert_eq!(
+        foreign_dashboard["insurance"]["collected_this_month"]["amount_minor"],
+        999_999
+    );
+}

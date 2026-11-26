@@ -7,8 +7,7 @@ import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import { insuranceMessage, type Due } from "./insurance-api";
 import styles from "./insurance.module.css";
 
-export const insuranceHome = "/control-seguros";
-export const policiesPath = `${insuranceHome}/polizas`;
+export const policiesPath = "/control-seguros/polizas";
 export const policyPath = (id: string) => `${policiesPath}/${id}`;
 
 const dateFormat = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeZone: "UTC" });
@@ -51,12 +50,9 @@ export function InsuranceError({ message, retry }: { message: string; retry?: ()
   </div>;
 }
 
-export type SkeletonView = "home" | "dashboard" | "policies" | "detail" | "editor";
+export type SkeletonView = "policies" | "detail" | "editor";
 
 export function InsuranceSkeleton({ view }: { view: SkeletonView }) {
-  if (view === "home") return <div className={styles.tiles}>
-    <LoadingBlock height={76} /><LoadingBlock height={76} />
-  </div>;
   if (view === "editor") return <div className={styles.stack}>
     {[3, 3, 2].map((count, index) => <div key={index} className={styles.panel}>
       <LoadingBlock width={150} height={20} />
@@ -65,15 +61,11 @@ export function InsuranceSkeleton({ view }: { view: SkeletonView }) {
   </div>;
   return <div className={styles.stack}>
     <LoadingBlock width={420} height={44} />
-    {view === "dashboard" && <div className={styles.metrics}>
-      {[1, 2, 3].map(index => <LoadingBlock key={index} height={105} />)}
-    </div>}
     {[1, 2, 3, 4].map(index => <LoadingBlock key={index} height={42} />)}
-    {view === "dashboard" && <LoadingBlock height={92} />}
     {view === "detail" && <LoadingBlock height={80} />}
   </div>;
 }
 
 export function InsuranceLoadingContent({ view }: { view: SkeletonView }) {
-  return <LoadingContent label="Cargando Control Seguros…"><InsuranceSkeleton view={view} /></LoadingContent>;
+  return <LoadingContent label="Cargando Control de Pólizas…"><InsuranceSkeleton view={view} /></LoadingContent>;
 }

@@ -25,10 +25,10 @@ import { tourSurface } from "@/components/product-tour/tour-steps";
 import styles from "./portal-shell.module.css";
 
 const workspaceNavigation = [
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/directorio-clientes", label: "Clientes", icon: "users" },
-  { href: "/clientes", label: "Expedientes", icon: "cases" },
-  { href: "/control-seguros", label: "Control Seguros", icon: "insurance" },
+  { href: "/dashboard", page: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/directorio-clientes", page: "/directorio-clientes", label: "Clientes", icon: "users" },
+  { href: "/clientes", page: "/clientes", label: "Expedientes", icon: "cases" },
+  { href: "/control-seguros/polizas", page: "/control-seguros", label: "Control de Pólizas", icon: "insurance" },
 ] as const;
 
 const navIcons: Record<string, LucideIcon> = {
@@ -217,9 +217,9 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
                 current={pathname === href ? "page" : undefined} onNavigate={navigate} />
             ))}
           </div> : <div className={styles.navGroup}>
-            {showCompanyMenu && workspaceNavigation.map(({ href, label, icon }) => (
+            {showCompanyMenu && workspaceNavigation.map(({ href, page, label, icon }) => (
               <NavLink key={href} href={href} label={label} icon={icon} collapsed={collapsed}
-                current={href === currentPage ? (href !== "/control-seguros" || pathname === href ? "page" : "location") : undefined} onNavigate={navigate}
+                current={page === currentPage ? (page !== "/control-seguros" || pathname === href ? "page" : "location") : undefined} onNavigate={navigate}
                 tour={href === "/clientes" ? "clients-nav" : undefined} />
             ))}
             {showMembership && <NavLink href="/facturacion" label="Membresía" icon="membership" collapsed={collapsed}
