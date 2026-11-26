@@ -7,8 +7,7 @@ import { LoadingBlock, LoadingContent } from "@/components/loading/loading-ui";
 import { insuranceMessage, type Due } from "./insurance-api";
 import styles from "./insurance.module.css";
 
-export const policiesPath = "/control-seguros/polizas";
-export const policyPath = (id: string) => `${policiesPath}/${id}`;
+export { policiesPath, policyPath } from "./insurance-paths";
 
 const dateFormat = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeZone: "UTC" });
 const moneyFormat = new Intl.NumberFormat("es-DO", { style: "currency", currency: "DOP" });

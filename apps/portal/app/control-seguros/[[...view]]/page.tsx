@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { InsuranceScreen, type View } from "../insurance-screen";
-import { policiesPath } from "../insurance-ui";
+import { policiesPath } from "../insurance-paths";
 
 const uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 
