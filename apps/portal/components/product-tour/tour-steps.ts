@@ -25,7 +25,7 @@ export function tourSurface(pathname: string, fromRecord: boolean): TourSurface 
   if (/^\/clientes\/[^/]+\/generar$/.test(pathname)) return "document-picker";
   if (fromRecord && /^\/contratos\/[^/]+\/generar$/.test(pathname)) return "generation";
   if (pathname === "/docs-generados") return "history";
-  if (pathname === "/dashboard" || /^\/(?:contratos|configuracion)(?:\/|$)/.test(pathname)) {
+  if (pathname === "/dashboard" || /^\/(?:contratos|configuracion|control-seguros)(?:\/|$)/.test(pathname)) {
     return "workspace";
   }
   return null;

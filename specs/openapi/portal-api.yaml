@@ -4488,6 +4488,7 @@ components:
       - settings
       - administration
       - billing
+      - insurance
       - preaccess
       - login
       - not_found

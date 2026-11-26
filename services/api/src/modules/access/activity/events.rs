@@ -54,6 +54,7 @@ pub(super) enum ActivityScreen {
     Settings,
     Administration,
     Billing,
+    Insurance,
     Preaccess,
     Login,
     NotFound,

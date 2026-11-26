@@ -4,7 +4,7 @@ import { adminRoutes } from "./admin-navigation";
 export type ActivityScreen =
   | "dashboard" | "clients" | "client_record" | "contracts" | "contract_create"
   | "contract_edit" | "document_generate" | "generated_documents" | "settings"
-  | "administration" | "billing" | "preaccess" | "login" | "not_found";
+  | "administration" | "billing" | "insurance" | "preaccess" | "login" | "not_found";
 
 type PortalActivityEvent = "portal_visit" | "portal_redirect" | "not_found" | "document_previewed";
 
@@ -25,6 +25,7 @@ export function activityScreenForPath(pathname: string): ActivityScreen | null {
   if (/^\/(?:clientes|directorio-clientes)\/[^/]+$/.test(pathname)) return "client_record";
   if (/^\/contratos\/[^/]+\/editar$/.test(pathname)) return "contract_edit";
   if (/^\/(?:clientes|contratos)\/[^/]+\/generar$/.test(pathname)) return "document_generate";
+  if (/^\/control-seguros(?:\/|$)/.test(pathname)) return "insurance";
   if (/^\/configuracion(?:\/[^/]+)?$/.test(pathname)) return "settings";
   return null;
 }

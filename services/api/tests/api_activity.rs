@@ -369,6 +369,18 @@ async fn portal_activity_accepts_only_fixed_observations_and_deduplicates_per_ac
         StatusCode::FORBIDDEN
     );
 
+    let insurance_id = Uuid::new_v4();
+    assert_eq!(
+        app.post(
+            administrator,
+            OBSERVATIONS,
+            observation(insurance_id, "portal_visit", "insurance")
+        )
+        .await
+        .0,
+        StatusCode::NO_CONTENT
+    );
+
     let route = timeline(administrator.id);
     assert_eq!(
         app.request(Method::GET, &route, None, None).await.0,
@@ -405,10 +417,12 @@ async fn portal_activity_accepts_only_fixed_observations_and_deduplicates_per_ac
         "private, no-store"
     );
     let (_, page) = app.get(administrator, &route).await;
-    assert_eq!(page["total"], 1);
+    assert_eq!(page["total"], 2);
     assert_eq!(page["page"], 1);
     assert_eq!(page["per_page"], 25);
-    let record = &page["items"][0];
+    assert_eq!(page["items"][0]["event"], "portal_visit");
+    assert_eq!(page["items"][0]["screen"], "insurance");
+    let record = &page["items"][1];
     assert_eq!(record.as_object().unwrap().len(), 5);
     assert_eq!(record["event"], "portal_redirect");
     assert_eq!(record["screen"], "administration");
