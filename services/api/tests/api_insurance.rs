@@ -19,11 +19,15 @@ async fn company(app: &TestApp, name: &str) -> String {
     .to_string()
 }
 
+const CARRIERS: &str = "/api/v1/admin/insurance-carriers";
+
 #[tokio::test]
-async fn company_scope_and_dev_gate() {
+async fn global_carrier_catalog_and_dev_gate() {
+    let member_id = Uuid::new_v4();
     let pending_id = Uuid::new_v4();
-    let app = TestApp::start_development(&[ADMIN_ID, pending_id]).await;
+    let app = TestApp::start_development(&[ADMIN_ID, member_id, pending_id]).await;
     let admin = app.superadmin().await;
+    let member = app.auth_user(member_id, &test_email(member_id)).await;
     let pending = app.auth_user(pending_id, &test_email(pending_id)).await;
     let a = company(&app, "Empresa sintética A").await;
     let b = company(&app, "Empresa sintética B").await;
@@ -32,25 +36,64 @@ async fn company_scope_and_dev_gate() {
     let b = format!("/api/v1/companies/{b}/insurance");
 
     assert_eq!(app.get(pending, &a).await.0, StatusCode::FORBIDDEN);
-    let (status, carrier) = app
-        .post(
-            admin,
-            &format!("{a}/carriers"),
-            json!({"name": "Seguros Prueba"}),
-        )
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{carrier}");
+    sqlx::query(
+        "UPDATE yzy_contracts_dev.access_identities SET enabled_at = now() WHERE user_id = ANY($1)",
+    )
+    .bind(vec![member_id, pending_id])
+    .execute(&app.admin)
+    .await
+    .unwrap();
+    // Enabled members are not superadministrators.
+    let fake = Uuid::new_v4();
+    assert_eq!(app.get(member, CARRIERS).await.0, StatusCode::FORBIDDEN);
     assert_eq!(
-        app.post(
-            admin,
-            &format!("{a}/carriers"),
-            json!({"name": "  seguros prueba  "})
+        app.post(member, CARRIERS, json!({"name": "Intrusa"}))
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        app.put(
+            member,
+            &format!("{CARRIERS}/{fake}"),
+            json!({"name": "Intrusa"})
         )
         .await
         .0,
-        StatusCode::CONFLICT
+        StatusCode::FORBIDDEN
     );
-    assert_eq!(app.get(admin, &b).await.1["carriers"], json!([]));
+    assert_eq!(
+        app.delete(member, &format!("{CARRIERS}/{fake}")).await.0,
+        StatusCode::FORBIDDEN
+    );
+
+    let (status, carrier) = app
+        .post(admin, CARRIERS, json!({"name": "  Seguros Prueba  "}))
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{carrier}");
+    assert_eq!(carrier["name"], "Seguros Prueba");
+    let (status, conflict) = app
+        .post(admin, CARRIERS, json!({"name": "seguros PRUEBA"}))
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(
+        conflict["error"]["code"], "INSURANCE_CONFLICT",
+        "{conflict}"
+    );
+    for name in ["   ", "Mala\u{7}", &"x".repeat(161)] {
+        assert_eq!(
+            app.post(admin, CARRIERS, json!({"name": name})).await.0,
+            StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+
+    // The old company route no longer creates anything.
+    let (status, _) = app
+        .post(admin, &format!("{a}/carriers"), json!({"name": "Vieja"}))
+        .await;
+    assert!(status == StatusCode::NOT_FOUND || status == StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(app.get(admin, &a).await.1["carriers"], json!([carrier]));
+    assert_eq!(app.get(admin, &b).await.1["carriers"], json!([carrier]));
 
     let (status, client) = app
         .post(
@@ -65,11 +108,17 @@ async fn company_scope_and_dev_gate() {
         "first_due_on": "2024-01-31", "installment_count": 2, "installment_minor": 100001,
         "renewal_on": "2025-01-31", "renewal_minor": 200002
     });
+    let (status, other) = app
+        .post(admin, &format!("{b}/policies"), body.clone())
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{other}");
+    let mut unknown = body.clone();
+    unknown["carrier_id"] = json!(Uuid::new_v4());
+    let (status, invalid) = app.post(admin, &format!("{a}/policies"), unknown).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
-        app.post(admin, &format!("{b}/policies"), body.clone())
-            .await
-            .0,
-        StatusCode::UNPROCESSABLE_ENTITY
+        invalid["error"]["message"],
+        "Selecciona una aseguradora válida."
     );
     let (status, policy) = app.post(admin, &format!("{a}/policies"), body).await;
     assert_eq!(status, StatusCode::CREATED, "{policy}");
@@ -78,27 +127,110 @@ async fn company_scope_and_dev_gate() {
         app.get(admin, &format!("{b}/policies/{policy_id}")).await.0,
         StatusCode::NOT_FOUND
     );
-    assert_eq!(app.get(admin, &b).await.1["policies"], json!([]));
 
-    sqlx::query(
-        "UPDATE yzy_contracts_dev.access_identities SET enabled_at = now() WHERE user_id = $1",
-    )
-    .bind(pending_id)
-    .execute(&app.admin)
-    .await
-    .unwrap();
-    assert_eq!(app.get(pending, &a).await.1["carriers"], json!([carrier]));
+    // Renaming shows in the overview and in the policy detail.
+    let carrier_uri = format!("{CARRIERS}/{}", carrier["id"].as_str().unwrap());
+    let (status, renamed) = app
+        .put(admin, &carrier_uri, json!({"name": "Seguros Renombrada"}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{renamed}");
+    assert_eq!(renamed["id"], carrier["id"]);
+    assert_eq!(app.get(admin, &a).await.1["carriers"], json!([renamed]));
+    assert_eq!(
+        app.get(admin, &format!("{a}/policies/{policy_id}")).await.1["carrier_name"],
+        "Seguros Renombrada"
+    );
+    assert_eq!(
+        app.put(admin, &format!("{CARRIERS}/{fake}"), json!({"name": "X"}))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    let (_, second) = app.post(admin, CARRIERS, json!({"name": "Otra"})).await;
+    assert_eq!(
+        app.put(
+            admin,
+            &format!("{CARRIERS}/{}", second["id"].as_str().unwrap()),
+            json!({"name": "seguros renombrada"})
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
 
+    // Deleting a carrier in use conflicts. An unused one goes away.
+    let (status, in_use) = app.delete(admin, &carrier_uri).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(in_use["error"]["code"], "INSURANCE_CONFLICT", "{in_use}");
+    let second_uri = format!("{CARRIERS}/{}", second["id"].as_str().unwrap());
+    assert_eq!(
+        app.delete(admin, &second_uri).await.0,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(
+        app.delete(admin, &second_uri).await.0,
+        StatusCode::NOT_FOUND
+    );
+
+    // Pagination and ordering.
+    for name in ["beta", "Alfa", "gamma"] {
+        assert_eq!(
+            app.post(admin, CARRIERS, json!({"name": name})).await.0,
+            StatusCode::CREATED
+        );
+    }
+    let (status, page) = app
+        .get(admin, &format!("{CARRIERS}?page=1&per_page=2"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(
+        (
+            page["total"].as_i64(),
+            page["page"].as_i64(),
+            page["per_page"].as_i64()
+        ),
+        (Some(4), Some(1), Some(2))
+    );
+    let names = |page: &serde_json::Value| -> Vec<String> {
+        page["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap().into())
+            .collect()
+    };
+    assert_eq!(names(&page), ["Alfa", "beta"]);
+    let (_, page) = app
+        .get(admin, &format!("{CARRIERS}?page=2&per_page=2"))
+        .await;
+    assert_eq!(names(&page), ["gamma", "Seguros Renombrada"]);
+
+    // Archived companies stop serving the insurance module.
     sqlx::query("UPDATE yzy_contracts_dev.companies SET archived_at = now() WHERE id = $1")
         .bind(company_a)
         .execute(&app.admin)
         .await
         .unwrap();
-    assert_eq!(app.get(pending, &a).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(app.get(admin, &a).await.0, StatusCode::NOT_FOUND);
 
     let prod = TestApp::start().await;
     let admin = prod.superadmin().await;
     assert_eq!(prod.get(admin, &a).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(prod.get(admin, CARRIERS).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(
+        prod.post(admin, CARRIERS, json!({"name": "Prod"})).await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        prod.put(admin, &carrier_uri, json!({"name": "Prod"}))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        prod.delete(admin, &carrier_uri).await.0,
+        StatusCode::NOT_FOUND
+    );
 }
 
 #[tokio::test]
@@ -108,11 +240,7 @@ async fn local_dates_payment_idempotency_and_schedule_history() {
     let company = company(&app, "Empresa sintética").await;
     let base = format!("/api/v1/companies/{company}/insurance");
     let (status, carrier) = app
-        .post(
-            admin,
-            &format!("{base}/carriers"),
-            json!({"name": "Seguros Prueba"}),
-        )
+        .post(admin, CARRIERS, json!({"name": "Seguros Prueba"}))
         .await;
     assert_eq!(status, StatusCode::CREATED, "{carrier}");
     let (status, client) = app

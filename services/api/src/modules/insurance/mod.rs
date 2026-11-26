@@ -15,16 +15,25 @@ use crate::{
     modules::auth::AuthUser,
 };
 
+use super::admin_pagination::PageQuery;
+
 const MAX_MINOR: i64 = 99_999_999_999;
 const TODAY_SQL: &str = "SELECT (now() AT TIME ZONE 'America/Santo_Domingo')::date";
 
 pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(overview))
-        .routes(routes!(create_carrier))
         .routes(routes!(create_policy))
         .routes(routes!(policy_detail, edit_policy))
         .routes(routes!(pay_due))
+}
+
+/// Superadministrator routes for the global carrier catalog. Merged into the admin router,
+/// which already enforces `require_admin`.
+pub(super) fn admin_router() -> OpenApiRouter<AppState> {
+    OpenApiRouter::new()
+        .routes(routes!(admin_carriers, create_carrier))
+        .routes(routes!(update_carrier, delete_carrier))
 }
 
 #[derive(Serialize, ToSchema, FromRow)]
@@ -36,6 +45,14 @@ struct Carrier {
 #[derive(Deserialize, ToSchema, Validate)]
 struct CarrierWrite {
     name: String,
+}
+
+#[derive(Serialize, ToSchema)]
+struct CarrierPage {
+    items: Vec<Carrier>,
+    page: i64,
+    per_page: i64,
+    total: i64,
 }
 
 #[derive(Serialize, ToSchema, FromRow)]
@@ -122,10 +139,15 @@ const POLICY_SQL: &str = "SELECT p.id, p.carrier_id, p.client_id, c.name AS clie
     p.renewal_on, p.renewal_minor FROM insurance_policies p JOIN clients c ON c.id = p.client_id";
 const DUE_COLUMNS: &str = "d.id, d.policy_id, d.slot, d.due_on, d.amount_minor, d.paid_on, (d.replaced_at IS NOT NULL) AS replaced";
 
-async fn authorize(state: &AppState, user: &AuthUser, company: Uuid) -> Result<(), ApiError> {
+fn development_only(state: &AppState) -> Result<(), ApiError> {
     if state.config.database_schema != DatabaseSchema::Development {
         return Err(ApiError::RouteNotFound);
     }
+    Ok(())
+}
+
+async fn authorize(state: &AppState, user: &AuthUser, company: Uuid) -> Result<(), ApiError> {
+    development_only(state)?;
     let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
         .bind(user.id)
         .bind(company)
@@ -178,8 +200,8 @@ fn write_error(error: sqlx::Error) -> ApiError {
                 "Ya existe una póliza con ese número para la aseguradora.",
             ),
             Some("insurance_policies_client_id_fkey") => ApiError::ClientNotFound,
-            Some("insurance_policies_company_id_carrier_id_fkey") => {
-                ApiError::Validation("Selecciona una aseguradora de esta empresa.".into())
+            Some("insurance_policies_carrier_id_fkey") => {
+                ApiError::Validation("Selecciona una aseguradora válida.".into())
             }
             _ => error.into(),
         };
@@ -209,12 +231,10 @@ async fn overview(
         .execute(&mut *tx)
         .await?;
     let today: NaiveDate = sqlx::query_scalar(TODAY_SQL).fetch_one(&mut *tx).await?;
-    let carriers = sqlx::query_as(
-        "SELECT id, name FROM insurance_carriers WHERE company_id = $1 ORDER BY lower(name), id",
-    )
-    .bind(company)
-    .fetch_all(&mut *tx)
-    .await?;
+    let carriers =
+        sqlx::query_as("SELECT id, name FROM insurance_carriers ORDER BY lower(name), id")
+            .fetch_all(&mut *tx)
+            .await?;
     let policies = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "{POLICY_SQL} WHERE p.company_id = $1 ORDER BY lower(p.number), p.id"
     )))
@@ -243,27 +263,104 @@ async fn overview(
     }))
 }
 
-#[utoipa::path(post, path = "/api/v1/companies/{company_id}/insurance/carriers", tag = "Insurance",
-    security(("bearer_auth" = [])), params(("company_id" = Uuid, Path)), request_body = CarrierWrite,
+#[utoipa::path(get, path = "/api/v1/admin/insurance-carriers", tag = "Administration",
+    security(("bearer_auth" = [])), params(PageQuery),
+    responses((status = 200, body = CarrierPage), (status = 401, body = ErrorEnvelope),
+    (status = 403, body = ErrorEnvelope), (status = 404, body = ErrorEnvelope), (status = 422, body = ErrorEnvelope)))]
+async fn admin_carriers(
+    State(state): State<AppState>,
+    ApiQuery(page): ApiQuery<PageQuery>,
+) -> Result<Json<CarrierPage>, ApiError> {
+    development_only(&state)?;
+    let (total, items): (i64, Vec<Carrier>) = {
+        let total = sqlx::query_scalar("SELECT count(*) FROM insurance_carriers")
+            .fetch_one(&state.db)
+            .await?;
+        let items = sqlx::query_as(
+            "SELECT id, name FROM insurance_carriers ORDER BY lower(name), id LIMIT $1 OFFSET $2",
+        )
+        .bind(page.limit())
+        .bind(page.offset())
+        .fetch_all(&state.db)
+        .await?;
+        (total, items)
+    };
+    Ok(Json(CarrierPage {
+        items,
+        page: page.number(),
+        per_page: page.limit().unwrap_or(total.max(1)),
+        total,
+    }))
+}
+
+#[utoipa::path(post, path = "/api/v1/admin/insurance-carriers", tag = "Administration",
+    security(("bearer_auth" = [])), request_body = CarrierWrite,
     responses((status = 201, body = Carrier), (status = 401, body = ErrorEnvelope),
     (status = 403, body = ErrorEnvelope), (status = 404, body = ErrorEnvelope),
     (status = 409, body = ErrorEnvelope), (status = 422, body = ErrorEnvelope)))]
 async fn create_carrier(
     State(state): State<AppState>,
-    Extension(user): Extension<AuthUser>,
-    ApiPath(company): ApiPath<Uuid>,
     ApiJson(body): ApiJson<CarrierWrite>,
 ) -> Result<(StatusCode, Json<Carrier>), ApiError> {
-    authorize(&state, &user, company).await?;
-    let carrier = sqlx::query_as(
-        "INSERT INTO insurance_carriers (company_id, name) VALUES ($1, $2) RETURNING id, name",
-    )
-    .bind(company)
-    .bind(label(&body.name, 160)?)
-    .fetch_one(&state.db)
-    .await
-    .map_err(write_error)?;
+    development_only(&state)?;
+    let carrier =
+        sqlx::query_as("INSERT INTO insurance_carriers (name) VALUES ($1) RETURNING id, name")
+            .bind(label(&body.name, 160)?)
+            .fetch_one(&state.db)
+            .await
+            .map_err(write_error)?;
     Ok((StatusCode::CREATED, Json(carrier)))
+}
+
+#[utoipa::path(put, path = "/api/v1/admin/insurance-carriers/{carrier_id}", tag = "Administration",
+    security(("bearer_auth" = [])), params(("carrier_id" = Uuid, Path)), request_body = CarrierWrite,
+    responses((status = 200, body = Carrier), (status = 401, body = ErrorEnvelope),
+    (status = 403, body = ErrorEnvelope), (status = 404, body = ErrorEnvelope),
+    (status = 409, body = ErrorEnvelope), (status = 422, body = ErrorEnvelope)))]
+async fn update_carrier(
+    State(state): State<AppState>,
+    ApiPath(id): ApiPath<Uuid>,
+    ApiJson(body): ApiJson<CarrierWrite>,
+) -> Result<Json<Carrier>, ApiError> {
+    development_only(&state)?;
+    sqlx::query_as("UPDATE insurance_carriers SET name = $2 WHERE id = $1 RETURNING id, name")
+        .bind(id)
+        .bind(label(&body.name, 160)?)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(write_error)?
+        .map(Json)
+        .ok_or(ApiError::RouteNotFound)
+}
+
+#[utoipa::path(delete, path = "/api/v1/admin/insurance-carriers/{carrier_id}", tag = "Administration",
+    security(("bearer_auth" = [])), params(("carrier_id" = Uuid, Path)),
+    responses((status = 204, description = "Carrier deleted"), (status = 401, body = ErrorEnvelope),
+    (status = 403, body = ErrorEnvelope), (status = 404, body = ErrorEnvelope),
+    (status = 409, body = ErrorEnvelope)))]
+async fn delete_carrier(
+    State(state): State<AppState>,
+    ApiPath(id): ApiPath<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    development_only(&state)?;
+    let deleted = sqlx::query("DELETE FROM insurance_carriers WHERE id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(delete_error)?;
+    if deleted.rows_affected() == 0 {
+        return Err(ApiError::RouteNotFound);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+fn delete_error(error: sqlx::Error) -> ApiError {
+    match error.as_database_error().and_then(|db| db.constraint()) {
+        Some("insurance_policies_carrier_id_fkey") => {
+            ApiError::InsuranceConflict("La aseguradora tiene pólizas y no se puede borrar.")
+        }
+        _ => error.into(),
+    }
 }
 
 async fn detail(db: &mut PgConnection, company: Uuid, id: Uuid) -> Result<PolicyDetail, ApiError> {
@@ -275,12 +372,10 @@ async fn detail(db: &mut PgConnection, company: Uuid, id: Uuid) -> Result<Policy
     .fetch_optional(&mut *db)
     .await?
     .ok_or(ApiError::RouteNotFound)?;
-    let carrier_name =
-        sqlx::query_scalar("SELECT name FROM insurance_carriers WHERE company_id = $1 AND id = $2")
-            .bind(company)
-            .bind(policy.carrier_id)
-            .fetch_one(&mut *db)
-            .await?;
+    let carrier_name = sqlx::query_scalar("SELECT name FROM insurance_carriers WHERE id = $1")
+        .bind(policy.carrier_id)
+        .fetch_one(&mut *db)
+        .await?;
     let dues = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT {DUE_COLUMNS} FROM insurance_dues d WHERE d.policy_id = $1 ORDER BY d.slot, d.due_on, d.id")))
         .bind(id).fetch_all(&mut *db).await?;
     let today = sqlx::query_scalar(TODAY_SQL).fetch_one(&mut *db).await?;

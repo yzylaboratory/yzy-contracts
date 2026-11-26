@@ -7,7 +7,7 @@ import { InsuranceSkeleton } from "../insurance-ui";
 
 export default function ControlSegurosLoading() {
   const [, , section, item, action] = usePathname().split("/");
-  const view: View = section === "dashboard" ? "dashboard" : section === "aseguradoras" ? "carrier"
+  const view: View = section === "dashboard" ? "dashboard"
     : action === "editar" ? "edit" : item === "nueva" ? "new" : item ? "detail" : section === "polizas" ? "policies" : "home";
   return <PortalLoading currentPage="/control-seguros" title={titles[view]} label="Cargando Control Seguros…">
     <InsuranceSkeleton view={skeletonView(view)} />

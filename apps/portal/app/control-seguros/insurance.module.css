@@ -1,26 +1,42 @@
 .stack,
-.fieldStack,
 .panel {
   display: grid;
   gap: 1rem;
   min-inline-size: 0;
 }
 
-.fieldStack {
-  gap: .625rem;
-  justify-items: start;
-}
-
-.fieldStack > div {
-  inline-size: 100%;
-}
-
 .tiles,
-.metrics,
-.fields {
+.metrics {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+}
+
+/* One column grid for every form field: equal widths, top-aligned, no cell stretches to its row. */
+.fields {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 48rem) {
+  .fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.fields > * {
+  min-inline-size: 0;
+}
+
+.fields label {
+  line-height: var(--leading-body);
+}
+
+.fieldNote {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .tile,
@@ -54,7 +70,12 @@
   padding: 1rem;
 }
 
+/* Money fields use the same height and type size as every other control. */
 .moneyField {
+  --money-input-height: var(--control-height-md);
+  --text-3xl: var(--text-sm);
+  --text-2xl: var(--text-sm);
+  --font-display: var(--font-body);
   --text-muted: var(--text-secondary);
 }
 

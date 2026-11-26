@@ -6,7 +6,7 @@ import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
 import { insuranceApi, type Overview, type Scope } from "./insurance-api";
-import { concept, dateText, DueStatus, InsuranceError, InsuranceLoadingContent, insuranceHome, money, policiesPath, policyPath, useInsuranceData } from "./insurance-ui";
+import { concept, dateText, DueStatus, InsuranceError, InsuranceLoadingContent, money, policiesPath, policyPath, useInsuranceData } from "./insurance-ui";
 import styles from "./insurance.module.css";
 
 export type Filters = { days: number; carrier: string; overdue: boolean; kind: string; query: string };
@@ -32,7 +32,6 @@ export function InsuranceOverview({ scope, dashboard, allPolicies, initial }: {
     {!dashboard && <>
       <div className={styles.actions}>
         <Link className={styles.actionLink} href={`${policiesPath}/nueva`}>Nueva póliza</Link>
-        <Link href={`${insuranceHome}/aseguradoras/nueva`}>Nueva aseguradora</Link>
       </div>
       <nav className={styles.tabs} aria-label="Vistas de pólizas">
         <Link href={listHref} aria-current={!allPolicies ? "page" : undefined}>Vencimientos</Link>

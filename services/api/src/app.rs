@@ -57,7 +57,7 @@ const JSON_ENVELOPE_BYTES: usize = 64 * 1024;
         (name = "Conversions", description = "Asynchronous PDF and DOCX to Markdown conversions"),
         (name = "Templates", description = "Original Word templates with variables and legacy editable templates"),
         (name = "Generated documents", description = "Saved exports and statistics for the authenticated account"),
-        (name = "Insurance", description = "DEV only. Company-scoped policies, due dates and manually recorded payments. Dates are local to Santo Domingo; amounts are in DOP cents."),
+        (name = "Insurance", description = "DEV only. Company-scoped policies, due dates and manually recorded payments. Carriers are a global catalog managed by the superadministrator; companies only pick one. Dates are local to Santo Domingo; amounts are in DOP cents."),
         (name = "Billing", description = "Monthly company billing and bank transfers"),
         (name = "Document readings", description = "Structured JSON read from photos or PDFs of identity cards, vehicle registrations and bills of lading")
     ),

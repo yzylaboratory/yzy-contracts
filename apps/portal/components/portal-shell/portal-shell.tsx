@@ -212,7 +212,7 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
 
         {showNavigation && <nav id="portal-menu" className={styles.navigation} aria-label={isAdmin ? "Menú de administración" : "Menú principal"} data-open={menuOpen}>
           {isAdmin ? <div className={styles.navGroup}>
-            {adminNavigation.map(({ href, label, icon }) => (
+            {adminNavigation.filter(({ href }) => href !== adminRoutes.insurers || developmentPortal).map(({ href, label, icon }) => (
               <NavLink key={href} href={href} label={label} icon={icon} collapsed={collapsed}
                 current={pathname === href ? "page" : undefined} onNavigate={navigate} />
             ))}

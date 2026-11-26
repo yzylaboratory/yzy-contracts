@@ -10,7 +10,6 @@ export default async function ControlSegurosPage({ params, searchParams }: PageP
   let id: string | undefined;
   if (!segments.length) view = "home";
   else if (section === "dashboard" && segments.length === 1) view = "dashboard";
-  else if (section === "aseguradoras" && item === "nueva" && segments.length === 2) view = "carrier";
   else if (section === "polizas" && segments.length === 1) view = "policies";
   else if (section === "polizas" && item === "nueva" && segments.length === 2) view = "new";
   else if (section === "polizas" && item && uuid.test(item) && (segments.length === 2 || (segments.length === 3 && action === "editar"))) {

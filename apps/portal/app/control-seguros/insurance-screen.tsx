@@ -8,18 +8,18 @@ import { Button } from "@/components/arc/button/button";
 import { PortalShell } from "@/components/portal-shell/portal-shell";
 import { usePortalAccess } from "@/lib/portal-access";
 import { insuranceApi, type Due, type PolicyDetail, type Scope } from "./insurance-api";
-import { CarrierForm, PaymentForm, PolicyEditor } from "./insurance-forms";
+import { PaymentForm, PolicyEditor } from "./insurance-forms";
 import { InsuranceOverview, type Filters } from "./insurance-overview";
 import { concept, dateText, DueStatus, InsuranceError, insuranceHome, InsuranceLoadingContent, money, policiesPath, policyPath, useInsuranceData, type SkeletonView } from "./insurance-ui";
 import styles from "./insurance.module.css";
 
-export type View = "home" | "dashboard" | "policies" | "detail" | "new" | "edit" | "carrier";
+export type View = "home" | "dashboard" | "policies" | "detail" | "new" | "edit";
 export const titles: Record<View, string> = {
   home: "Control Seguros", dashboard: "Dashboard", policies: "Pólizas",
-  detail: "Detalle de póliza", new: "Nueva póliza", edit: "Editar póliza", carrier: "Aseguradoras",
+  detail: "Detalle de póliza", new: "Nueva póliza", edit: "Editar póliza",
 };
 export const skeletonView = (view: View): SkeletonView => {
-  if (view === "new" || view === "edit" || view === "carrier") return "editor";
+  if (view === "new" || view === "edit") return "editor";
   return view;
 };
 
@@ -45,9 +45,7 @@ export function InsuranceScreen({ view, id, filters, allPolicies }: { view: View
 }
 
 function ScopedScreen({ scope, view, id, filters, allPolicies, onDirty }: { scope: Scope; view: View; id?: string; filters: Filters; allPolicies: boolean; onDirty: (value: boolean) => void }) {
-  const router = useRouter();
   if (view === "dashboard" || view === "policies") return <InsuranceOverview scope={scope} dashboard={view === "dashboard"} initial={filters} allPolicies={allPolicies} />;
-  if (view === "carrier") return <CarrierForm scope={scope} onSaved={() => router.replace(policiesPath)} onCancel={() => router.replace(policiesPath)} />;
   if (view === "detail" && id) return <PolicyRecord scope={scope} id={id} />;
   return <EditorScreen scope={scope} id={id} onDirty={onDirty} />;
 }
@@ -63,7 +61,7 @@ function EditorScreen({ scope, id, onDirty }: { scope: Scope; id?: string; onDir
   const { data, error, retry } = useInsuranceData(load);
   if (error) return <InsuranceError message={error} retry={retry} />;
   if (!data) return <InsuranceLoadingContent view="editor" />;
-  return <PolicyEditor scope={scope} initialCarriers={data.carriers} record={data.detail}
+  return <PolicyEditor scope={scope} carriers={data.carriers} record={data.detail}
     cancelHref={id ? policyPath(id) : policiesPath} onDirty={onDirty} onSaved={saved => router.replace(policyPath(saved.policy.id))} />;
 }
 

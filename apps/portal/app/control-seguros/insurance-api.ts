@@ -42,8 +42,6 @@ export function insuranceApi({ company, account }: Scope) {
       api<Overview>(`${base}?days=${days}&include_overdue=${includeOverdue}`, { expectedAccountId, signal }),
     detail: (id: string, signal: AbortSignal) =>
       api<PolicyDetail>(`${policies}/${id}`, { expectedAccountId, signal }),
-    addCarrier: (name: string) =>
-      api<Carrier>(`${base}/carriers`, { method: "POST", body: { name }, expectedAccountId }),
     save: (body: PolicyWrite, previous?: Policy) =>
       previous
         ? api<PolicyDetail>(`${policies}/${previous.id}`, { method: "PUT", body: { ...body, revision: previous.revision }, expectedAccountId })

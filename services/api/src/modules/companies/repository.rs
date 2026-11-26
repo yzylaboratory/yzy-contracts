@@ -267,7 +267,7 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
            EXISTS (SELECT 1 FROM contracts WHERE company_id = $1 OR $1 = ANY(shared_company_ids)),
            EXISTS (SELECT 1 FROM client_operations WHERE company_id = $1),
            EXISTS (SELECT 1 FROM prospects WHERE company_id = $1),
-           EXISTS (SELECT 1 FROM insurance_carriers WHERE company_id = $1),
+           EXISTS (SELECT 1 FROM insurance_policies WHERE company_id = $1),
            EXISTS (SELECT 1 FROM billing_invoice_lines WHERE company_id = $1)
            OR EXISTS (
              SELECT 1 FROM billing_accounts a
@@ -292,7 +292,7 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
         uses.push("prospectos");
     }
     if insured {
-        uses.push("aseguradoras o pólizas");
+        uses.push("pólizas");
     }
     if billed {
         uses.push("facturación");

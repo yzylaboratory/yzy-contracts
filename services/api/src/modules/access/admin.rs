@@ -11,7 +11,7 @@ use crate::{
     app_state::AppState,
     error::{ApiError, ErrorEnvelope},
     extract::{ApiJson, ApiPath, ApiQuery},
-    modules::companies,
+    modules::{companies, insurance},
 };
 
 use super::{Notice, activity, dashboard, no_store, notice_for};
@@ -26,6 +26,7 @@ pub(super) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(activity::list))
         .merge(activity::timeline_router())
         .routes(routes!(companies::admin_companies))
+        .merge(insurance::admin_router())
         .route_layer(middleware::from_fn(no_store))
 }
 
