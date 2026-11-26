@@ -8081,7 +8081,7 @@ tags:
 - name: Generated documents
   description: Saved exports and statistics for the authenticated account
 - name: Insurance
-  description: DEV only. Company-scoped policies, due dates and manually recorded payments. Carriers are a global catalog managed by the superadministrator; companies only pick one. Dates are local to Santo Domingo; amounts are in DOP cents.
+  description: Company-scoped policies, due dates and manually recorded payments. Carriers are a global catalog managed by the superadministrator; companies only pick one. Dates are local to Santo Domingo; amounts are in DOP cents.
 - name: Billing
   description: Monthly company billing and bank transfers
 - name: Document readings

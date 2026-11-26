@@ -91,7 +91,7 @@ type PortalShellProps = {
 export function PortalShell({ currentPage, title, titleId, description, companyId, breadcrumb, backLink, confirmNavigation, requiresBillingAccess = false, onboardingAvailable = true, activityAvailable = true, loadingFallback, children }: PortalShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { developmentPortal, state, session, activeCompany, checking, refresh, rememberRedirect } = usePortalAccess();
+  const { state, session, activeCompany, checking, refresh, rememberRedirect } = usePortalAccess();
   const { open: openTour } = useProductTour();
   const { name, email } = useAccountProfile(session?.user);
   const { toast } = useToastStack();
@@ -212,12 +212,12 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
 
         {showNavigation && <nav id="portal-menu" className={styles.navigation} aria-label={isAdmin ? "Menú de administración" : "Menú principal"} data-open={menuOpen}>
           {isAdmin ? <div className={styles.navGroup}>
-            {adminNavigation.filter(({ href }) => href !== adminRoutes.insurers || developmentPortal).map(({ href, label, icon }) => (
+            {adminNavigation.map(({ href, label, icon }) => (
               <NavLink key={href} href={href} label={label} icon={icon} collapsed={collapsed}
                 current={pathname === href ? "page" : undefined} onNavigate={navigate} />
             ))}
           </div> : <div className={styles.navGroup}>
-            {showCompanyMenu && workspaceNavigation.filter(({ href }) => href !== "/control-seguros" || developmentPortal).map(({ href, label, icon }) => (
+            {showCompanyMenu && workspaceNavigation.map(({ href, label, icon }) => (
               <NavLink key={href} href={href} label={label} icon={icon} collapsed={collapsed}
                 current={href === currentPage ? (href !== "/control-seguros" || pathname === href ? "page" : "location") : undefined} onNavigate={navigate}
                 tour={href === "/clientes" ? "clients-nav" : undefined} />

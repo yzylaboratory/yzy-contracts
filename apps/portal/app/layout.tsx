@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <PortalReplayNavigation />
         <PortalNotifications>
-          <PortalAccessProvider developmentPortal={isDevelopmentPortal()}><ProductTourProvider>{children}</ProductTourProvider></PortalAccessProvider>
+          <PortalAccessProvider><ProductTourProvider>{children}</ProductTourProvider></PortalAccessProvider>
         </PortalNotifications>
       </body>
     </html>

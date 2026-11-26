@@ -11,7 +11,6 @@ use crate::{
     app_state::AppState,
     error::{ApiError, ErrorEnvelope},
     extract::{ApiJson, ApiPath, ApiQuery},
-    infrastructure::schema::DatabaseSchema,
     modules::auth::AuthUser,
 };
 
@@ -139,15 +138,7 @@ const POLICY_SQL: &str = "SELECT p.id, p.carrier_id, p.client_id, c.name AS clie
     p.renewal_on, p.renewal_minor FROM insurance_policies p JOIN clients c ON c.id = p.client_id";
 const DUE_COLUMNS: &str = "d.id, d.policy_id, d.slot, d.due_on, d.amount_minor, d.paid_on, (d.replaced_at IS NOT NULL) AS replaced";
 
-fn development_only(state: &AppState) -> Result<(), ApiError> {
-    if state.config.database_schema != DatabaseSchema::Development {
-        return Err(ApiError::RouteNotFound);
-    }
-    Ok(())
-}
-
 async fn authorize(state: &AppState, user: &AuthUser, company: Uuid) -> Result<(), ApiError> {
-    development_only(state)?;
     let allowed: bool = sqlx::query_scalar("SELECT has_company_membership($1, $2)")
         .bind(user.id)
         .bind(company)
@@ -271,7 +262,6 @@ async fn admin_carriers(
     State(state): State<AppState>,
     ApiQuery(page): ApiQuery<PageQuery>,
 ) -> Result<Json<CarrierPage>, ApiError> {
-    development_only(&state)?;
     let (total, items): (i64, Vec<Carrier>) = {
         let total = sqlx::query_scalar("SELECT count(*) FROM insurance_carriers")
             .fetch_one(&state.db)
@@ -302,7 +292,6 @@ async fn create_carrier(
     State(state): State<AppState>,
     ApiJson(body): ApiJson<CarrierWrite>,
 ) -> Result<(StatusCode, Json<Carrier>), ApiError> {
-    development_only(&state)?;
     let carrier =
         sqlx::query_as("INSERT INTO insurance_carriers (name) VALUES ($1) RETURNING id, name")
             .bind(label(&body.name, 160)?)
@@ -322,7 +311,6 @@ async fn update_carrier(
     ApiPath(id): ApiPath<Uuid>,
     ApiJson(body): ApiJson<CarrierWrite>,
 ) -> Result<Json<Carrier>, ApiError> {
-    development_only(&state)?;
     sqlx::query_as("UPDATE insurance_carriers SET name = $2 WHERE id = $1 RETURNING id, name")
         .bind(id)
         .bind(label(&body.name, 160)?)
@@ -342,7 +330,6 @@ async fn delete_carrier(
     State(state): State<AppState>,
     ApiPath(id): ApiPath<Uuid>,
 ) -> Result<StatusCode, ApiError> {
-    development_only(&state)?;
     let deleted = sqlx::query("DELETE FROM insurance_carriers WHERE id = $1")
         .bind(id)
         .execute(&state.db)

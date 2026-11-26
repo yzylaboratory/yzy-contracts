@@ -22,7 +22,7 @@ async fn company(app: &TestApp, name: &str) -> String {
 const CARRIERS: &str = "/api/v1/admin/insurance-carriers";
 
 #[tokio::test]
-async fn global_carrier_catalog_and_dev_gate() {
+async fn global_carrier_catalog() {
     let member_id = Uuid::new_v4();
     let pending_id = Uuid::new_v4();
     let app = TestApp::start_development(&[ADMIN_ID, member_id, pending_id]).await;
@@ -213,23 +213,43 @@ async fn global_carrier_catalog_and_dev_gate() {
         .unwrap();
     assert_eq!(app.get(admin, &a).await.0, StatusCode::NOT_FOUND);
 
+    // Production serves the same module from its own schema.
     let prod = TestApp::start().await;
     let admin = prod.superadmin().await;
-    assert_eq!(prod.get(admin, &a).await.0, StatusCode::NOT_FOUND);
-    assert_eq!(prod.get(admin, CARRIERS).await.0, StatusCode::NOT_FOUND);
+    let prod_company: String = sqlx::query_scalar::<_, Uuid>(
+        "INSERT INTO yzy_contracts.companies (owner_id, name, variable_values)
+         VALUES ($1, $2, jsonb_build_object('empresa_razon_social', $2::text)) RETURNING id",
+    )
+    .bind(ADMIN_ID)
+    .bind("Empresa sintética prod")
+    .fetch_one(&prod.admin)
+    .await
+    .unwrap()
+    .to_string();
+    let overview_uri = format!("/api/v1/companies/{prod_company}/insurance");
+    let (status, created) = prod
+        .post(admin, CARRIERS, json!({"name": "Seguros Prod"}))
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let prod_uri = format!("{CARRIERS}/{}", created["id"].as_str().unwrap());
+    let (status, overview) = prod.get(admin, &overview_uri).await;
+    assert_eq!(status, StatusCode::OK, "{overview}");
+    assert_eq!(overview["carriers"], json!([created]));
+    let (status, page) = prod.get(admin, CARRIERS).await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(page["items"], json!([created]));
+    let (status, renamed) = prod
+        .put(admin, &prod_uri, json!({"name": "Seguros Prod Renombrada"}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{renamed}");
+    assert_eq!(renamed["name"], "Seguros Prod Renombrada");
     assert_eq!(
-        prod.post(admin, CARRIERS, json!({"name": "Prod"})).await.0,
-        StatusCode::NOT_FOUND
+        prod.delete(admin, &prod_uri).await.0,
+        StatusCode::NO_CONTENT
     );
     assert_eq!(
-        prod.put(admin, &carrier_uri, json!({"name": "Prod"}))
-            .await
-            .0,
-        StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        prod.delete(admin, &carrier_uri).await.0,
-        StatusCode::NOT_FOUND
+        prod.get(admin, &overview_uri).await.1["carriers"],
+        json!([])
     );
 }
 
