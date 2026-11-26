@@ -1517,6 +1517,328 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
       security:
       - bearer_auth: []
+  /api/v1/companies/{company_id}/insurance:
+    get:
+      tags:
+      - Insurance
+      operationId: overview
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 7
+          maximum: 365
+          minimum: 1
+      - name: include_overdue
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Overview'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/insurance/carriers:
+    post:
+      tags:
+      - Insurance
+      operationId: create_carrier
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarrierWrite'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Carrier'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/insurance/policies:
+    post:
+      tags:
+      - Insurance
+      operationId: create_policy
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyWrite'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/insurance/policies/{policy_id}:
+    get:
+      tags:
+      - Insurance
+      operationId: policy_detail
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: policy_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+    put:
+      tags:
+      - Insurance
+      operationId: edit_policy
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: policy_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyEdit'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
+  /api/v1/companies/{company_id}/insurance/policies/{policy_id}/dues/{due_id}/payment:
+    put:
+      tags:
+      - Insurance
+      operationId: pay_due
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: policy_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: due_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentWrite'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Due'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - bearer_auth: []
   /api/v1/companies/{company_id}/prospect-links:
     post:
       tags:
@@ -4684,6 +5006,24 @@ components:
           - string
           - 'null'
       additionalProperties: false
+    Carrier:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    CarrierWrite:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
     CaseApplication:
       type: object
       properties:
@@ -6029,6 +6369,39 @@ components:
           format: date-time
         url:
           type: string
+    Due:
+      type: object
+      required:
+      - id
+      - policy_id
+      - slot
+      - due_on
+      - amount_minor
+      - replaced
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        due_on:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        paid_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        policy_id:
+          type: string
+          format: uuid
+        replaced:
+          type: boolean
+        slot:
+          type: integer
+          format: int32
+          description: Zero identifies the renewal. Positive values identify the installments.
     EmailDraft:
       type: object
       required:
@@ -6579,6 +6952,29 @@ components:
       - text
       - money
       - date
+    Overview:
+      type: object
+      required:
+      - today
+      - carriers
+      - policies
+      - dues
+      properties:
+        carriers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Carrier'
+        dues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Due'
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Policy'
+        today:
+          type: string
+          format: date
     Party:
       type: object
       properties:
@@ -6619,6 +7015,130 @@ components:
           type: string
           format: date
       additionalProperties: false
+    PaymentWrite:
+      type: object
+      required:
+      - paid_on
+      properties:
+        paid_on:
+          type: string
+          format: date
+    Policy:
+      type: object
+      required:
+      - id
+      - carrier_id
+      - client_id
+      - client_name
+      - number
+      - revision
+      - first_due_on
+      - installment_count
+      - installment_minor
+      - renewal_on
+      - renewal_minor
+      properties:
+        carrier_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        first_due_on:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        installment_count:
+          type: integer
+          format: int32
+        installment_minor:
+          type: integer
+          format: int64
+        number:
+          type: string
+        renewal_minor:
+          type: integer
+          format: int64
+        renewal_on:
+          type: string
+          format: date
+        revision:
+          type: integer
+          format: int32
+    PolicyDetail:
+      type: object
+      required:
+      - today
+      - carrier_name
+      - policy
+      - dues
+      properties:
+        carrier_name:
+          type: string
+        dues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Due'
+        policy:
+          $ref: '#/components/schemas/Policy'
+        today:
+          type: string
+          format: date
+    PolicyEdit:
+      allOf:
+      - $ref: '#/components/schemas/PolicyWrite'
+      - type: object
+        required:
+        - revision
+        properties:
+          revision:
+            type: integer
+            format: int32
+    PolicyWrite:
+      type: object
+      required:
+      - carrier_id
+      - client_id
+      - number
+      - first_due_on
+      - installment_count
+      - installment_minor
+      - renewal_on
+      - renewal_minor
+      properties:
+        carrier_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        first_due_on:
+          type: string
+          format: date
+        installment_count:
+          type: integer
+          format: int32
+          maximum: 120
+          minimum: 1
+        installment_minor:
+          type: integer
+          format: int64
+          maximum: 99999999999
+          minimum: 1
+        number:
+          type: string
+        renewal_minor:
+          type: integer
+          format: int64
+          maximum: 99999999999
+          minimum: 1
+        renewal_on:
+          type: string
+          format: date
     Prospect:
       type: object
       required:
@@ -7414,6 +7934,8 @@ tags:
   description: Original Word templates with variables and legacy editable templates
 - name: Generated documents
   description: Saved exports and statistics for the authenticated account
+- name: Insurance
+  description: DEV only. Company-scoped policies, due dates and manually recorded payments. Dates are local to Santo Domingo; amounts are in DOP cents.
 - name: Billing
   description: Monthly company billing and bank transfers
 - name: Document readings

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const DEV_HOSTNAME = "yzycontracts.yzylabs.dev";
+import { DEV_HOSTNAME } from "./site-url";
 
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {

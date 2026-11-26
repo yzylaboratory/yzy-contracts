@@ -30,7 +30,7 @@ use crate::{
     error::{ApiError, ErrorEnvelope},
     modules::{
         access, auth, billing, clients, companies, contracts, conversions, document_readings,
-        files, generated_documents, mobile, prospects, system, templates,
+        files, generated_documents, insurance, mobile, prospects, system, templates,
     },
 };
 
@@ -57,6 +57,7 @@ const JSON_ENVELOPE_BYTES: usize = 64 * 1024;
         (name = "Conversions", description = "Asynchronous PDF and DOCX to Markdown conversions"),
         (name = "Templates", description = "Original Word templates with variables and legacy editable templates"),
         (name = "Generated documents", description = "Saved exports and statistics for the authenticated account"),
+        (name = "Insurance", description = "DEV only. Company-scoped policies, due dates and manually recorded payments. Dates are local to Santo Domingo; amounts are in DOP cents."),
         (name = "Billing", description = "Monthly company billing and bank transfers"),
         (name = "Document readings", description = "Structured JSON read from photos or PDFs of identity cards, vehicle registrations and bills of lading")
     ),
@@ -94,6 +95,7 @@ fn business_routes(template_max_bytes: usize, upload_max_bytes: i64) -> OpenApiR
     OpenApiRouter::new()
         .merge(auth::onboarding_router())
         .merge(clients::router())
+        .merge(insurance::router())
         .merge(files::router())
         .merge(contracts::router(upload_max_bytes))
         .merge(conversions::router())

@@ -138,6 +138,13 @@ pub(super) async fn delete_client(db: &PgPool, client: Uuid) -> Result<(), ApiEr
         .fetch_one(db)
         .await
         .map_err(|error| {
+            if let Some(db) = error.as_database_error()
+                && db.constraint() == Some("insurance_policies_client_id_fkey")
+            {
+                return ApiError::InsuranceConflict(
+                    "El cliente tiene pólizas y no se puede eliminar.",
+                );
+            }
             if error
                 .as_database_error()
                 .is_some_and(|error| error.code() == Some("23503".into()))

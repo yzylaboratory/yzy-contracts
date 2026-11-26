@@ -261,11 +261,13 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
     if existing.archived_at.is_none() {
         return Err(ApiError::CompanyNotArchived);
     }
-    let (contracts, operations, prospects, billed): (bool, bool, bool, bool) = sqlx::query_as(
-        "SELECT
+    let (contracts, operations, prospects, insured, billed): (bool, bool, bool, bool, bool) =
+        sqlx::query_as(
+            "SELECT
            EXISTS (SELECT 1 FROM contracts WHERE company_id = $1 OR $1 = ANY(shared_company_ids)),
            EXISTS (SELECT 1 FROM client_operations WHERE company_id = $1),
            EXISTS (SELECT 1 FROM prospects WHERE company_id = $1),
+           EXISTS (SELECT 1 FROM insurance_carriers WHERE company_id = $1),
            EXISTS (SELECT 1 FROM billing_invoice_lines WHERE company_id = $1)
            OR EXISTS (
              SELECT 1 FROM billing_accounts a
@@ -275,10 +277,10 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
                           WHERE ac.account_id = a.id AND ac.company_id <> $1)
              )
            )",
-    )
-    .bind(id)
-    .fetch_one(&mut *tx)
-    .await?;
+        )
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
     let mut uses = Vec::new();
     if contracts {
         uses.push("plantillas");
@@ -288,6 +290,9 @@ pub(super) async fn delete(db: &PgPool, user: &AuthUser, id: Uuid) -> Result<(),
     }
     if prospects {
         uses.push("prospectos");
+    }
+    if insured {
+        uses.push("aseguradoras o pólizas");
     }
     if billed {
         uses.push("facturación");

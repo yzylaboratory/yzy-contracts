@@ -181,6 +181,7 @@ export function clientErrorMessage(error: unknown, fallback: string) {
   if (!(error instanceof ApiError)) return fallback;
   if (error.status === 401) return "Tu sesión terminó. Vuelve a iniciar sesión.";
   if (error.code === "CLIENT_IDENTITY_CONFLICT") return "Ya existe un cliente con esa identificación. Búscalo para usar sus datos en el expediente.";
+  if (error.code === "INSURANCE_CONFLICT") return error.message;
   if (error.code === "CLIENT_IN_USE") return "Este cliente tiene expedientes y no se puede eliminar.";
   if (error.code === "BILLING_REQUIRED") return "Solo el responsable de facturación de la empresa puede eliminar expedientes.";
   if (error.status === 403 || error.status === 404) return "El expediente o la empresa ya no están disponibles para tu cuenta.";

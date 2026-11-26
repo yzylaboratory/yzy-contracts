@@ -37,6 +37,7 @@ export type PortalIdentity = {
 type AccessResult = { kind: "ready"; identity: PortalIdentity } | { kind: "error"; message: string; denied?: boolean };
 type AccessState = AccessResult | { kind: "loading" } | { kind: "signed-out" };
 type PortalAccess = {
+  developmentPortal: boolean;
   state: AccessState;
   session: ReturnType<typeof useSession>;
   activeCompany: AccessCompany | undefined;
@@ -77,7 +78,7 @@ function ConfirmPortalRedirects({ redirectsRef, state, sessionAccountId }: {
   return null;
 }
 
-export function PortalAccessProvider({ children }: { children: ReactNode }) {
+export function PortalAccessProvider({ children, developmentPortal = false }: { children: ReactNode; developmentPortal?: boolean }) {
   const session = useSession();
   const accountId = session?.user.id;
   const token = session?.access_token;
@@ -208,7 +209,7 @@ export function PortalAccessProvider({ children }: { children: ReactNode }) {
     }
   }, [accountId, companies]);
   return (
-    <AccessContext.Provider value={{ state, session, activeCompany, selectCompany, checking, checkWarning: checking ? undefined : current?.warning, refresh, rememberRedirect, claimOnboarding, markOnboardingComplete }}>
+    <AccessContext.Provider value={{ developmentPortal, state, session, activeCompany, selectCompany, checking, checkWarning: checking ? undefined : current?.warning, refresh, rememberRedirect, claimOnboarding, markOnboardingComplete }}>
       <ConfirmPortalRedirects redirectsRef={redirectsRef} state={state} sessionAccountId={accountId} />
       {children}
     </AccessContext.Provider>

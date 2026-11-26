@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ArrowLeft, Building2, ClipboardList, Compass, CreditCard, FolderOpen, LayoutDashboard, Menu, PanelLeftClose, PanelLeftOpen, Receipt, Settings, UserRound, Users, X, type LucideIcon } from "lucide-react";
+import { Activity, ArrowLeft, Building2, ClipboardList, Compass, CreditCard, FolderOpen, LayoutDashboard, Menu, PanelLeftClose, PanelLeftOpen, Receipt, Settings, ShieldCheck, UserRound, Users, X, type LucideIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { Button } from "@/components/arc/button/button";
@@ -28,10 +28,11 @@ const workspaceNavigation = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/directorio-clientes", label: "Clientes", icon: "users" },
   { href: "/clientes", label: "Expedientes", icon: "cases" },
+  { href: "/control-seguros", label: "Control Seguros", icon: "insurance" },
 ] as const;
 
 const navIcons: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard, cases: FolderOpen, membership: CreditCard, settings: Settings,
+  insurance: ShieldCheck, dashboard: LayoutDashboard, cases: FolderOpen, membership: CreditCard, settings: Settings,
   users: Users, companies: Building2, billing: Receipt, activity: Activity, requests: ClipboardList,
 };
 
@@ -69,7 +70,7 @@ function NavLink({ href, label, icon, collapsed, current, onNavigate, tour }: {
   return collapsed ? <Tooltip content={label} side="right">{link}</Tooltip> : link;
 }
 
-const workspacePages = ["/dashboard", "/directorio-clientes", "/clientes", "/contratos", "/docs-generados"] as const;
+const workspacePages = ["/dashboard", "/directorio-clientes", "/clientes", "/contratos", "/docs-generados", "/control-seguros"] as const;
 
 type PortalShellProps = {
   currentPage: (typeof workspacePages)[number] | typeof companyPickerPath | "/configuracion" | typeof adminRoutes.dashboard | "/facturacion";
@@ -90,7 +91,7 @@ type PortalShellProps = {
 export function PortalShell({ currentPage, title, titleId, description, companyId, breadcrumb, backLink, confirmNavigation, requiresBillingAccess = false, onboardingAvailable = true, activityAvailable = true, loadingFallback, children }: PortalShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { state, session, activeCompany, checking, refresh, rememberRedirect } = usePortalAccess();
+  const { developmentPortal, state, session, activeCompany, checking, refresh, rememberRedirect } = usePortalAccess();
   const { open: openTour } = useProductTour();
   const { name, email } = useAccountProfile(session?.user);
   const { toast } = useToastStack();
@@ -216,9 +217,9 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
                 current={pathname === href ? "page" : undefined} onNavigate={navigate} />
             ))}
           </div> : <div className={styles.navGroup}>
-            {showCompanyMenu && workspaceNavigation.map(({ href, label, icon }) => (
+            {showCompanyMenu && workspaceNavigation.filter(({ href }) => href !== "/control-seguros" || developmentPortal).map(({ href, label, icon }) => (
               <NavLink key={href} href={href} label={label} icon={icon} collapsed={collapsed}
-                current={href === currentPage ? "page" : undefined} onNavigate={navigate}
+                current={href === currentPage ? (href !== "/control-seguros" || pathname === href ? "page" : "location") : undefined} onNavigate={navigate}
                 tour={href === "/clientes" ? "clients-nav" : undefined} />
             ))}
             {showMembership && <NavLink href="/facturacion" label="Membresía" icon="membership" collapsed={collapsed}

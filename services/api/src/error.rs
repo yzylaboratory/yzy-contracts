@@ -40,6 +40,8 @@ pub enum ApiError {
         "La generación de documentos está pausada porque esta empresa tiene una factura vencida."
     )]
     PaymentRequired,
+    #[error("{0}")]
+    InsuranceConflict(&'static str),
     #[error("No se encontró el cliente.")]
     ClientNotFound,
     #[error("Ya existe un cliente con esa identificación.")]
@@ -134,6 +136,7 @@ impl ApiError {
             Self::AdminRequired => "ADMIN_REQUIRED",
             Self::AccessUserNotFound => "ACCESS_USER_NOT_FOUND",
             Self::ContractNotFound => "CONTRACT_NOT_FOUND",
+            Self::InsuranceConflict(_) => "INSURANCE_CONFLICT",
             Self::ClientNotFound => "CLIENT_NOT_FOUND",
             Self::ClientIdentityConflict => "CLIENT_IDENTITY_CONFLICT",
             Self::ClientInUse => "CLIENT_IN_USE",
@@ -217,6 +220,7 @@ impl ApiError {
             | Self::CompanyArchived
             | Self::CompanyNotArchived
             | Self::CompanyInUse(_)
+            | Self::InsuranceConflict(_)
             | Self::ClientIdentityConflict
             | Self::ClientInUse
             | Self::CaseReferenceConflict(_)

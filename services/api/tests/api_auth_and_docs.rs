@@ -371,6 +371,7 @@ async fn openapi_documents_every_endpoint_with_bearer_auth_and_tags() {
             "Conversions",
             "Templates",
             "Generated documents",
+            "Insurance",
             "Billing",
             "Document readings",
         ]
