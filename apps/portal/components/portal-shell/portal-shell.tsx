@@ -77,6 +77,8 @@ type PortalShellProps = {
   title: string;
   titleId?: string;
   description?: string;
+  /** Controls for the page, drawn in the header row next to the title: right-aligned on desktop, full width under the title on phones. */
+  actions?: ReactNode;
   companyId?: string;
   breadcrumb?: ReactNode;
   backLink?: { href: string; label: string; tour?: string; onSelect?: () => void };
@@ -88,7 +90,7 @@ type PortalShellProps = {
   children: ReactNode;
 };
 
-export function PortalShell({ currentPage, title, titleId, description, companyId, breadcrumb, backLink, confirmNavigation, requiresBillingAccess = false, onboardingAvailable = true, activityAvailable = true, loadingFallback, children }: PortalShellProps) {
+export function PortalShell({ currentPage, title, titleId, description, actions, companyId, breadcrumb, backLink, confirmNavigation, requiresBillingAccess = false, onboardingAvailable = true, activityAvailable = true, loadingFallback, children }: PortalShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { state, session, activeCompany, checking, refresh, rememberRedirect } = usePortalAccess();
@@ -266,11 +268,22 @@ export function PortalShell({ currentPage, title, titleId, description, companyI
         </header>
 
         <main key={accessKey} ref={main} className={styles.main} id="contenido" tabIndex={-1}>
-          <div className={styles.intro}>
-            {breadcrumb && <div className={styles.breadcrumb}>{breadcrumb}</div>}
-            <h1 id={titleId} tabIndex={titleId ? -1 : undefined}>{title}</h1>
-            {description && <p>{description}</p>}
-          </div>
+          {actions ? (
+            <div className={styles.introRow}>
+              <div className={styles.intro}>
+                {breadcrumb && <div className={styles.breadcrumb}>{breadcrumb}</div>}
+                <h1 id={titleId} tabIndex={titleId ? -1 : undefined}>{title}</h1>
+                {description && <p>{description}</p>}
+              </div>
+              <div className={styles.introActions}>{actions}</div>
+            </div>
+          ) : (
+            <div className={styles.intro}>
+              {breadcrumb && <div className={styles.breadcrumb}>{breadcrumb}</div>}
+              <h1 id={titleId} tabIndex={titleId ? -1 : undefined}>{title}</h1>
+              {description && <p>{description}</p>}
+            </div>
+          )}
           {hasTour && <TourCoachmark route={hasTour} auto={workspacePage || companyPicker} shell={shell} accountTrigger={accountTrigger} />}
           {!identity || destination ? loadingFallback ?? <Skeleton label="Cargando contenido…" />
             : <>

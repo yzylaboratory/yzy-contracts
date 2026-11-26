@@ -2,7 +2,7 @@ import { Clock } from "lucide-react";
 import type { WorkspaceDashboard } from "./dashboard-api";
 import { count, formatMinutes, rangeLabel } from "./dashboard-format";
 import { FormatChart } from "./format-chart";
-import { StatCard, StatGrid } from "./stat-card";
+import { StatCard } from "./stat-card";
 import styles from "./dashboard.module.css";
 
 const formatLabels = { pdf: "PDF", docx: "Word", email: "Correo" } as const;
@@ -15,24 +15,20 @@ export function ProductivitySection({ stats }: { stats: WorkspaceDashboard }) {
     total: productivity.documents[format],
   }));
   const members = stats.user_stats.filter(member => member.user_name.trim().toLowerCase() !== hiddenUser);
-  return <section className={styles.group} aria-labelledby="productivity-title">
-    <h2 id="productivity-title" className={styles.groupTitle}>Productividad</h2>
-    <div className={styles.productivity}>
-      <StatGrid label="Tiempo ahorrado">
-        <StatCard label="Tiempo ahorrado" icon={Clock} value={formatMinutes(productivity.time_saved_minutes)}
-          context={`del ${rangeLabel(period.start, period.end)}`} />
-      </StatGrid>
-      <section className={styles.panel} aria-labelledby="documents-title">
-        <div className={styles.panelHeader}>
-          <div>
-            <h3 id="documents-title" className={styles.panelTitle}>Documentos generados</h3>
-            <p className={styles.panelSubtext}>{count(productivity.documents.total)} en el período</p>
-          </div>
+  return <section className={styles.productivity} aria-labelledby="productivity-title">
+    <h2 id="productivity-title" className={styles.bentoHeading}>Productividad</h2>
+    <StatCard className={styles.timeCard} label="Tiempo ahorrado" icon={Clock} value={formatMinutes(productivity.time_saved_minutes)}
+      context={`del ${rangeLabel(period.start, period.end)}`} />
+    <section className={`${styles.panel} ${styles.documentsPanel}`} aria-labelledby="documents-title">
+      <div className={styles.panelHeader}>
+        <div>
+          <h3 id="documents-title" className={styles.panelTitle}>Documentos generados</h3>
+          <p className={styles.panelSubtext}>{count(productivity.documents.total)} en el período</p>
         </div>
-        <FormatChart formats={formats} />
-      </section>
-    </div>
-    <section className={styles.panel} aria-labelledby="team-title">
+      </div>
+      <FormatChart formats={formats} />
+    </section>
+    <section className={`${styles.panel} ${styles.historyPanel}`} aria-labelledby="team-title">
       <div className={styles.panelHeader}>
         <div>
           <h3 id="team-title" className={styles.panelTitle}>Histórico por usuario</h3>

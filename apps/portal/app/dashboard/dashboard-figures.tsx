@@ -2,7 +2,7 @@ import { Banknote, FolderOpen, HandCoins, Hourglass, ShieldCheck, Timer, UserChe
 import { money } from "@/app/control-seguros/insurance-ui";
 import type { WorkspaceDashboard } from "./dashboard-api";
 import { count, daysVariation, decimal, percentVariation, plural, rangeLabel } from "./dashboard-format";
-import { StatCard, StatGrid } from "./stat-card";
+import { StatCard } from "./stat-card";
 import styles from "./dashboard.module.css";
 
 function reference(stats: WorkspaceDashboard) {
@@ -13,9 +13,8 @@ function reference(stats: WorkspaceDashboard) {
 export function ContractsFigures({ stats }: { stats: WorkspaceDashboard }) {
   const { disbursed, in_process: inProcess, cases_created: created, days_to_disbursement: days } = stats.contracts;
   const vs = reference(stats);
-  return <section className={styles.group} aria-labelledby="contracts-title">
-    <h2 id="contracts-title" className={styles.groupTitle}>Contratos</h2>
-    <StatGrid label="Cifras de contratos">
+  return <section className={styles.pair} aria-labelledby="contracts-title">
+    <h2 id="contracts-title" className={styles.bentoHeading}>Contratos</h2>
       <StatCard label="Desembolsado" icon={Banknote} value={money(disbursed.amount_minor)}
         variation={percentVariation(disbursed.amount_minor, disbursed.previous_amount_minor, { upIsGood: true, reference: vs })}
         context={`${plural(disbursed.count, "desembolso", "desembolsos")}${disbursed.without_plan > 0 ? ` · ${count(disbursed.without_plan)} sin plan de pagos` : ""}`} />
@@ -28,7 +27,6 @@ export function ContractsFigures({ stats }: { stats: WorkspaceDashboard }) {
         value={days.average === null ? "—" : `${decimal(days.average)} ${days.average === 1 ? "día" : "días"}`}
         variation={daysVariation(days.average, days.previous_average, { upIsGood: false, reference: vs })}
         context={`de ${plural(days.sample, "desembolso", "desembolsos")}`} />
-    </StatGrid>
   </section>;
 }
 
@@ -39,9 +37,8 @@ export function InsuranceFigures({ stats }: { stats: WorkspaceDashboard }) {
   const collectedContext = collected.due_in_period === 0
     ? `Sin vencimientos en el período · ${payments}`
     : `${count(Math.round((collected.paid_of_due_in_period / collected.due_in_period) * 100))} % de lo que venció en el período · ${payments}`;
-  return <section className={styles.group} aria-labelledby="insurance-title">
-    <h2 id="insurance-title" className={styles.groupTitle}>Pólizas</h2>
-    <StatGrid label="Cifras de pólizas">
+  return <section className={styles.pair} aria-labelledby="insurance-title">
+    <h2 id="insurance-title" className={styles.bentoHeading}>Pólizas</h2>
       <StatCard label="Cobrado" icon={HandCoins} value={money(collected.amount_minor)}
         variation={percentVariation(collected.amount_minor, collected.previous_amount_minor, { upIsGood: true, reference: vs })}
         context={collectedContext} />
@@ -53,6 +50,5 @@ export function InsuranceFigures({ stats }: { stats: WorkspaceDashboard }) {
           : "Sin pólizas nuevas en el período"} />
       <StatCard label="Clientes asegurados" icon={UserCheck} value={count(stats.insurance.insured_clients)}
         context="con al menos una póliza" />
-    </StatGrid>
   </section>;
 }

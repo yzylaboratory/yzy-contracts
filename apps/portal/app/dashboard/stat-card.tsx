@@ -12,30 +12,27 @@ export type StatCardProps = {
   value: string;
   variation?: Variation | null;
   context: ReactNode;
+  className?: string;
 };
 
-/** The only figure card of the Dashboard. Every card has the same four rows, so neighbours line up whether or not they show a variation. */
-export function StatCard({ label, icon: Icon, value, variation, context }: StatCardProps) {
-  return <div className={styles.card}>
-    <dt className={styles.cardLabel}>
+/** The only figure card of the Dashboard, in the panel look. Label, value and variation sit on top; the context is pinned to the bottom, so a stretched card leaves no loose gap. */
+export function StatCard({ label, icon: Icon, value, variation, context, className }: StatCardProps) {
+  return <article className={className ? `${styles.card} ${className}` : styles.card}>
+    <h3 className={styles.cardLabel}>
       <span className={styles.cardIcon} aria-hidden="true"><Icon size={15} /></span>
       <span>{label}</span>
-    </dt>
-    <dd className={styles.cardValue}>{value}</dd>
+    </h3>
+    <p className={styles.cardValue}>{value}</p>
     {variation
-      ? <dd className={styles.cardVariation} data-tone={variation.tone}>
+      ? <p className={styles.cardVariation} data-tone={variation.tone}>
         <span className={styles.cardChange}>
           {variation.direction !== "flat" && <span aria-hidden="true">{arrows[variation.direction]} </span>}
           {variation.direction !== "flat" && <span className={styles.srOnly}>{spoken[variation.direction]} </span>}
           {variation.text}
         </span>
         <span className={styles.cardReference}>{variation.reference}</span>
-      </dd>
-      : <dd className={styles.cardVariation} aria-hidden="true" />}
-    <dd className={styles.cardContext}>{context}</dd>
-  </div>;
-}
-
-export function StatGrid({ label, children }: { label: string; children: ReactNode }) {
-  return <dl className={styles.cards} aria-label={label}>{children}</dl>;
+      </p>
+      : <p className={styles.cardVariation} aria-hidden="true" />}
+    <p className={styles.cardContext}>{context}</p>
+  </article>;
 }

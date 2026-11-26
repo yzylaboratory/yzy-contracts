@@ -1,0 +1,15 @@
+/* Compact selector: the accessible name stays ("Período"), the label row is visually hidden. */
+.field {
+  position: relative;
+  min-inline-size: 0;
+}
+
+.field label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

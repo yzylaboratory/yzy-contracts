@@ -65,12 +65,13 @@ export function AgingPanel({ stats }: { stats: WorkspaceDashboard }) {
         })}
       </ul>
     )}
+    {overdueCount > 0 && <div className={styles.agingTotal}><span>Total vencido</span><strong>{money(total)}</strong></div>}
   </section>;
 }
 
 export function StalledCasesPanel({ stats }: { stats: WorkspaceDashboard }) {
   const { count: total, items } = stats.stalled_cases;
-  return <section className={`${styles.panel} ${styles.wide}`} aria-labelledby="stalled-title">
+  return <section className={`${styles.panel} ${styles.wide} ${styles.stalledPanel}`} aria-labelledby="stalled-title">
     <div className={styles.panelHeader}>
       <div>
         <h2 id="stalled-title">Expedientes sin movimiento</h2>
@@ -112,7 +113,7 @@ export function StalledCasesPanel({ stats }: { stats: WorkspaceDashboard }) {
 
 export function CarrierPanel({ stats }: { stats: WorkspaceDashboard }) {
   const { by_carrier: carriers, pending } = stats.insurance;
-  return <section className={`${styles.panel} ${styles.narrow}`} aria-labelledby="carrier-title">
+  return <section className={`${styles.panel} ${styles.narrow} ${styles.carrierPanel}`} aria-labelledby="carrier-title">
     <div className={styles.panelHeader}>
       <h2 id="carrier-title">Pendiente por aseguradora</h2>
     </div>

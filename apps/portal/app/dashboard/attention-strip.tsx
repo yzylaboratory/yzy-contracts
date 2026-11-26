@@ -27,7 +27,7 @@ export function AttentionStrip({ stats }: { stats: WorkspaceDashboard }) {
       context: `${plural(stats.clients_total, "cliente", "clientes")} · ${plural(stats.clients_this_month, "nuevo", "nuevos")} este mes`, empty: stats.prospects_pending === 0 },
   ];
   return <section className={styles.attention} aria-labelledby="attention-strip-title">
-    <h2 id="attention-strip-title" className={styles.groupTitle}>Requiere atención</h2>
+    <h2 id="attention-strip-title" className={styles.bentoHeading}>Requiere atención</h2>
     <ul className={styles.attentionList}>
       {items.map(({ key, label, icon: Icon, value, context, href, empty, alert }) => <li key={key}>
         <Link href={href} className={styles.attentionItem} data-empty={empty || undefined} data-alert={alert || undefined}>

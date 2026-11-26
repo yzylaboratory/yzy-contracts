@@ -222,6 +222,31 @@
   padding: 32px;
 }
 
+/* Header row for pages that pass `actions`: title block and controls side by side, controls stacked full width on phones. */
+.introRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.introRow > .intro {
+  flex: 1 1 20rem;
+  min-inline-size: 0;
+}
+
+.introActions {
+  flex: 1 1 100%;
+  min-inline-size: 0;
+}
+
+@media (min-width: 40rem) {
+  .introActions {
+    flex: 0 0 14rem;
+  }
+}
+
 .intro h1 {
   margin: 0 0 4px;
   font-family: var(--font-display);

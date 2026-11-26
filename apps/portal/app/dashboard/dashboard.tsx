@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { money } from "@/app/control-seguros/insurance-ui";
 import { Button } from "@/components/arc/button/button";
-import { Select } from "@/components/arc/select/select";
 import { LoadingContent } from "@/components/loading/loading-ui";
 import { ApiError, isActiveAccount } from "@/lib/api";
 import { usePortalAccess } from "@/lib/portal-access";
@@ -15,13 +13,12 @@ import { DashboardSkeleton } from "./dashboard-skeleton";
 import { ContractsFigures, InsuranceFigures } from "./dashboard-figures";
 import { count } from "./dashboard-format";
 import { AgingPanel, AttentionDuesPanel, CarrierPanel, StalledCasesPanel } from "./dashboard-panels";
-import { dashboardPeriods, isPeriodSlug, periodApiKey, periodHref, type DashboardPeriodSlug } from "./dashboard-period";
+import { periodApiKey, type DashboardPeriodSlug } from "./dashboard-period";
 import { ProductivitySection } from "./productivity";
 import { TrendChart } from "./trend-chart";
 import styles from "./dashboard.module.css";
 
 const loadingLabel = "Cargando el Dashboard…";
-const periodOptions = dashboardPeriods.map(({ slug, label }) => ({ value: slug, label }));
 
 function errorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback;
@@ -32,29 +29,11 @@ function errorMessage(error: unknown, fallback: string) {
 type Summary = { data: WorkspaceDashboard } | { failure: string };
 
 export function Dashboard({ period }: { period: DashboardPeriodSlug }) {
-  const router = useRouter();
   const accountId = useSession()?.user.id;
   const { activeCompany } = usePortalAccess();
-  const [selected, setSelected] = useOptimistic(period);
-  const [, startTransition] = useTransition();
-
-  function choose(value: string) {
-    if (!isPeriodSlug(value)) return;
-    const next = value;
-    startTransition(() => {
-      setSelected(next);
-      router.replace(periodHref(next), { scroll: false });
-    });
-  }
-
-  return <div className={styles.dashboard}>
-    <div className={styles.toolbar}>
-      <Select label="Período" name="periodo" value={selected} onValueChange={choose} options={periodOptions} />
-    </div>
-    {accountId && activeCompany
-      ? <DashboardContent key={`${accountId}:${activeCompany.id}:${selected}`} accountId={accountId} companyId={activeCompany.id} period={selected} />
-      : <LoadingContent label={loadingLabel}><DashboardSkeleton /></LoadingContent>}
-  </div>;
+  // The period selector lives in the page header (PeriodSelect). A new period arrives as a new prop and remounts the content, which shows its skeleton.
+  if (!accountId || !activeCompany) return <LoadingContent label={loadingLabel}><DashboardSkeleton /></LoadingContent>;
+  return <DashboardContent key={`${accountId}:${activeCompany.id}:${period}`} accountId={accountId} companyId={activeCompany.id} period={period} />;
 }
 
 function DashboardContent({ accountId, companyId, period }: { accountId: string; companyId: string; period: DashboardPeriodSlug }) {
@@ -101,35 +80,32 @@ function DashboardContent({ accountId, companyId, period }: { accountId: string;
   const stats = summary.data;
   return (
     <div ref={content} tabIndex={-1} className={styles.content}>
-      <AttentionStrip stats={stats} />
-      <div className={styles.figures}>
+      <div className={styles.bento}>
+        <AttentionStrip stats={stats} />
         <ContractsFigures stats={stats} />
         <InsuranceFigures stats={stats} />
-      </div>
 
-      <section className={styles.group} aria-labelledby="trend-title">
-        <h2 id="trend-title" className={styles.groupTitle}>Tendencia de 12 meses</h2>
-        <div className={`${styles.panel} ${styles.trends}`}>
-          <TrendChart title="Expedientes creados" format={count}
-            points={stats.trend.map(({ month, cases_created }) => ({ month, value: cases_created }))} />
-          <TrendChart title="Desembolsado" format={money}
-            points={stats.trend.map(({ month, disbursed_amount_minor }) => ({ month, value: disbursed_amount_minor }))} />
-          <TrendChart title="Cobrado" format={money}
-            points={stats.trend.map(({ month, collected_amount_minor }) => ({ month, value: collected_amount_minor }))} />
+        <section className={`${styles.panel} ${styles.trendPanel}`} aria-labelledby="trend-title">
+          <h2 id="trend-title">Tendencia de 12 meses</h2>
+          <div className={styles.trends}>
+            <TrendChart title="Expedientes creados" format={count}
+              points={stats.trend.map(({ month, cases_created }) => ({ month, value: cases_created }))} />
+            <TrendChart title="Desembolsado" format={money}
+              points={stats.trend.map(({ month, disbursed_amount_minor }) => ({ month, value: disbursed_amount_minor }))} />
+            <TrendChart title="Cobrado" format={money}
+              points={stats.trend.map(({ month, collected_amount_minor }) => ({ month, value: collected_amount_minor }))} />
+          </div>
+        </section>
+
+        <div className={styles.panelRows}>
+          <AttentionDuesPanel stats={stats} />
+          <AgingPanel stats={stats} />
+          <CarrierPanel stats={stats} />
+          <StalledCasesPanel stats={stats} />
         </div>
-      </section>
 
-      <div className={styles.analytics}>
-        <AttentionDuesPanel stats={stats} />
-        <AgingPanel stats={stats} />
+        <ProductivitySection stats={stats} />
       </div>
-
-      <div className={styles.analytics}>
-        <StalledCasesPanel stats={stats} />
-        <CarrierPanel stats={stats} />
-      </div>
-
-      <ProductivitySection stats={stats} />
     </div>
   );
 }
