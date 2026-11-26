@@ -2990,6 +2990,12 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: period
+        in: query
+        description: Reporting period; the current month when omitted.
+        required: false
+        schema:
+          $ref: '#/components/schemas/DashboardPeriodKey'
       responses:
         '200':
           description: 'Workspace KPIs for one company: clients, cases, disbursements, user productivity and generated documents'
@@ -6117,6 +6123,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ScreenVisits'
+    DashboardAgingBucket:
+      type: object
+      required:
+      - bucket
+      - count
+      - amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        bucket:
+          type: string
+        count:
+          type: integer
+          format: int64
     DashboardAmount:
       type: object
       required:
@@ -6126,6 +6147,73 @@ components:
         amount_minor:
           type: integer
           format: int64
+        count:
+          type: integer
+          format: int64
+    DashboardAttention:
+      type: object
+      description: Items that need action today, regardless of the selected period.
+      required:
+      - overdue_dues
+      - renewals_next_7_days
+      - unsigned_over_5_days
+      properties:
+        overdue_dues:
+          $ref: '#/components/schemas/DashboardAmount'
+        renewals_next_7_days:
+          $ref: '#/components/schemas/DashboardAmount'
+        unsigned_over_5_days:
+          type: integer
+          format: int64
+    DashboardAttentionDue:
+      type: object
+      required:
+      - due_id
+      - policy_id
+      - policy_number
+      - client_name
+      - carrier_name
+      - slot
+      - due_on
+      - amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        carrier_name:
+          type: string
+        client_name:
+          type: string
+        due_id:
+          type: string
+          format: uuid
+        due_on:
+          type: string
+          format: date
+        policy_id:
+          type: string
+          format: uuid
+        policy_number:
+          type: string
+        slot:
+          type: integer
+          format: int32
+    DashboardCarrierBalance:
+      type: object
+      required:
+      - carrier_id
+      - carrier_name
+      - count
+      - amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        carrier_id:
+          type: string
+          format: uuid
+        carrier_name:
+          type: string
         count:
           type: integer
           format: int64
@@ -6163,6 +6251,18 @@ components:
           - 'null'
         status:
           $ref: '#/components/schemas/OperationStatus'
+    DashboardCasesCreated:
+      type: object
+      required:
+      - count
+      - previous_count
+      properties:
+        count:
+          type: integer
+          format: int64
+        previous_count:
+          type: integer
+          format: int64
     DashboardCollections:
       type: object
       required:
@@ -6204,6 +6304,66 @@ components:
         transfers_to_review_minor:
           type: integer
           format: int64
+    DashboardContracts:
+      type: object
+      required:
+      - disbursed
+      - in_process
+      - cases_created
+      - days_to_disbursement
+      properties:
+        cases_created:
+          $ref: '#/components/schemas/DashboardCasesCreated'
+        days_to_disbursement:
+          $ref: '#/components/schemas/DashboardDaysToDisbursement'
+        disbursed:
+          $ref: '#/components/schemas/DashboardDisbursed'
+        in_process:
+          $ref: '#/components/schemas/DashboardInProcess'
+    DashboardDaysToDisbursement:
+      type: object
+      required:
+      - average
+      - previous_average
+      - sample
+      properties:
+        average:
+          type:
+          - number
+          - 'null'
+          format: double
+        previous_average:
+          type:
+          - number
+          - 'null'
+          format: double
+        sample:
+          type: integer
+          format: int64
+    DashboardDisbursed:
+      type: object
+      required:
+      - count
+      - amount_minor
+      - without_plan
+      - previous_count
+      - previous_amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+        previous_amount_minor:
+          type: integer
+          format: int64
+        previous_count:
+          type: integer
+          format: int64
+        without_plan:
+          type: integer
+          format: int64
     DashboardFormats:
       type: object
       required:
@@ -6220,19 +6380,116 @@ components:
         pdf:
           type: integer
           format: int64
+    DashboardInProcess:
+      type: object
+      description: Snapshot of today; it does not depend on the period.
+      required:
+      - count
+      - amount_minor
+      - without_amount
+      - solicitud
+      - en_proceso
+      - firma
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+        en_proceso:
+          type: integer
+          format: int64
+        firma:
+          type: integer
+          format: int64
+        solicitud:
+          type: integer
+          format: int64
+        without_amount:
+          type: integer
+          format: int64
     DashboardInsurance:
       type: object
       required:
+      - collected
+      - pending
       - policies_total
+      - policies_new
+      - policies_new_previous
       - insured_clients
-      - collected_this_month
+      - aging
+      - by_carrier
+      - attention_dues
       properties:
-        collected_this_month:
-          $ref: '#/components/schemas/DashboardAmount'
+        aging:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardAgingBucket'
+          description: 'Always four buckets: 1-30, 31-60, 61-90 and 90+ days overdue.'
+        attention_dues:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardAttentionDue'
+        by_carrier:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardCarrierBalance'
+        collected:
+          $ref: '#/components/schemas/DashboardInsuranceCollected'
         insured_clients:
           type: integer
           format: int64
+        pending:
+          $ref: '#/components/schemas/DashboardInsurancePending'
+        policies_new:
+          type: integer
+          format: int64
+        policies_new_previous:
+          type: integer
+          format: int64
         policies_total:
+          type: integer
+          format: int64
+    DashboardInsuranceCollected:
+      type: object
+      required:
+      - count
+      - amount_minor
+      - previous_amount_minor
+      - due_in_period
+      - paid_of_due_in_period
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+        due_in_period:
+          type: integer
+          format: int64
+        paid_of_due_in_period:
+          type: integer
+          format: int64
+        previous_amount_minor:
+          type: integer
+          format: int64
+    DashboardInsurancePending:
+      type: object
+      description: Unpaid installments due before the end of the period, including the overdue ones.
+      required:
+      - count
+      - amount_minor
+      - overdue_amount_minor
+      properties:
+        amount_minor:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+        overdue_amount_minor:
           type: integer
           format: int64
     DashboardMonth:
@@ -6246,6 +6503,118 @@ components:
         total:
           type: integer
           format: int64
+    DashboardPeriod:
+      type: object
+      description: |-
+        Reporting window. `end` and `compare_end` are exclusive; the comparison covers the same
+        number of days one period earlier.
+      required:
+      - key
+      - start
+      - end
+      - compare_start
+      - compare_end
+      - today
+      properties:
+        compare_end:
+          type: string
+          format: date
+        compare_start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        key:
+          $ref: '#/components/schemas/DashboardPeriodKey'
+        start:
+          type: string
+          format: date
+        today:
+          type: string
+          format: date
+    DashboardPeriodDocuments:
+      type: object
+      required:
+      - total
+      - pdf
+      - docx
+      - email
+      properties:
+        docx:
+          type: integer
+          format: int64
+        email:
+          type: integer
+          format: int64
+        pdf:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    DashboardPeriodKey:
+      type: string
+      enum:
+      - month
+      - last_month
+      - quarter
+      - year
+    DashboardProductivity:
+      type: object
+      required:
+      - time_saved_minutes
+      - documents
+      properties:
+        documents:
+          $ref: '#/components/schemas/DashboardPeriodDocuments'
+        time_saved_minutes:
+          type: integer
+          format: int64
+    DashboardStalledCase:
+      type: object
+      required:
+      - id
+      - client_id
+      - client_name
+      - reference
+      - status
+      - last_activity_at
+      - days_without_activity
+      properties:
+        client_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        days_without_activity:
+          type: integer
+          format: int64
+        id:
+          type: string
+          format: uuid
+        last_activity_at:
+          type: string
+          format: date-time
+        reference:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/OperationStatus'
+    DashboardStalledCases:
+      type: object
+      required:
+      - count
+      - items
+      properties:
+        count:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardStalledCase'
     DashboardStatusCounts:
       type: object
       required:
@@ -6302,6 +6671,25 @@ components:
         total_minor:
           type: integer
           format: int64
+    DashboardTrendMonth:
+      type: object
+      required:
+      - month
+      - cases_created
+      - disbursed_amount_minor
+      - collected_amount_minor
+      properties:
+        cases_created:
+          type: integer
+          format: int64
+        collected_amount_minor:
+          type: integer
+          format: int64
+        disbursed_amount_minor:
+          type: integer
+          format: int64
+        month:
+          type: string
     DashboardUsage:
       type: object
       required:
@@ -8017,13 +8405,21 @@ components:
       - user_time_saved_minutes
       - user_disbursements_total
       - user_documents_total
+      - period
+      - attention
+      - contracts
       - insurance
+      - trend
+      - stalled_cases
+      - productivity
       - status_counts
       - user_stats
       - months
       - formats
       - recent_cases
       properties:
+        attention:
+          $ref: '#/components/schemas/DashboardAttention'
         cases_this_month:
           type: integer
           format: int64
@@ -8039,6 +8435,8 @@ components:
         clients_total:
           type: integer
           format: int64
+        contracts:
+          $ref: '#/components/schemas/DashboardContracts'
         disbursed_cases:
           type: integer
           format: int64
@@ -8062,6 +8460,10 @@ components:
         pending_disbursement_cases:
           type: integer
           format: int64
+        period:
+          $ref: '#/components/schemas/DashboardPeriod'
+        productivity:
+          $ref: '#/components/schemas/DashboardProductivity'
         prospects_pending:
           type: integer
           format: int64
@@ -8069,11 +8471,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DashboardCase'
+        stalled_cases:
+          $ref: '#/components/schemas/DashboardStalledCases'
         status_counts:
           $ref: '#/components/schemas/DashboardStatusCounts'
         time_saved_minutes:
           type: integer
           format: int64
+        trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardTrendMonth'
         unsigned_cases:
           type: integer
           format: int64

@@ -17,9 +17,9 @@ export function money(minor: number | bigint) {
   const cents = (amount % BigInt(100)).toString().padStart(2, "0");
   return moneyFormat.formatToParts(amount / BigInt(100)).map(part => part.type === "fraction" ? cents : part.value).join("");
 }
-export const concept = (due: Due) => due.slot === 0 ? "Renovación" : `Cuota ${due.slot}`;
+export const concept = (due: Pick<Due, "slot">) => due.slot === 0 ? "Renovación" : `Cuota ${due.slot}`;
 
-export function DueStatus({ due, today }: { due: Due; today: string }) {
+export function DueStatus({ due, today }: { due: Pick<Due, "due_on" | "paid_on" | "replaced">; today: string }) {
   const days = (Date.parse(due.due_on) - Date.parse(today)) / 86_400_000;
   const status = due.replaced ? "Reemplazado" : due.paid_on ? "Pagado" : days < 0 ? "Vencido"
     : days === 0 ? "Vence hoy" : days === 1 ? "En 1 día" : `En ${days} días`;

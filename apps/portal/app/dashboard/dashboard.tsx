@@ -1,57 +1,27 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { operationStatusLabel } from "@/app/clientes/expediente-status";
+import { useRouter } from "next/navigation";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { money } from "@/app/control-seguros/insurance-ui";
 import { Button } from "@/components/arc/button/button";
-import { DashboardHero } from "./dashboard-hero";
-import { DashboardTotals } from "./dashboard-totals";
-import { InsuranceAttentionPanel, InsuranceCarrierPanel, InsuranceSection, useInsuranceDashboard } from "./insurance-dashboard";
-import { Tooltip } from "@/components/arc/tooltip/tooltip";
+import { Select } from "@/components/arc/select/select";
+import { LoadingContent } from "@/components/loading/loading-ui";
 import { ApiError, isActiveAccount } from "@/lib/api";
 import { usePortalAccess } from "@/lib/portal-access";
 import { useSession } from "@/lib/session";
+import { AttentionStrip } from "./attention-strip";
 import { getWorkspaceDashboard, type WorkspaceDashboard } from "./dashboard-api";
-import { FormatChart } from "./format-chart";
-import DashboardLoading from "./loading";
-import { MonthlyChart } from "./monthly-chart";
+import { DashboardSkeleton } from "./dashboard-skeleton";
+import { ContractsFigures, InsuranceFigures } from "./dashboard-figures";
+import { count } from "./dashboard-format";
+import { AgingPanel, AttentionDuesPanel, CarrierPanel, StalledCasesPanel } from "./dashboard-panels";
+import { dashboardPeriods, isPeriodSlug, periodApiKey, periodHref, type DashboardPeriodSlug } from "./dashboard-period";
+import { ProductivitySection } from "./productivity";
+import { TrendChart } from "./trend-chart";
 import styles from "./dashboard.module.css";
-import sections from "./dashboard-insurance.module.css";
 
-const monthName = new Intl.DateTimeFormat("es-DO", { month: "long", timeZone: "UTC" });
-const monthShort = new Intl.DateTimeFormat("es-DO", { month: "short", timeZone: "UTC" });
-const createdDate = new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeZone: "America/Santo_Domingo" });
-const formatLabels = { pdf: "PDF", docx: "Word", email: "Correo" } as const;
-
-function formatMinutes(minutes: number) {
-  if (minutes <= 0) return "0 min";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rem = minutes % 60;
-  return rem > 0 ? `${hours} h ${rem} min` : `${hours} h`;
-}
-
-function timeSavedCounter(minutes: number): { value: number; suffix: string } {
-  if (minutes < 60) {
-    return { value: Math.max(0, minutes), suffix: " min" };
-  }
-  const hours = Math.floor(minutes / 60);
-  const rem = minutes % 60;
-  return { value: hours, suffix: rem > 0 ? ` h ${rem} m` : " h" };
-}
-
-function chartData(stats: WorkspaceDashboard) {
-  const months = stats.months.map(({ month, total }, index) => {
-    const date = new Date(`${month}-01T00:00:00Z`);
-    return { name: monthName.format(date), short: monthShort.format(date), total, current: index === stats.months.length - 1 };
-  });
-  const formats = (Object.keys(formatLabels) as Array<keyof typeof formatLabels>).map(format => ({
-    name: formatLabels[format],
-    total: stats.formats[format],
-  }));
-  return { months, formats };
-}
+const loadingLabel = "Cargando el Dashboard…";
+const periodOptions = dashboardPeriods.map(({ slug, label }) => ({ value: slug, label }));
 
 function errorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback;
@@ -61,31 +31,48 @@ function errorMessage(error: unknown, fallback: string) {
 
 type Summary = { data: WorkspaceDashboard } | { failure: string };
 
-export function Dashboard() {
+export function Dashboard({ period }: { period: DashboardPeriodSlug }) {
+  const router = useRouter();
   const accountId = useSession()?.user.id;
   const { activeCompany } = usePortalAccess();
-  if (!accountId || !activeCompany) return <DashboardLoading />;
-  return <DashboardContent key={`${accountId}:${activeCompany.id}`} accountId={accountId} companyId={activeCompany.id} />;
+  const [selected, setSelected] = useOptimistic(period);
+  const [, startTransition] = useTransition();
+
+  function choose(value: string) {
+    if (!isPeriodSlug(value)) return;
+    const next = value;
+    startTransition(() => {
+      setSelected(next);
+      router.replace(periodHref(next), { scroll: false });
+    });
+  }
+
+  return <div className={styles.dashboard}>
+    <div className={styles.toolbar}>
+      <Select label="Período" name="periodo" value={selected} onValueChange={choose} options={periodOptions} />
+    </div>
+    {accountId && activeCompany
+      ? <DashboardContent key={`${accountId}:${activeCompany.id}:${selected}`} accountId={accountId} companyId={activeCompany.id} period={selected} />
+      : <LoadingContent label={loadingLabel}><DashboardSkeleton /></LoadingContent>}
+  </div>;
 }
 
-function DashboardContent({ accountId, companyId }: { accountId: string; companyId: string }) {
+function DashboardContent({ accountId, companyId, period }: { accountId: string; companyId: string; period: DashboardPeriodSlug }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const retryButton = useRef<HTMLButtonElement>(null);
-  const casesHeading = useRef<HTMLHeadingElement>(null);
-  const monthlyHeading = useRef<HTMLHeadingElement>(null);
-  const insurance = useInsuranceDashboard(accountId, companyId);
+  const content = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const request = new AbortController();
-    getWorkspaceDashboard(accountId, companyId, request.signal)
+    getWorkspaceDashboard(accountId, companyId, periodApiKey(period), request.signal)
       .then(async data => {
         if (!await isActiveAccount(accountId) || request.signal.aborted) return;
         const restoreFocus = document.activeElement === retryButton.current;
         setSummary({ data });
         if (restoreFocus) requestAnimationFrame(() => {
-          if (!request.signal.aborted) (casesHeading.current ?? monthlyHeading.current)?.focus();
+          if (!request.signal.aborted) content.current?.focus();
         });
       })
       .catch((error: unknown) => {
@@ -95,9 +82,9 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [accountId, companyId, attempt]);
+  }, [accountId, companyId, period, attempt]);
 
-  if (!summary) return <DashboardLoading />;
+  if (!summary) return <LoadingContent label={loadingLabel}><DashboardSkeleton /></LoadingContent>;
   if ("failure" in summary) {
     return (
       <section className={styles.panel}>
@@ -112,240 +99,37 @@ function DashboardContent({ accountId, companyId }: { accountId: string; company
   }
 
   const stats = summary.data;
-  const charts = chartData(stats);
-  const savedCounter = timeSavedCounter(stats.time_saved_minutes);
-
-  const heroMetrics = {
-    timeSaved: {
-      label: "Tiempo ahorrado",
-      value: savedCounter.value,
-      suffix: savedCounter.suffix,
-      context: `Tu ahorro: ${formatMinutes(stats.user_time_saved_minutes)} · ${stats.documents_total} docs`,
-    },
-    unsigned: {
-      label: "Sin firmar",
-      value: stats.unsigned_cases,
-      context: `${stats.status_counts.solicitud} en solicitud · ${stats.status_counts.en_proceso} en proceso`,
-    },
-    pendingDisbursement: {
-      label: "Sin desembolsar",
-      value: stats.pending_disbursement_cases,
-      context: `${stats.status_counts.firma} en firma · ${stats.cases_without_plan} sin plan de pagos`,
-    },
-    disbursed: {
-      label: "Desembolsados",
-      value: stats.disbursed_cases,
-      context: `${stats.user_disbursements_total} hechos por ti · ${stats.disbursed_this_month} este mes`,
-    },
-  };
-
-  const pipelineStages = [
-    {
-      key: "solicitud",
-      label: "Solicitud",
-      hint: "Sin firmar",
-      count: stats.status_counts.solicitud,
-      fillClass: styles.stageFillBurgundy,
-    },
-    {
-      key: "en_proceso",
-      label: "En proceso",
-      hint: "En depuración",
-      count: stats.status_counts.en_proceso,
-      fillClass: styles.stageFillBurgundy,
-    },
-    {
-      key: "firma",
-      label: "Firma",
-      hint: "Por desembolsar",
-      count: stats.status_counts.firma,
-      fillClass: styles.stageFillInk,
-    },
-    {
-      key: "desembolso",
-      label: "Desembolso",
-      hint: "Desembolsado",
-      count: stats.status_counts.desembolso,
-      fillClass: styles.stageFillInk,
-    },
-    {
-      key: "cerrado",
-      label: "Cerrado",
-      hint: "Concluido",
-      count: stats.status_counts.cerrado,
-      fillClass: styles.stageFillInk,
-    },
-  ];
-
   return (
-    <>
-      <DashboardTotals stats={stats} />
+    <div ref={content} tabIndex={-1} className={styles.content}>
+      <AttentionStrip stats={stats} />
+      <div className={styles.figures}>
+        <ContractsFigures stats={stats} />
+        <InsuranceFigures stats={stats} />
+      </div>
 
-      <section className={sections.group} aria-labelledby="contracts-title">
-        <h2 id="contracts-title" className={sections.groupTitle}>Contratos</h2>
-        <DashboardHero {...heroMetrics} />
+      <section className={styles.group} aria-labelledby="trend-title">
+        <h2 id="trend-title" className={styles.groupTitle}>Tendencia de 12 meses</h2>
+        <div className={`${styles.panel} ${styles.trends}`}>
+          <TrendChart title="Expedientes creados" format={count}
+            points={stats.trend.map(({ month, cases_created }) => ({ month, value: cases_created }))} />
+          <TrendChart title="Desembolsado" format={money}
+            points={stats.trend.map(({ month, disbursed_amount_minor }) => ({ month, value: disbursed_amount_minor }))} />
+          <TrendChart title="Cobrado" format={money}
+            points={stats.trend.map(({ month, collected_amount_minor }) => ({ month, value: collected_amount_minor }))} />
+        </div>
       </section>
 
-      <InsuranceSection state={insurance} />
-
       <div className={styles.analytics}>
-        <section className={`${styles.panel} ${styles.pipeline}`} aria-labelledby="pipeline-title">
-          <div className={styles.panelHeader}>
-            <div>
-              <h2 id="pipeline-title">Estado de contratos y desembolsos</h2>
-              <p className={styles.panelSubtext}>
-                Distribución actual de los {stats.cases_total} expedientes de la empresa
-              </p>
-            </div>
-            <Link className={styles.tableAction} href="/clientes">Ver expedientes</Link>
-          </div>
-
-          <ul className={styles.stageList} aria-label="Etapas de los expedientes">
-            {pipelineStages.map(stage => {
-              const share = stats.cases_total > 0 ? Math.round((stage.count / stats.cases_total) * 100) : 0;
-              return (
-                <li key={stage.key} className={styles.stageRow}>
-                  <div className={styles.stageInfo}>
-                    <span className={styles.stageName}>{stage.label}</span>
-                    <span className={styles.stageHint}>{stage.hint}</span>
-                  </div>
-                  <div className={styles.stageTrack} aria-hidden="true">
-                    <div
-                      className={`${styles.stageFill} ${stage.fillClass}`}
-                      style={{ width: `${stage.count > 0 ? Math.max(share, 6) : 0}%` }}
-                    />
-                  </div>
-                  <div className={styles.stageNumbers}>
-                    <strong>{stage.count}</strong>
-                    <span>{share}%</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-
-        <InsuranceCarrierPanel state={insurance} />
+        <AttentionDuesPanel stats={stats} />
+        <AgingPanel stats={stats} />
       </div>
 
       <div className={styles.analytics}>
-        <InsuranceAttentionPanel state={insurance} />
-        <section className={`${styles.panel} ${styles.recent} ${sections.narrow}`} aria-labelledby="cases-title">
-          <div className={styles.panelHeader}>
-            <h2 id="cases-title" ref={casesHeading} tabIndex={-1}>Expedientes recientes</h2>
-            <Link className={styles.tableAction} href="/clientes">Ver todos</Link>
-          </div>
-          {stats.recent_cases.length === 0 ? (
-            <p className={styles.dataHint}>Todavía no hay expedientes en esta empresa.</p>
-          ) : (
-            <div className={styles.tableScroll} role="region" aria-label="Tabla de expedientes recientes" tabIndex={0}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th scope="col">Expediente</th>
-                    <th scope="col">Cliente</th>
-                    <th scope="col">Estado</th>
-                    <th scope="col">Responsable</th>
-                    <th scope="col">Creado</th>
-                    <th scope="col"><span className={styles.srOnly}>Acciones</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recent_cases.map(item => (
-                    <tr key={item.id}>
-                      <th scope="row">{item.reference || "Sin referencia"}</th>
-                      <td>{item.client_name}</td>
-                      <td>
-                        <span className={styles.statusCell}>
-                          {operationStatusLabel(item.status)}
-                          {!item.has_payment_plan && <span className={styles.planHint}>Sin plan</span>}
-                        </span>
-                      </td>
-                      <td>{item.actor_name || "—"}</td>
-                      <td><time dateTime={item.created_at}>{createdDate.format(new Date(item.created_at))}</time></td>
-                      <td>
-                        <Tooltip content="Abrir expediente">
-                          <Link
-                            href={`/clientes/${item.client_id}`}
-                            className={styles.tableAction}
-                            aria-label={`Abrir expediente de ${item.client_name}`}
-                          >
-                            <ArrowRight size={18} aria-hidden="true" />
-                          </Link>
-                        </Tooltip>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        <StalledCasesPanel stats={stats} />
+        <CarrierPanel stats={stats} />
       </div>
 
-      <div className={styles.analytics}>
-        <section className={`${styles.panel} ${styles.monthly}`} aria-labelledby="monthly-title">
-          <h2 id="monthly-title" ref={monthlyHeading} tabIndex={-1}>Documentos generados por mes</h2>
-          <MonthlyChart months={charts.months} />
-        </section>
-
-        <section className={`${styles.panel} ${styles.formats}`} aria-labelledby="formats-title">
-          <h2 id="formats-title">Documentos por formato</h2>
-          <FormatChart formats={charts.formats} />
-        </section>
-      </div>
-
-      <div className={styles.analytics}>
-        <section className={`${styles.panel} ${styles.teamPanel}`} aria-labelledby="team-title">
-          <div className={styles.panelHeader}>
-            <div>
-              <h2 id="team-title">Rendimiento y desembolsos por usuario</h2>
-              <p className={styles.panelSubtext}>
-                Desembolsos realizados, contratos pendientes y tiempo ahorrado por miembro
-              </p>
-            </div>
-          </div>
-
-          {stats.user_stats.filter(member => member.user_name.trim().toLowerCase() !== "admin@yzylabs.com").length === 0 ? (
-            <p className={styles.dataHint}>Aún no hay actividad registrada por usuario en esta empresa.</p>
-          ) : (
-            <div className={styles.tableScroll} role="region" aria-label="Tabla de rendimiento por usuario" tabIndex={0}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th scope="col">Usuario</th>
-                    <th scope="col">Desembolsos</th>
-                    <th scope="col">Sin firmar</th>
-                    <th scope="col">Sin desemb.</th>
-                    <th scope="col">Docs</th>
-                    <th scope="col">Tiempo ahorrado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.user_stats
-                    .filter(member => member.user_name.trim().toLowerCase() !== "admin@yzylabs.com")
-                    .map(member => (
-                    <tr key={member.user_id}>
-                      <th scope="row">
-                        <span className={styles.userCell}>
-                          <span>{member.user_name}</span>
-                          {member.is_current_user && <span className={styles.youBadge}>Tú</span>}
-                        </span>
-                      </th>
-                      <td className={styles.numericStrong}>{member.disbursements_total}</td>
-                      <td>{member.unsigned_cases}</td>
-                      <td>{member.pending_disbursement_cases}</td>
-                      <td>{member.documents_total}</td>
-                      <td className={styles.numericStrong}>{formatMinutes(member.time_saved_minutes)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
-    </>
+      <ProductivitySection stats={stats} />
+    </div>
   );
 }

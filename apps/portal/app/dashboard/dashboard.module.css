@@ -1,10 +1,47 @@
-/* ==========================================================================
-   Hero & Metrics (Preserved for compatibility and fallback)
-   ========================================================================== */
-.metrics {
+/* Dashboard layout: period toolbar, attention strip, figure cards, panels and tables. Chart styles live in trend-chart.module.css. */
+
+.dashboard {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.content {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: 24px;
+  outline: none;
+}
+
+.toolbar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: 16px;
+  min-inline-size: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 40rem) {
+  .toolbar {
+    grid-template-columns: minmax(0, 15rem);
+    justify-content: end;
+  }
+}
+
+.group {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+  align-content: start;
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -0.01em;
 }
 
 .dataHint {
@@ -14,82 +51,201 @@
   line-height: 20px;
 }
 
-.metric {
-  color: inherit;
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Requiere atención: one band, four links ────────────────────────────── */
+.attention {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.attentionList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--border);
+  list-style: none;
+}
+
+.attentionItem {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: 16px;
+  background: var(--surface-raised, var(--surface));
+  color: var(--foreground);
   text-decoration: none;
 }
 
-.metric article,
-.metricSkeleton {
-  display: grid;
-  justify-items: start;
+.attentionItem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .attentionItem:hover {
+    background: var(--surface-muted);
+  }
+}
+
+.attentionLabel {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  border: 0;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: none;
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 
-.metric article > div:first-child {
-  margin: 0;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.metric article > span {
-  font-size: 40px;
+.attentionValue {
+  font-size: 1.375rem;
   font-weight: 700;
-  line-height: 44px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
-.metric article > p {
-  margin: 2px 0 0;
+.attentionContext {
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
 }
 
-/* Exactly three brand surfaces: green · ink · stone */
-.green {
-  --surface: var(--brand-green);
-  --foreground: #ffffff;
-  --text-secondary: color-mix(in oklab, #ffffff 82%, var(--brand-green));
+.attentionItem[data-empty] .attentionLabel,
+.attentionItem[data-empty] .attentionValue {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
-.ink {
-  --surface: var(--brand-ink);
-  --foreground: #ffffff;
-  --text-secondary: color-mix(in oklab, var(--brand-stone) 78%, #ffffff);
+.attentionItem[data-alert] .attentionValue,
+.attentionItem[data-alert] .attentionLabel {
+  color: var(--danger);
 }
 
-.stone {
-  --surface: var(--brand-stone);
-  --foreground: var(--brand-ink);
-  --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
+/* ── Figure cards: one component, one size ──────────────────────────────── */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: 24px;
+  min-inline-size: 0;
 }
 
-.stone article {
-  border: 1px solid color-mix(in oklab, var(--brand-ink) 14%, var(--brand-stone));
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr));
+  gap: 12px;
+  margin: 0;
+  min-inline-size: 0;
 }
 
-:global(:root[data-theme="dark"]) .green {
-  --surface: var(--brand-green);
+.card {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  align-content: start;
+  gap: 6px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised, var(--surface));
+  color: var(--foreground);
 }
 
-:global(:root[data-theme="dark"]) .stone {
-  --surface: var(--brand-stone);
-  --foreground: var(--brand-ink);
-  --text-secondary: color-mix(in oklab, var(--brand-ink) 68%, var(--brand-stone));
+.cardLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 
-/* ==========================================================================
-   YZY Premium Fintech - Paneles Inferiores (Pipeline, Equipo, Recientes, Gráficos)
-   ========================================================================== */
+.cardIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--accent-strong);
+}
 
+.cardValue {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.cardVariation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-block-size: 1.25rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.cardChange {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardVariation[data-tone="positive"] .cardChange {
+  color: var(--success);
+}
+
+.cardVariation[data-tone="negative"] .cardChange {
+  color: var(--danger);
+}
+
+.cardVariation[data-tone="neutral"] .cardChange,
+.cardReference {
+  color: var(--text-secondary);
+}
+
+.cardContext {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+/* ── Panels ─────────────────────────────────────────────────────────────── */
 .analytics {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
+}
+
+.wide {
+  flex: 1.6 1 440px;
+}
+
+.narrow {
+  flex: 1 1 320px;
 }
 
 .panel {
@@ -104,7 +260,6 @@
   box-shadow:
     0 1px 3px 0 color-mix(in oklab, var(--brand-ink) 4%, transparent),
     0 6px 20px -4px color-mix(in oklab, var(--brand-ink) 5%, transparent);
-  transition: border-color var(--duration-fast, 150ms) ease;
 }
 
 :global(:root[data-theme="dark"]) .panel {
@@ -122,13 +277,14 @@
   gap: 12px 16px;
 }
 
-.panel h2 {
+.panel h2,
+.panelTitle {
   margin: 0;
+  color: var(--foreground);
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
   letter-spacing: -0.01em;
-  color: var(--foreground);
 }
 
 .panelSubtext {
@@ -138,7 +294,6 @@
   line-height: 18px;
 }
 
-/* Header & Table Actions */
 .panelHeader .tableAction {
   display: inline-flex;
   align-items: center;
@@ -151,7 +306,7 @@
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
-  transition: all var(--duration-fast, 150ms) ease;
+  transition: background-color var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease;
 }
 
 :global(:root[data-theme="dark"]) .panelHeader .tableAction {
@@ -186,7 +341,7 @@
   border-radius: 8px;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all var(--duration-fast, 150ms) ease;
+  transition: background-color var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -201,176 +356,20 @@
   }
 }
 
-/* ── Panel: Pipeline (Estado de contratos y desembolsos) ─────────────────── */
-.pipeline {
-  flex: 1 1 360px;
-}
-
-.stageList {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stageRow {
+/* ── Trend: three small charts, one panel ───────────────────────────────── */
+.trends {
   display: grid;
-  grid-template-columns: minmax(105px, 125px) minmax(0, 1fr) 68px;
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 24px;
 }
 
-.stageInfo {
-  display: flex;
-  flex-direction: column;
+.trendSkeleton {
+  display: grid;
+  gap: 8px;
   min-inline-size: 0;
-  gap: 1px;
 }
 
-.stageName {
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.stageHint {
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.stageTrack {
-  block-size: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--brand-ink) 8%, var(--surface-muted));
-  position: relative;
-}
-
-.stageFill {
-  block-size: 100%;
-  border-radius: 999px;
-  transform-origin: left center;
-  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
-  animation: stageFillGrow 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes stageFillGrow {
-  from {
-    transform: scaleX(0);
-    opacity: 0.5;
-  }
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
-}
-
-.stageFillBurgundy {
-  background: linear-gradient(90deg, #00803e, #2fb36a);
-}
-
-:global(:root[data-theme="dark"]) .stageFillBurgundy {
-  background: linear-gradient(90deg, #2fb36a, #5fd08f);
-}
-
-.stageFillInk {
-  background: linear-gradient(90deg, #1b1f57, #2a3084);
-}
-
-:global(:root[data-theme="dark"]) .stageFillInk {
-  background: linear-gradient(90deg, #2a3084, #4954be);
-}
-
-.stageNumbers {
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 6px;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.stageNumbers strong {
-  color: var(--foreground);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.stageNumbers span {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* ── Panel: Rendimiento por usuario ────────────────────────────────────── */
-.teamPanel {
-  flex: 1.4 1 440px;
-}
-
-.userCell {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.youBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--brand-green) 14%, transparent);
-  color: var(--brand-green);
-  border: 1px solid color-mix(in oklab, var(--brand-green) 28%, transparent);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 14px;
-}
-
-:global(:root[data-theme="dark"]) .youBadge {
-  background: color-mix(in oklab, #2fb36a 20%, transparent);
-  color: #5fd08f;
-  border-color: color-mix(in oklab, #2fb36a 40%, transparent);
-}
-
-.numericStrong {
-  color: var(--foreground) !important;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Panel: Expedientes recientes ──────────────────────────────────────── */
-.recent {
-  gap: 16px;
-}
-
-.statusCell {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.planHint {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--warning) 12%, transparent);
-  color: var(--warning);
-  border: 1px solid color-mix(in oklab, var(--warning) 24%, transparent);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 14px;
-}
-
-/* ── Tablas (Rendimiento y Expedientes Recientes) ────────────────────────── */
+/* ── Tables ─────────────────────────────────────────────────────────────── */
 .tableScroll {
   position: relative;
   min-inline-size: 0;
@@ -407,7 +406,7 @@
 }
 
 .table tbody tr {
-  transition: background 150ms ease;
+  transition: background-color 150ms ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -423,7 +422,7 @@
 .table tbody th,
 .table tbody td {
   border-block-end: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-  padding: 12px 12px;
+  padding: 12px;
   text-align: start;
   vertical-align: middle;
 }
@@ -438,217 +437,183 @@
   font-variant-numeric: tabular-nums;
 }
 
-.table tbody td:last-child {
-  padding: 8px 4px 8px 12px;
-  text-align: end;
-}
-
 .table tbody tr:last-child > * {
   border: 0;
 }
 
-/* ── Gráficos (Mensual y Formatos) ─────────────────────────────────────── */
-.monthly {
-  flex: 2 1 420px;
-}
-
-.formats {
-  flex: 1 1 260px;
-}
-
-.srOnly {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+.numeric {
   white-space: nowrap;
 }
 
-/* ==========================================================================
-   Arc Skeletons (Alineado con el contenido cargado)
-   ========================================================================== */
-
-.dashboardSkeleton {
-  display: flex;
-  min-inline-size: 0;
-  flex-direction: column;
-  gap: 24px;
+.numericStrong {
+  color: var(--foreground) !important;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.metricSkeleton {
-  grid-template-rows: 20px 48px;
+.rowLink {
+  color: var(--foreground);
+  text-underline-offset: 0.2em;
+}
+
+.userCell {
+  display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  background: var(--surface);
-  outline: 1px solid var(--border);
-  outline-offset: -1px;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--foreground);
 }
 
-.skeletonTitle {
-  display: flex;
+.youBadge {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  min-block-size: 24px;
-}
-
-.stageRowSkeleton {
-  display: grid;
-  grid-template-columns: minmax(105px, 125px) minmax(0, 1fr) 68px;
-  align-items: center;
-  gap: 12px;
-}
-
-.stageTrackSkeleton {
-  block-size: 10px;
+  padding: 2px 8px;
   border-radius: 999px;
+  background: color-mix(in oklab, var(--brand-green) 14%, transparent);
+  color: var(--brand-green);
+  border: 1px solid color-mix(in oklab, var(--brand-green) 28%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+:global(:root[data-theme="dark"]) .youBadge {
+  background: color-mix(in oklab, #2fb36a 20%, transparent);
+  color: #5fd08f;
+  border-color: color-mix(in oklab, #2fb36a 40%, transparent);
+}
+
+/* ── Antigüedad de la mora ──────────────────────────────────────────────── */
+.agingList {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  font-size: 13px;
+}
+
+.agingLabel {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.agingAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.agingCount {
+  color: var(--text-secondary);
+}
+
+.agingTrack {
+  grid-column: 1 / -1;
+  display: block;
   overflow: hidden;
+  block-size: 8px;
+  margin-block-start: 4px;
+  border-radius: 999px;
   background: var(--surface-muted);
 }
 
-.chartSkeleton {
+.agingFill {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--danger);
+}
+
+/* ── Pendiente por aseguradora ──────────────────────────────────────────── */
+.carrierList {
   display: grid;
-  gap: 20px;
-}
-
-.barReadoutSkeleton {
-  display: grid;
-  align-content: space-between;
-  min-block-size: 83px;
-}
-
-.barChartSkeleton {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 52px;
-  grid-template-rows: 144px 26px;
-}
-
-.plotSkeleton,
-.monthsSkeleton {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  justify-items: center;
-  gap: 4px;
-}
-
-.plotSkeleton {
-  align-items: end;
-  border-block-end: 1px solid var(--border);
-}
-
-.barSkeleton {
-  --loading-block-radius: 4px 4px 0 0;
-}
-
-.ticksSkeleton {
-  display: grid;
-  align-content: space-between;
-  padding: 8px 10px 0;
-}
-
-.monthsSkeleton {
-  align-items: center;
-}
-
-.donutSkeleton {
-  container-type: inline-size;
-}
-
-.donutSkeletonContent {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.ringSkeleton {
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  justify-self: center;
-  gap: 4px;
-  inline-size: min(156px, 100%);
-  aspect-ratio: 1;
-  border: 14px solid var(--surface-muted);
-  border-radius: 50%;
-}
-
-.legendSkeleton {
-  display: grid;
-  gap: 2px;
-}
-
-.formatSkeleton {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto 3.25em;
   gap: 10px;
-  align-items: center;
-  min-block-size: 44px;
-  padding-inline: 10px;
+  margin: 0;
 }
 
-.legendDotSkeleton {
-  --loading-block-radius: 50%;
+.carrierList > div,
+.carrierTotal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding-block-end: 10px;
+  border-block-end: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  font-size: 13px;
 }
 
-.shareSkeleton {
-  justify-self: end;
+.carrierList dt {
+  color: var(--text-secondary);
 }
 
-@container (min-width: 460px) {
-  .donutSkeletonContent {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-4);
+.carrierList dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.carrierTotal {
+  padding-block-end: 0;
+  border-block-end: 0;
+  font-weight: 600;
+}
+
+.carrierTotal strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Productividad ──────────────────────────────────────────────────────── */
+.productivity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (min-width: 56rem) {
+  .productivity {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   }
 }
 
-.tableSkeletonViewport {
-  overflow: hidden;
+.productivity > .cards {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
 }
 
-.tableSkeleton {
-  table-layout: fixed;
+/* ── Skeleton ───────────────────────────────────────────────────────────── */
+.rowsSkeleton {
+  display: grid;
+  gap: 16px;
 }
 
-.tableSkeleton thead tr {
-  block-size: 41px;
+.rowSkeleton {
+  display: grid;
+  gap: 16px;
+  min-inline-size: 0;
 }
-
-.tableSkeleton tbody tr {
-  block-size: 46px;
-}
-
-.actionSkeleton {
-  margin-inline-start: auto;
-  margin-inline-end: 4px;
-}
-
-/* ==========================================================================
-   Motion & Responsive Adaptations
-   ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  .stageFill {
-    animation: none;
-    transition: none;
-  }
-
   .table tbody tr,
   .panelHeader .tableAction,
-  .table .tableAction,
-  .panel {
+  .table .tableAction {
     transition: none;
-  }
-}
-
-@media (max-width: 640px) {
-  .stageRow,
-  .stageRowSkeleton {
-    grid-template-columns: minmax(85px, 105px) minmax(0, 1fr) 56px;
-    gap: 8px;
   }
 }
 
 @media (max-width: 480px) {
-  .dashboardSkeleton {
+  .dashboard,
+  .content {
     gap: 20px;
   }
 

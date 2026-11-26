@@ -1,6 +1,7 @@
 mod common;
 
 use axum::http::{Method, StatusCode};
+use chrono::{DateTime, Duration, Months, NaiveDate, Utc};
 use common::{TestApp, TestUser, error_code};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -2156,7 +2157,7 @@ async fn insert_due(
          VALUES ($1, $2, current_date, $3,
                  CASE WHEN $5::int IS NULL THEN NULL
                       ELSE (date_trunc('month', now() AT TIME ZONE 'America/Santo_Domingo')
-                            + ($5::int * interval '1 month') + interval '2 days')::date END,
+                            + ($5::int * interval '1 month'))::date END,
                  $4, CASE WHEN $5::int IS NULL THEN NULL ELSE now() END)",
     )
     .bind(policy)
@@ -2233,10 +2234,11 @@ async fn workspace_dashboard_counts_prospects_new_clients_and_insurance_for_the_
     assert_eq!(dashboard["prospects_pending"], 2);
     assert_eq!(dashboard["insurance"]["policies_total"], 3);
     assert_eq!(dashboard["insurance"]["insured_clients"], 2);
-    assert_eq!(dashboard["insurance"]["collected_this_month"]["count"], 2);
+    assert_eq!(dashboard["insurance"]["collected"]["count"], 2);
+    assert_eq!(dashboard["insurance"]["collected"]["amount_minor"], 350_000);
     assert_eq!(
-        dashboard["insurance"]["collected_this_month"]["amount_minor"],
-        350_000
+        dashboard["insurance"]["collected"]["previous_amount_minor"],
+        50_000
     );
     let clients_total = dashboard["clients_total"].as_i64().unwrap();
     let clients_this_month = dashboard["clients_this_month"].as_i64().unwrap();
@@ -2250,12 +2252,786 @@ async fn workspace_dashboard_counts_prospects_new_clients_and_insurance_for_the_
     assert_eq!(foreign_dashboard["prospects_pending"], 1);
     assert_eq!(foreign_dashboard["insurance"]["policies_total"], 1);
     assert_eq!(foreign_dashboard["insurance"]["insured_clients"], 1);
+    assert_eq!(foreign_dashboard["insurance"]["collected"]["count"], 1);
     assert_eq!(
-        foreign_dashboard["insurance"]["collected_this_month"]["count"],
-        1
-    );
-    assert_eq!(
-        foreign_dashboard["insurance"]["collected_this_month"]["amount_minor"],
+        foreign_dashboard["insurance"]["collected"]["amount_minor"],
         999_999
     );
+}
+
+fn date_of(value: &Value) -> NaiveDate {
+    NaiveDate::parse_from_str(value.as_str().unwrap(), "%Y-%m-%d").unwrap()
+}
+
+/// Santo Domingo has no daylight saving time: local time is UTC-4 all year.
+fn local(date: NaiveDate, hour: u32) -> DateTime<Utc> {
+    (date.and_hms_opt(hour, 0, 0).unwrap() + Duration::hours(4)).and_utc()
+}
+
+fn month_key(date: NaiveDate) -> String {
+    date.format("%Y-%m").to_string()
+}
+
+async fn open_case(
+    app: &TestApp,
+    admin: TestUser,
+    company: Uuid,
+    client: &str,
+    reference: &str,
+) -> String {
+    let (status, case) = app
+        .post(
+            admin,
+            &format!("{CLIENTS}/{client}/operations"),
+            json!({"company_id": company, "reference": reference, "vehicle": {}}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{case}");
+    case["id"].as_str().unwrap().to_owned()
+}
+
+struct CaseFixture<'a> {
+    id: &'a str,
+    status: &'a str,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
+    principal_minor: Option<i64>,
+    requested_minor: Option<i64>,
+    /// When the history was last touched; `None` keeps the creation entry at now.
+    last_history: Option<DateTime<Utc>>,
+}
+
+async fn shape_case(app: &TestApp, case: CaseFixture<'_>) {
+    sqlx::query(
+        "UPDATE yzy_contracts.client_operations
+         SET status = $2, created_at = $3, updated_at = $4,
+             financing = CASE WHEN $5::bigint IS NULL THEN NULL
+                         ELSE jsonb_build_object('final_principal',
+                                jsonb_build_object('amount_minor', $5::bigint)) END,
+             application = CASE WHEN $6::bigint IS NULL THEN NULL
+                           ELSE jsonb_build_object('requested_amount_minor', $6::bigint) END
+         WHERE id = $1::uuid",
+    )
+    .bind(case.id)
+    .bind(case.status)
+    .bind(case.created)
+    .bind(case.updated)
+    .bind(case.principal_minor)
+    .bind(case.requested_minor)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+    if let Some(at) = case.last_history {
+        sqlx::query(
+            "UPDATE yzy_contracts.client_case_history SET occurred_at = $2 WHERE operation_id = $1::uuid",
+        )
+        .bind(case.id)
+        .bind(at)
+        .execute(&app.admin)
+        .await
+        .unwrap();
+    }
+}
+
+async fn insert_document(
+    app: &TestApp,
+    owner: TestUser,
+    company: Uuid,
+    format: &str,
+    created: DateTime<Utc>,
+) {
+    sqlx::query(
+        "INSERT INTO yzy_contracts.generated_documents
+            (owner_id, id, company, contract_id, contract_name, format, filename, markdown,
+             email, imported_from_session, created_at, artifact)
+         VALUES ($1, $2, jsonb_build_object('id', $3::text), $4, 'Contrato sintético', $5,
+                 'sintetico', '',
+                 CASE WHEN $5 = 'email' THEN '{\"attachment_format\": \"pdf\"}'::jsonb END, false, $6, $7)",
+    )
+    .bind(owner.id)
+    .bind(Uuid::new_v4())
+    .bind(company)
+    .bind(Uuid::new_v4())
+    .bind(format)
+    .bind(created)
+    .bind(common::PDF_BYTES)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+}
+
+#[derive(Clone)]
+struct DueFixture {
+    policy: usize,
+    slot: i32,
+    due_on: NaiveDate,
+    amount_minor: i64,
+    paid_on: Option<NaiveDate>,
+}
+
+async fn insert_due_on(app: &TestApp, policy: Uuid, due: &DueFixture, paid_by: TestUser) {
+    sqlx::query(
+        "INSERT INTO yzy_contracts.insurance_dues
+            (policy_id, slot, due_on, amount_minor, paid_on, paid_by, recorded_at)
+         VALUES ($1, $2, $3, $4, $5,
+                 CASE WHEN $5::date IS NULL THEN NULL ELSE $6::uuid END,
+                 CASE WHEN $5::date IS NULL THEN NULL ELSE now() END)",
+    )
+    .bind(policy)
+    .bind(due.slot)
+    .bind(due.due_on)
+    .bind(due.amount_minor)
+    .bind(due.paid_on)
+    .bind(paid_by.id)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+}
+
+struct Window {
+    start: NaiveDate,
+    end: NaiveDate,
+    effective_end: NaiveDate,
+    compare_start: NaiveDate,
+    compare_end: NaiveDate,
+    today: NaiveDate,
+}
+
+impl Window {
+    fn from(period: &Value) -> Self {
+        let end = date_of(&period["end"]);
+        let today = date_of(&period["today"]);
+        Self {
+            start: date_of(&period["start"]),
+            end,
+            effective_end: end.min(today + Duration::days(1)),
+            compare_start: date_of(&period["compare_start"]),
+            compare_end: date_of(&period["compare_end"]),
+            today,
+        }
+    }
+
+    fn current(&self, day: NaiveDate) -> bool {
+        day >= self.start && day < self.effective_end
+    }
+
+    fn previous(&self, day: NaiveDate) -> bool {
+        day >= self.compare_start && day < self.compare_end
+    }
+}
+
+fn assert_insurance(insurance: &Value, window: &Window, dues: &[DueFixture], carriers: &[&str]) {
+    let sum = |filter: &dyn Fn(&DueFixture) -> bool| -> (i64, i64) {
+        dues.iter()
+            .filter(|due| filter(due))
+            .fold((0, 0), |(count, total), due| {
+                (count + 1, total + due.amount_minor)
+            })
+    };
+    let collected = sum(&|due| due.paid_on.is_some_and(|day| window.current(day)));
+    let previous = sum(&|due| due.paid_on.is_some_and(|day| window.previous(day)));
+    let due_in_period = sum(&|due| window.current(due.due_on));
+    let paid_in_period = sum(&|due| window.current(due.due_on) && due.paid_on.is_some());
+    let pending = sum(&|due| due.paid_on.is_none() && due.due_on < window.end);
+    let overdue =
+        sum(&|due| due.paid_on.is_none() && due.due_on < window.end && due.due_on < window.today);
+    assert_eq!(insurance["collected"]["count"], collected.0);
+    assert_eq!(insurance["collected"]["amount_minor"], collected.1);
+    assert_eq!(insurance["collected"]["previous_amount_minor"], previous.1);
+    assert_eq!(insurance["collected"]["due_in_period"], due_in_period.0);
+    assert_eq!(
+        insurance["collected"]["paid_of_due_in_period"],
+        paid_in_period.0
+    );
+    assert_eq!(insurance["pending"]["count"], pending.0);
+    assert_eq!(insurance["pending"]["amount_minor"], pending.1);
+    assert_eq!(insurance["pending"]["overdue_amount_minor"], overdue.1);
+
+    let mut pending_dues: Vec<&DueFixture> = dues
+        .iter()
+        .filter(|due| due.paid_on.is_none() && due.due_on < window.end)
+        .collect();
+    pending_dues.sort_by_key(|due| due.due_on);
+    let listed: Vec<(String, i64)> = insurance["attention_dues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|due| {
+            (
+                due["policy_number"].as_str().unwrap().to_owned(),
+                due["slot"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    let expected: Vec<(String, i64)> = pending_dues
+        .iter()
+        .take(10)
+        .map(|due| (format!("POL-{}", due.policy + 1), i64::from(due.slot)))
+        .collect();
+    assert_eq!(listed, expected);
+
+    let mut by_carrier: Vec<(&str, i64, i64)> = Vec::new();
+    for due in &pending_dues {
+        let name = carriers[due.policy];
+        match by_carrier.iter_mut().find(|entry| entry.0 == name) {
+            Some(entry) => {
+                entry.1 += 1;
+                entry.2 += due.amount_minor;
+            }
+            None => by_carrier.push((name, 1, due.amount_minor)),
+        }
+    }
+    by_carrier.sort_by_key(|entry| std::cmp::Reverse(entry.2));
+    let reported: Vec<(String, i64, i64)> = insurance["by_carrier"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| {
+            (
+                entry["carrier_name"].as_str().unwrap().to_owned(),
+                entry["count"].as_i64().unwrap(),
+                entry["amount_minor"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    let expected: Vec<(String, i64, i64)> = by_carrier
+        .iter()
+        .map(|(name, count, amount)| ((*name).to_owned(), *count, *amount))
+        .collect();
+    assert_eq!(reported, expected);
+}
+
+#[tokio::test]
+async fn workspace_dashboard_reports_period_contracts_insurance_attention_and_trend() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Dashboard Periodo SRL").await;
+    let other = app.legacy_company(admin, "Dashboard Vecina SRL").await;
+    let uri = |period: &str| format!("/api/v1/dashboard?company_id={company}&period={period}");
+
+    let (status, probe) = app.get(admin, &uri("month")).await;
+    assert_eq!(status, StatusCode::OK, "{probe}");
+    let month = Window::from(&probe["period"]);
+    assert_eq!(probe["period"]["key"], "month");
+    let (start, previous_start, today) = (month.start, month.compare_start, month.today);
+
+    let client_x = add_client(&app, admin, "Cliente periodo X").await;
+    let client_y = add_client(&app, admin, "Cliente periodo Y").await;
+    let x = client_x["id"].as_str().unwrap();
+    let y = client_y["id"].as_str().unwrap();
+    let ninety_days_ago = Utc::now() - Duration::days(90);
+
+    // Disbursed now: one with a plan, one closed without a plan.
+    let case_a = open_case(&app, admin, company, x, "PE-A").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_a,
+            status: "desembolso",
+            created: local(start, 0),
+            updated: local(start, 12),
+            principal_minor: Some(3_000_000),
+            requested_minor: None,
+            last_history: None,
+        },
+    )
+    .await;
+    let case_b = open_case(&app, admin, company, y, "PE-B").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_b,
+            status: "cerrado",
+            created: local(start, 0),
+            updated: local(start, 23),
+            principal_minor: None,
+            requested_minor: None,
+            last_history: None,
+        },
+    )
+    .await;
+    // Disbursed in the comparison range: the date comes from the status history, not updated_at.
+    let case_c = open_case(&app, admin, company, x, "PE-C").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_c,
+            status: "desembolso",
+            created: local(previous_start, 0),
+            updated: Utc::now(),
+            principal_minor: Some(1_000_000),
+            requested_minor: None,
+            last_history: None,
+        },
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO yzy_contracts.client_case_history
+            (company_id, client_id, operation_id, kind, occurred_at, actor_id, actor_name, changes)
+         SELECT company_id, client_id, id, 'operation_updated', $2, $3, 'Tester',
+                '[{\"field\": \"status\", \"before\": \"firma\", \"after\": \"desembolso\"}]'::jsonb
+         FROM yzy_contracts.client_operations WHERE id = $1::uuid",
+    )
+    .bind(&case_c)
+    .bind(local(previous_start, 12))
+    .bind(admin.id)
+    .execute(&app.admin)
+    .await
+    .unwrap();
+    // Disbursed before both ranges.
+    let case_d = open_case(&app, admin, company, y, "PE-D").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_d,
+            status: "desembolso",
+            created: local(previous_start - Duration::days(40), 0),
+            updated: local(previous_start - Duration::days(40), 12),
+            principal_minor: Some(500_000),
+            requested_minor: None,
+            last_history: None,
+        },
+    )
+    .await;
+    // Open cases: old and stalled, active, stalled for ten days, and brand new.
+    let case_e = open_case(&app, admin, company, x, "PE-E").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_e,
+            status: "solicitud",
+            created: ninety_days_ago,
+            updated: ninety_days_ago,
+            principal_minor: None,
+            requested_minor: Some(800_000),
+            last_history: Some(ninety_days_ago),
+        },
+    )
+    .await;
+    let case_f = open_case(&app, admin, company, y, "PE-F").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_f,
+            status: "en_proceso",
+            created: ninety_days_ago,
+            updated: Utc::now(),
+            principal_minor: None,
+            requested_minor: None,
+            last_history: None,
+        },
+    )
+    .await;
+    let case_g = open_case(&app, admin, company, x, "PE-G").await;
+    let ten_days_ago = Utc::now() - Duration::days(10);
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &case_g,
+            status: "firma",
+            created: ninety_days_ago,
+            updated: ten_days_ago,
+            principal_minor: None,
+            requested_minor: Some(200_000),
+            last_history: Some(ten_days_ago),
+        },
+    )
+    .await;
+    open_case(&app, admin, company, y, "PE-I").await;
+    let foreign_case = open_case(&app, admin, other, x, "VE-A").await;
+    shape_case(
+        &app,
+        CaseFixture {
+            id: &foreign_case,
+            status: "solicitud",
+            created: ninety_days_ago,
+            updated: ninety_days_ago,
+            principal_minor: None,
+            requested_minor: Some(999_000),
+            last_history: Some(ninety_days_ago),
+        },
+    )
+    .await;
+
+    for (format, created) in [
+        ("pdf", local(start, 12)),
+        ("pdf", local(start, 12)),
+        ("docx", Utc::now()),
+        ("email", local(previous_start, 12)),
+        ("pdf", ninety_days_ago),
+    ] {
+        insert_document(&app, admin, company, format, created).await;
+    }
+    insert_document(&app, admin, other, "pdf", local(start, 12)).await;
+
+    let carrier_names = [
+        format!("Aseguradora Alfa {}", Uuid::new_v4()),
+        format!("Aseguradora Beta {}", Uuid::new_v4()),
+    ];
+    let mut carrier_ids = Vec::new();
+    for name in &carrier_names {
+        let id: Uuid = sqlx::query_scalar(
+            "INSERT INTO yzy_contracts.insurance_carriers (name) VALUES ($1) RETURNING id",
+        )
+        .bind(name)
+        .fetch_one(&app.admin)
+        .await
+        .unwrap();
+        carrier_ids.push(id);
+    }
+    // POL-1 and POL-3 belong to the first carrier and client X; POL-2 to the second and client Y.
+    let policy_ids = [
+        insert_policy(&app, company, carrier_ids[0], x, "POL-1").await,
+        insert_policy(&app, company, carrier_ids[1], y, "POL-2").await,
+        insert_policy(&app, company, carrier_ids[0], x, "POL-3").await,
+    ];
+    sqlx::query("UPDATE yzy_contracts.insurance_policies SET created_at = $2 WHERE id = $1")
+        .bind(policy_ids[1])
+        .bind(local(previous_start, 12))
+        .execute(&app.admin)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE yzy_contracts.insurance_policies SET created_at = NULL WHERE id = $1")
+        .bind(policy_ids[2])
+        .execute(&app.admin)
+        .await
+        .unwrap();
+
+    let due = |policy, slot, due_on, amount_minor, paid_on| DueFixture {
+        policy,
+        slot,
+        due_on,
+        amount_minor,
+        paid_on,
+    };
+    let dues = vec![
+        due(0, 1, today - Duration::days(100), 10_000, None),
+        due(0, 2, today - Duration::days(75), 20_000, None),
+        due(2, 1, today - Duration::days(45), 30_000, None),
+        due(2, 2, today - Duration::days(5), 40_000, None),
+        due(1, 1, today, 50_000, None),
+        due(1, 2, month.end + Duration::days(40), 60_000, None),
+        due(1, 0, today + Duration::days(3), 70_000, None),
+        due(0, 0, today + Duration::days(8), 90_000, None),
+        due(0, 3, start, 100_000, Some(start)),
+        due(2, 3, today - Duration::days(3), 200_000, Some(start)),
+        due(1, 5, previous_start, 300_000, Some(previous_start)),
+    ];
+    for fixture in &dues {
+        insert_due_on(&app, policy_ids[fixture.policy], fixture, admin).await;
+    }
+    sqlx::query(
+        "INSERT INTO yzy_contracts.insurance_dues (policy_id, slot, due_on, amount_minor, replaced_at)
+         VALUES ($1, 6, $2, 999999, now())",
+    )
+    .bind(policy_ids[0])
+    .bind(today - Duration::days(2))
+    .execute(&app.admin)
+    .await
+    .unwrap();
+    let foreign_policy = insert_policy(&app, other, carrier_ids[0], y, "POL-X").await;
+    insert_due_on(
+        &app,
+        foreign_policy,
+        &due(0, 1, today - Duration::days(1), 7_777, None),
+        admin,
+    )
+    .await;
+
+    let carriers = [
+        carrier_names[0].as_str(),
+        carrier_names[1].as_str(),
+        carrier_names[0].as_str(),
+    ];
+
+    let (status, dashboard) = app.get(admin, &uri("month")).await;
+    assert_eq!(status, StatusCode::OK, "{dashboard}");
+
+    let contracts = &dashboard["contracts"];
+    assert_eq!(contracts["disbursed"]["count"], 2);
+    assert_eq!(contracts["disbursed"]["amount_minor"], 3_000_000);
+    assert_eq!(contracts["disbursed"]["without_plan"], 1);
+    assert_eq!(contracts["disbursed"]["previous_count"], 1);
+    assert_eq!(contracts["disbursed"]["previous_amount_minor"], 1_000_000);
+    assert_eq!(contracts["in_process"]["count"], 4);
+    assert_eq!(contracts["in_process"]["amount_minor"], 1_000_000);
+    assert_eq!(contracts["in_process"]["without_amount"], 2);
+    assert_eq!(contracts["in_process"]["solicitud"], 2);
+    assert_eq!(contracts["in_process"]["en_proceso"], 1);
+    assert_eq!(contracts["in_process"]["firma"], 1);
+    assert_eq!(contracts["cases_created"]["count"], 3);
+    assert_eq!(contracts["cases_created"]["previous_count"], 1);
+    assert_eq!(contracts["days_to_disbursement"]["average"], json!(0.7));
+    assert_eq!(
+        contracts["days_to_disbursement"]["previous_average"],
+        json!(0.5)
+    );
+    assert_eq!(contracts["days_to_disbursement"]["sample"], 2);
+
+    assert_eq!(dashboard["attention"]["unsigned_over_5_days"], 2);
+    let overdue: Vec<&DueFixture> = dues
+        .iter()
+        .filter(|due| due.paid_on.is_none() && due.due_on < today)
+        .collect();
+    assert_eq!(
+        dashboard["attention"]["overdue_dues"]["count"],
+        overdue.len()
+    );
+    assert_eq!(
+        dashboard["attention"]["overdue_dues"]["amount_minor"],
+        overdue.iter().map(|due| due.amount_minor).sum::<i64>()
+    );
+    assert_eq!(dashboard["attention"]["renewals_next_7_days"]["count"], 1);
+    assert_eq!(
+        dashboard["attention"]["renewals_next_7_days"]["amount_minor"],
+        70_000
+    );
+
+    let insurance = &dashboard["insurance"];
+    assert_eq!(insurance["policies_total"], 3);
+    assert_eq!(insurance["policies_new"], 1);
+    assert_eq!(insurance["policies_new_previous"], 1);
+    assert_eq!(insurance["insured_clients"], 2);
+    assert_insurance(insurance, &month, &dues, &carriers);
+    let aging: Vec<(String, i64, i64)> = insurance["aging"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|bucket| {
+            (
+                bucket["bucket"].as_str().unwrap().to_owned(),
+                bucket["count"].as_i64().unwrap(),
+                bucket["amount_minor"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        aging,
+        [
+            ("1-30".to_owned(), 1, 40_000),
+            ("31-60".to_owned(), 1, 30_000),
+            ("61-90".to_owned(), 1, 20_000),
+            ("90+".to_owned(), 1, 10_000),
+        ]
+    );
+    let first_due = &insurance["attention_dues"][0];
+    assert_eq!(first_due["policy_number"], "POL-1");
+    assert_eq!(first_due["client_name"], "CLIENTE PERIODO X");
+    assert_eq!(first_due["carrier_name"], carrier_names[0].as_str());
+    assert_eq!(first_due["amount_minor"], 10_000);
+
+    let trend = dashboard["trend"].as_array().unwrap();
+    assert_eq!(trend.len(), 12);
+    let months: Vec<NaiveDate> = (0..12u32)
+        .rev()
+        .map(|back| start.checked_sub_months(Months::new(back)).unwrap())
+        .collect();
+    let created_days = [
+        start,
+        start,
+        previous_start,
+        previous_start - Duration::days(40),
+        today - Duration::days(90),
+        today - Duration::days(90),
+        today - Duration::days(90),
+        today,
+    ];
+    for (entry, first_day) in trend.iter().zip(&months) {
+        let key = month_key(*first_day);
+        let in_month = |day: &NaiveDate| month_key(*day) == key;
+        let amount = |pairs: &[(NaiveDate, i64)]| -> i64 {
+            pairs
+                .iter()
+                .filter(|(day, _)| in_month(day))
+                .map(|(_, amount)| amount)
+                .sum()
+        };
+        assert_eq!(entry["month"], key.as_str());
+        assert_eq!(
+            entry["cases_created"],
+            created_days.iter().filter(|day| in_month(day)).count()
+        );
+        assert_eq!(
+            entry["disbursed_amount_minor"],
+            amount(&[
+                (start, 3_000_000),
+                (previous_start, 1_000_000),
+                (previous_start - Duration::days(40), 500_000)
+            ])
+        );
+        assert_eq!(
+            entry["collected_amount_minor"],
+            amount(&[(start, 300_000), (previous_start, 300_000)])
+        );
+    }
+
+    assert_eq!(dashboard["stalled_cases"]["count"], 2);
+    let stalled = dashboard["stalled_cases"]["items"].as_array().unwrap();
+    assert_eq!(stalled.len(), 2);
+    assert_eq!(stalled[0]["reference"], "PE-E");
+    assert_eq!(stalled[0]["status"], "solicitud");
+    assert_eq!(stalled[0]["days_without_activity"], 90);
+    assert_eq!(stalled[1]["reference"], "PE-G");
+    assert_eq!(stalled[1]["days_without_activity"], 10);
+
+    assert_eq!(dashboard["productivity"]["documents"]["total"], 3);
+    assert_eq!(dashboard["productivity"]["documents"]["pdf"], 2);
+    assert_eq!(dashboard["productivity"]["documents"]["docx"], 1);
+    assert_eq!(dashboard["productivity"]["documents"]["email"], 0);
+    assert_eq!(
+        dashboard["productivity"]["time_saved_minutes"],
+        3 * 5 + 3 * 10
+    );
+
+    // Fields the mobile app already parses keep their name and meaning.
+    assert_eq!(dashboard["cases_total"], 8);
+    assert_eq!(dashboard["cases_this_month"], 3);
+    assert_eq!(dashboard["cases_without_plan"], 5);
+    assert_eq!(dashboard["unsigned_cases"], 3);
+    assert_eq!(dashboard["pending_disbursement_cases"], 4);
+    assert_eq!(dashboard["disbursed_cases"], 4);
+    assert_eq!(dashboard["disbursed_this_month"], 2);
+    assert_eq!(dashboard["documents_total"], 5);
+    assert_eq!(dashboard["documents_this_month"], 3);
+    assert_eq!(dashboard["time_saved_minutes"], 5 * 5 + 8 * 10);
+    assert_eq!(dashboard["status_counts"]["solicitud"], 2);
+    assert_eq!(dashboard["status_counts"]["en_proceso"], 1);
+    assert_eq!(dashboard["status_counts"]["firma"], 1);
+    assert_eq!(dashboard["status_counts"]["desembolso"], 3);
+    assert_eq!(dashboard["status_counts"]["cerrado"], 1);
+    assert_eq!(dashboard["formats"]["pdf"], 3);
+    assert_eq!(dashboard["formats"]["email"], 1);
+    assert_eq!(dashboard["months"].as_array().unwrap().len(), 6);
+    assert_eq!(dashboard["recent_cases"].as_array().unwrap().len(), 5);
+    assert!(dashboard["user_stats"].is_array());
+    assert!(dashboard["prospects_pending"].is_i64());
+    assert!(dashboard["clients_this_month"].is_i64());
+
+    // Last month is complete and compares with the whole month before it.
+    let (status, last) = app.get(admin, &uri("last_month")).await;
+    assert_eq!(status, StatusCode::OK, "{last}");
+    let window = Window::from(&last["period"]);
+    assert_eq!(last["period"]["key"], "last_month");
+    assert_eq!(window.start, previous_start);
+    assert_eq!(window.end, start);
+    assert_eq!(window.effective_end, start);
+    assert_eq!(window.compare_end, window.start);
+    assert_eq!(
+        window.compare_start,
+        previous_start.checked_sub_months(Months::new(1)).unwrap()
+    );
+    assert_eq!(last["contracts"]["disbursed"]["count"], 1);
+    assert_eq!(last["contracts"]["disbursed"]["amount_minor"], 1_000_000);
+    assert_eq!(last["contracts"]["disbursed"]["previous_count"], 0);
+    assert_eq!(last["contracts"]["cases_created"]["count"], 1);
+    assert_eq!(
+        last["contracts"]["days_to_disbursement"]["average"],
+        json!(0.5)
+    );
+    assert_eq!(
+        last["contracts"]["days_to_disbursement"]["previous_average"],
+        Value::Null
+    );
+    assert_eq!(last["contracts"]["days_to_disbursement"]["sample"], 1);
+    assert_eq!(last["insurance"]["policies_new"], 1);
+    assert_eq!(last["insurance"]["policies_new_previous"], 0);
+    assert_eq!(last["productivity"]["documents"]["total"], 1);
+    assert_eq!(last["productivity"]["documents"]["email"], 1);
+    assert_insurance(&last["insurance"], &window, &dues, &carriers);
+    // The snapshot does not depend on the period.
+    assert_eq!(
+        last["contracts"]["in_process"],
+        dashboard["contracts"]["in_process"]
+    );
+    assert_eq!(last["attention"], dashboard["attention"]);
+
+    for (key, months_in_period) in [("quarter", 3u32), ("year", 12)] {
+        let (status, body) = app.get(admin, &uri(key)).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let window = Window::from(&body["period"]);
+        let first_month = if key == "year" {
+            1
+        } else {
+            (today.format("%m").to_string().parse::<u32>().unwrap() - 1) / 3 * 3 + 1
+        };
+        let expected_start = NaiveDate::from_ymd_opt(
+            today.format("%Y").to_string().parse().unwrap(),
+            first_month,
+            1,
+        )
+        .unwrap();
+        assert_eq!(window.start, expected_start);
+        assert_eq!(
+            window.end,
+            expected_start
+                .checked_add_months(Months::new(months_in_period))
+                .unwrap()
+        );
+        assert_eq!(
+            window.compare_start,
+            expected_start
+                .checked_sub_months(Months::new(months_in_period))
+                .unwrap()
+        );
+        assert!(window.compare_end <= window.start);
+        assert_eq!(
+            window.compare_end,
+            (window.compare_start + (window.effective_end - window.start)).min(window.start)
+        );
+        assert_insurance(&body["insurance"], &window, &dues, &carriers);
+    }
+
+    let (status, invalid) = app.get(admin, &uri("week")).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{invalid}");
+    assert_eq!(error_code(&invalid), "VALIDATION_ERROR");
+
+    // The neighbouring company only sees its own records.
+    let (status, foreign) = app
+        .get(admin, &format!("/api/v1/dashboard?company_id={other}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{foreign}");
+    assert_eq!(foreign["period"]["key"], "month");
+    assert_eq!(foreign["contracts"]["in_process"]["count"], 1);
+    assert_eq!(foreign["contracts"]["in_process"]["amount_minor"], 999_000);
+    assert_eq!(foreign["contracts"]["disbursed"]["count"], 0);
+    assert_eq!(foreign["attention"]["overdue_dues"]["count"], 1);
+    assert_eq!(foreign["attention"]["overdue_dues"]["amount_minor"], 7_777);
+    assert_eq!(foreign["insurance"]["policies_total"], 1);
+    assert_eq!(foreign["stalled_cases"]["count"], 1);
+    assert_eq!(foreign["productivity"]["documents"]["total"], 1);
+    assert_eq!(
+        foreign["insurance"]["by_carrier"].as_array().unwrap().len(),
+        1
+    );
+
+    // Membership is checked before any query, whatever the period.
+    let stranger = app.pending_user().await;
+    let (status, denied) = app.get(stranger, &uri("year")).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{denied}");
+}
+
+#[tokio::test]
+async fn workspace_dashboard_without_data_returns_empty_sections_and_four_aging_buckets() {
+    let app = TestApp::start().await;
+    let admin = app.superadmin().await;
+    let company = app.legacy_company(admin, "Dashboard Vacio SRL").await;
+    let (status, dashboard) = app
+        .get(admin, &format!("/api/v1/dashboard?company_id={company}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{dashboard}");
+    assert_eq!(dashboard["period"]["key"], "month");
+    assert_eq!(dashboard["trend"].as_array().unwrap().len(), 12);
+    assert_eq!(dashboard["insurance"]["aging"].as_array().unwrap().len(), 4);
+    assert_eq!(dashboard["insurance"]["aging"][3]["bucket"], "90+");
+    assert_eq!(dashboard["insurance"]["aging"][3]["count"], 0);
+    assert_eq!(dashboard["insurance"]["by_carrier"], json!([]));
+    assert_eq!(dashboard["insurance"]["attention_dues"], json!([]));
+    assert_eq!(dashboard["stalled_cases"], json!({"count": 0, "items": []}));
+    assert_eq!(
+        dashboard["contracts"]["days_to_disbursement"]["average"],
+        Value::Null
+    );
+    assert_eq!(dashboard["contracts"]["days_to_disbursement"]["sample"], 0);
+    assert_eq!(dashboard["contracts"]["disbursed"]["amount_minor"], 0);
+    assert_eq!(dashboard["productivity"]["time_saved_minutes"], 0);
 }
